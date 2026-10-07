@@ -6,8 +6,10 @@
  * Supports multi-department ownership (2 or more departments as owners per strategic plan).
  */
 
-$pageTitle = 'Annual Strategy Plan';
-require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/permissions.php';
+require_once __DIR__ . '/../includes/csrf.php';
 
 // Check edit permissions for master strategy goals
 $canEditStrategy = Permissions::isSuperAdmin() || Permissions::isGM() || Permissions::isITAdmin();
@@ -152,6 +154,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+$pageTitle = 'Annual Strategy Plan';
+require_once __DIR__ . '/../includes/header.php';
 
 // Filter inputs
 $selectedYear = $_GET['year'] ?? app_config('current_planning_year', '2019 E.C.');

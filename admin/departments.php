@@ -4,8 +4,10 @@
  * Kaldis Coffee PLC
  */
 
-$pageTitle = 'Department Management';
-require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/permissions.php';
+require_once __DIR__ . '/../includes/csrf.php';
 
 Permissions::requireRole([Permissions::ROLE_SUPER_ADMIN, Permissions::ROLE_IT_ADMIN]);
 
@@ -82,6 +84,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+$pageTitle = 'Department Management';
+require_once __DIR__ . '/../includes/header.php';
 
 // Fetch all departments
 $deptsStmt = $db->query("

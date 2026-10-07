@@ -4,8 +4,10 @@
  * Kaldis Coffee PLC
  */
 
-$pageTitle = 'Monthly Department Plans';
-require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/permissions.php';
+require_once __DIR__ . '/../includes/csrf.php';
 
 $user = Auth::user();
 $db = Database::getConnection();
@@ -24,7 +26,7 @@ if (!$deptId) {
 }
 
 $selectedYear = $_GET['year'] ?? app_config('current_planning_year', '2019 E.C.');
-$selectedMonth = $_GET['month'] ?? app_config('current_planning_month', 'Nehase');
+$selectedMonth = $_GET['month'] ?? app_config('current_planning_month', 'Meskerem');
 $selectedType = strtoupper(trim($_GET['type'] ?? 'ALL'));
 
 // Handle Form Submissions (Create / Edit Monthly Plan)
@@ -118,6 +120,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+$pageTitle = 'Monthly Department Plans';
+require_once __DIR__ . '/../includes/header.php';
 
 // Fetch Active Annual Goals for Strategy Plan Selection (Multi-Department Ownership)
 $activeGoalsStmt = $db->prepare("

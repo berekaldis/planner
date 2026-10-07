@@ -4,8 +4,10 @@
  * Kaldis Coffee PLC
  */
 
-$pageTitle = 'Weekly Department Plans';
-require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/permissions.php';
+require_once __DIR__ . '/../includes/csrf.php';
 
 $user = Auth::user();
 $db = Database::getConnection();
@@ -24,7 +26,7 @@ if (!$deptId) {
 }
 
 $selectedYear = $_GET['year'] ?? app_config('current_planning_year', '2019 E.C.');
-$selectedMonth = $_GET['month'] ?? app_config('current_planning_month', 'Nehase');
+$selectedMonth = $_GET['month'] ?? app_config('current_planning_month', 'Meskerem');
 $selectedWeek = !empty($_GET['week']) ? (int)$_GET['week'] : 1;
 
 // Handle Form Submissions (Create / Delete Task)
@@ -122,6 +124,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+$pageTitle = 'Weekly Department Plans';
+require_once __DIR__ . '/../includes/header.php';
 
 // Fetch available monthly plans for this department & period (to assign tasks to)
 $availablePlansStmt = $db->prepare("
