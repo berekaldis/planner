@@ -1,0 +1,15 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Prevent direct access to hidden files and internal folders
+    RewriteRule ^(\.env|\.git|app|bootstrap|config|database|resources|routes|storage|tests|vendor) - [F,L,NC]
+
+    # Serve real files and directories directly
+    RewriteCond "%{REQUEST_FILENAME}" -f [OR]
+    RewriteCond "%{REQUEST_FILENAME}" -d
+    RewriteRule ^ - [L]
+
+    # Direct non-file/directory requests to public directory
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>

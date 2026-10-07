@@ -1,0 +1,14 @@
+/vendor/
+/node_modules/
+.env
+install.lock
+/storage/*.key
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/logs/*
+/logs/*
+/scratch/
+*.log
+.DS_Store
+Thumbs.db
