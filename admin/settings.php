@@ -86,6 +86,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         redirect('/admin/settings.php');
+    } elseif ($action === 'save_permissions') {
+        $submittedPerms = $_POST['permissions'] ?? [];
+        $val = json_encode($submittedPerms);
+        $updStmt = $db->prepare("
+            INSERT INTO system_settings (setting_key, setting_value, updated_by, updated_at)
+            VALUES ('custom_role_permissions', ?, ?, NOW())
+            ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_by = VALUES(updated_by), updated_at = NOW()
+        ");
+        $updStmt->execute([$val, $userId]);
+        audit_log($userId, 'ROLE_PERMISSIONS_UPDATED', 'settings', null, null, ['permissions_count' => count($submittedPerms)]);
+        set_flash('success', 'Role permissions matrix updated successfully.');
+        redirect('/admin/settings.php#permissions');
+    } elseif ($action === 'reset_permissions') {
+        $updStmt = $db->prepare("
+            INSERT INTO system_settings (setting_key, setting_value, updated_by, updated_at)
+            VALUES ('custom_role_permissions', '', ?, NOW())
+            ON DUPLICATE KEY UPDATE setting_value = '', updated_by = VALUES(updated_by), updated_at = NOW()
+        ");
+        $updStmt->execute([$userId]);
+        audit_log($userId, 'ROLE_PERMISSIONS_RESET', 'settings', null, null, []);
+        set_flash('success', 'Role permissions restored to system defaults.');
+        redirect('/admin/settings.php#permissions');
     }
 }
 
@@ -222,6 +244,23 @@ $permissionMatrix = [
         ],
     ],
 ];
+
+// Overlay saved custom role permissions if configured by Admin
+$customPermsRaw = $settingsRows['custom_role_permissions'] ?? null;
+$customPerms = !empty($customPermsRaw) ? json_decode($customPermsRaw, true) : null;
+if (is_array($customPerms)) {
+    foreach ($permissionMatrix as $cat => &$perms) {
+        foreach ($perms as $pName => &$pData) {
+            $pKey = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '_', $pName), '_'));
+            foreach (['super_admin', 'gm_management', 'hr', 'dept_head', 'it_admin'] as $rName) {
+                if (isset($customPerms[$rName]) && array_key_exists($pKey, $customPerms[$rName])) {
+                    $pData[$rName] = !empty($customPerms[$rName][$pKey]);
+                }
+            }
+        }
+    }
+    unset($perms, $pData);
+}
 ?>
 
 <div class="container-fluid py-2" style="max-width: 1320px; margin: 0 auto;">
@@ -484,83 +523,110 @@ $permissionMatrix = [
             <?php endforeach; ?>
         </div>
 
-        <!-- Master Permissions Matrix Table -->
-        <div class="card border-0 shadow-sm mb-4" style="background: var(--kaldis-card-bg); border-radius: 14px; overflow: hidden;">
-            <div class="card-header bg-transparent border-0 pt-4 px-4 pb-2 d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
-                <div>
-                    <h5 class="fw-bold text-dark mb-1">
-                        <i class="fas fa-list-check text-success me-2"></i> Comprehensive Permissions Matrix
-                    </h5>
-                    <p class="text-muted small mb-0">Full catalogue of 25 system capabilities mapped across all user roles.</p>
+        <!-- Master Permissions Matrix Table Form -->
+        <form method="POST" action="/admin/settings.php#permissions">
+            <?= csrf_field() ?>
+            <input type="hidden" name="action" id="permissions_action" value="save_permissions">
+            <div class="card border-0 shadow-sm mb-4" style="background: var(--kaldis-card-bg); border-radius: 14px; overflow: hidden;">
+                <div class="card-header bg-transparent border-0 pt-4 px-4 pb-3 d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
+                    <div>
+                        <h5 class="fw-bold text-dark mb-1">
+                            <i class="fas fa-list-check text-success me-2"></i> Comprehensive Permissions Matrix
+                        </h5>
+                        <p class="text-muted small mb-0">Select or unselect privileges for each user role. Click <strong>Save Permissions</strong> to store dynamic overrides.</p>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <button type="submit" onclick="document.getElementById('permissions_action').value='save_permissions'" class="btn btn-sm btn-success fw-bold px-3 py-1.5 shadow-sm">
+                            <i class="fas fa-check-double me-1"></i> Save Permissions
+                        </button>
+                        <button type="submit" onclick="document.getElementById('permissions_action').value='reset_permissions'; return confirm('Are you sure you want to restore all permissions to default system presets?');" class="btn btn-sm btn-outline-danger fw-bold px-3 py-1.5">
+                            <i class="fas fa-rotate-left me-1"></i> Reset Defaults
+                        </button>
+                    </div>
                 </div>
-                <div class="d-flex align-items-center gap-2">
-                    <span class="badge bg-success-subtle text-success py-1.5 px-2.5">
-                        <i class="fas fa-check me-1"></i> Authorized
-                    </span>
-                    <span class="badge bg-light text-muted border py-1.5 px-2.5">
-                        <i class="fas fa-minus me-1"></i> Restricted
-                    </span>
-                </div>
-            </div>
 
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0" style="font-size: 0.86rem;">
-                        <thead class="table-light text-uppercase fw-bold" style="font-size: 0.72rem; letter-spacing: 0.04em;">
-                            <tr>
-                                <th style="width: 32%; padding-left: 1.5rem;">Permission &amp; Responsibility Scope</th>
-                                <th class="text-center" style="width: 13.6%;">Super Admin</th>
-                                <th class="text-center" style="width: 13.6%;">General Manager</th>
-                                <th class="text-center" style="width: 13.6%;">HR Officer</th>
-                                <th class="text-center" style="width: 13.6%;">Dept Head</th>
-                                <th class="text-center" style="width: 13.6%; padding-right: 1.5rem;">IT Admin</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($permissionMatrix as $category => $permissions): ?>
-                                <tr style="background: rgba(0,0,0,0.025);">
-                                    <td colspan="6" class="fw-bold text-dark py-2.5" style="padding-left: 1.5rem; font-size: 0.8rem; letter-spacing: 0.02em;">
-                                        <i class="fas fa-folder-open text-primary me-2"></i> <?= strtoupper($category) ?>
-                                    </td>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" style="font-size: 0.86rem;">
+                            <thead class="table-light text-uppercase fw-bold" style="font-size: 0.72rem; letter-spacing: 0.04em;">
+                                <tr>
+                                    <th style="width: 35%; padding-left: 1.5rem;">Permission &amp; Responsibility Scope</th>
+                                    <th class="text-center" style="width: 13%;">
+                                        <div>Super Admin</div>
+                                        <div class="mt-1"><span class="badge bg-danger-subtle text-danger" style="font-size:0.65rem;">Enterprise</span></div>
+                                    </th>
+                                    <th class="text-center" style="width: 13%;">
+                                        <div>General Manager</div>
+                                        <div class="mt-1"><span class="badge bg-warning-subtle text-warning-emphasis" style="font-size:0.65rem;">Executive</span></div>
+                                    </th>
+                                    <th class="text-center" style="width: 13%;">
+                                        <div>HR Officer</div>
+                                        <div class="mt-1"><span class="badge bg-primary-subtle text-primary" style="font-size:0.65rem;">Compliance</span></div>
+                                    </th>
+                                    <th class="text-center" style="width: 13%;">
+                                        <div>Dept Head</div>
+                                        <div class="mt-1"><span class="badge bg-success-subtle text-success" style="font-size:0.65rem;">Dept Only</span></div>
+                                    </th>
+                                    <th class="text-center" style="width: 13%; padding-right: 1.5rem;">
+                                        <div>IT Admin</div>
+                                        <div class="mt-1"><span class="badge bg-secondary-subtle text-secondary" style="font-size:0.65rem;">SysAdmin</span></div>
+                                    </th>
                                 </tr>
-
-                                <?php foreach ($permissions as $permName => $data): ?>
-                                    <tr>
-                                        <td style="padding-left: 1.5rem;">
-                                            <div class="fw-bold text-dark"><?= e($permName) ?></div>
-                                            <div class="text-muted small" style="font-size: 0.76rem; line-height: 1.3;"><?= e($data['desc']) ?></div>
-                                        </td>
-                                        <td class="text-center">
-                                            <?= $data['super_admin'] ? '<span class="badge bg-success-subtle text-success py-1 px-2"><i class="fas fa-check"></i></span>' : '<span class="text-muted opacity-25">&mdash;</span>' ?>
-                                        </td>
-                                        <td class="text-center">
-                                            <?= $data['gm_management'] ? '<span class="badge bg-success-subtle text-success py-1 px-2"><i class="fas fa-check"></i></span>' : '<span class="text-muted opacity-25">&mdash;</span>' ?>
-                                        </td>
-                                        <td class="text-center">
-                                            <?= $data['hr'] ? '<span class="badge bg-success-subtle text-success py-1 px-2"><i class="fas fa-check"></i></span>' : '<span class="text-muted opacity-25">&mdash;</span>' ?>
-                                        </td>
-                                        <td class="text-center">
-                                            <?= $data['dept_head'] ? '<span class="badge bg-success-subtle text-success py-1 px-2"><i class="fas fa-check"></i></span>' : '<span class="text-muted opacity-25">&mdash;</span>' ?>
-                                        </td>
-                                        <td class="text-center" style="padding-right: 1.5rem;">
-                                            <?= $data['it_admin'] ? '<span class="badge bg-success-subtle text-success py-1 px-2"><i class="fas fa-check"></i></span>' : '<span class="text-muted opacity-25">&mdash;</span>' ?>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($permissionMatrix as $category => $permissions): ?>
+                                    <tr style="background: rgba(0,0,0,0.025);">
+                                        <td colspan="6" class="fw-bold text-dark py-2.5" style="padding-left: 1.5rem; font-size: 0.8rem; letter-spacing: 0.02em;">
+                                            <i class="fas fa-folder-open text-primary me-2"></i> <?= strtoupper($category) ?>
                                         </td>
                                     </tr>
+
+                                    <?php foreach ($permissions as $permName => $data): ?>
+                                        <?php
+                                            $pSlug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '_', $permName), '_'));
+                                        ?>
+                                        <tr>
+                                            <td style="padding-left: 1.5rem;">
+                                                <div class="fw-bold text-dark"><?= e($permName) ?></div>
+                                                <div class="text-muted small" style="font-size: 0.76rem; line-height: 1.3;"><?= e($data['desc']) ?></div>
+                                            </td>
+                                            <?php foreach (['super_admin', 'gm_management', 'hr', 'dept_head', 'it_admin'] as $roleKey): ?>
+                                                <td class="text-center">
+                                                    <div class="d-flex justify-content-center">
+                                                        <input type="hidden" name="permissions[<?= $roleKey ?>][<?= $pSlug ?>]" value="0">
+                                                        <div class="form-check form-switch m-0">
+                                                            <input class="form-check-input permission-checkbox" 
+                                                                   type="checkbox" 
+                                                                   name="permissions[<?= $roleKey ?>][<?= $pSlug ?>]" 
+                                                                   value="1" 
+                                                                   <?= !empty($data[$roleKey]) ? 'checked' : '' ?>
+                                                                   style="cursor: pointer; width: 2.1rem; height: 1.15rem;"
+                                                                   title="Toggle <?= e($permName) ?> for <?= $roleKey ?>">
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            <?php endforeach; ?>
+                                        </tr>
+                                    <?php endforeach; ?>
                                 <?php endforeach; ?>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="card-footer bg-light p-3 small text-muted d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <span>
+                        <i class="fas fa-lock text-secondary me-1"></i>
+                        Admins can select or unselect any permission per role. Custom selections are safely persisted in <code>custom_role_permissions</code>.
+                    </span>
+                    <div class="d-flex gap-2">
+                        <button type="submit" onclick="document.getElementById('permissions_action').value='save_permissions'" class="btn btn-sm btn-success fw-bold px-3 py-1.5 shadow-sm">
+                            <i class="fas fa-save me-1"></i> Save Permissions Matrix
+                        </button>
+                    </div>
                 </div>
             </div>
-            
-            <div class="card-footer bg-light p-3 small text-muted d-flex align-items-center justify-content-between flex-wrap gap-2">
-                <span>
-                    <i class="fas fa-lock text-secondary me-1"></i>
-                    All permissions are strictly enforced server-side via Permissions::requireRole() and department scoping checks.
-                </span>
-                <span class="badge bg-secondary-subtle text-secondary font-monospace">Security Standard RBAC v2.4</span>
-            </div>
-        </div>
+        </form>
     </div>
 
     <!-- ══════════════════════════════════════════════════════════════
@@ -612,7 +678,20 @@ $permissionMatrix = [
         if (btn) {
             btn.classList.add('active');
         }
+        try {
+            history.replaceState(null, null, '#' + tabName);
+        } catch(e) {}
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const hash = (window.location.hash || '').replace('#', '');
+        if (hash) {
+            const btn = document.getElementById('btn-tab-' + hash);
+            if (btn) {
+                switchSettingsTab(hash, btn);
+            }
+        }
+    });
 </script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

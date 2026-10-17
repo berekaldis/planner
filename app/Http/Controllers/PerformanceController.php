@@ -381,11 +381,14 @@ class PerformanceController extends Controller
 
     public function weeklyScorecard(Request $request)
     {
+        $user = Auth::user();
         $selectedYear = $request->query('year', kaldis_setting('current_planning_year', config('kaldis.current_planning_year')));
         $selectedMonth = $request->query('month', kaldis_setting('current_planning_month', config('kaldis.current_planning_month')));
         $selectedWeek = (int)$request->query('week', 1);
 
-        $departments = Department::where('active', 1)->orderBy('department_name')->get();
+        $departments = $user->isDeptHead()
+            ? Department::where('id', $user->department_id)->get()
+            : Department::where('active', 1)->orderBy('department_name')->get();
         $matrix = [];
 
         foreach ($departments as $dept) {
@@ -428,10 +431,13 @@ class PerformanceController extends Controller
 
     public function monthlyScorecard(Request $request)
     {
+        $user = Auth::user();
         $selectedYear = $request->query('year', kaldis_setting('current_planning_year', config('kaldis.current_planning_year')));
         $selectedMonth = $request->query('month', kaldis_setting('current_planning_month', config('kaldis.current_planning_month')));
 
-        $departments = Department::where('active', 1)->orderBy('department_name')->get();
+        $departments = $user->isDeptHead()
+            ? Department::where('id', $user->department_id)->get()
+            : Department::where('active', 1)->orderBy('department_name')->get();
         $monthlyData = [];
 
         foreach ($departments as $dept) {
@@ -472,6 +478,7 @@ class PerformanceController extends Controller
 
     public function notDoneAnalysis(Request $request)
     {
+        $user = Auth::user();
         $selectedYear = $request->query('year', kaldis_setting('current_planning_year', config('kaldis.current_planning_year')));
         $selectedMonth = $request->query('month', kaldis_setting('current_planning_month', config('kaldis.current_planning_month')));
         $categoryId = $request->query('category_id');
@@ -483,6 +490,10 @@ class PerformanceController extends Controller
             ->where('wt.year', $selectedYear)
             ->where('wt.month', $selectedMonth)
             ->where('wtr.result', 'NOT_DONE');
+
+        if ($user->isDeptHead()) {
+            $query->where('wt.department_id', $user->department_id);
+        }
 
         if ($categoryId) {
             $query->where('wtr.not_done_reason_id', $categoryId);
@@ -508,28 +519,38 @@ class PerformanceController extends Controller
 
     public function achievementsFeed(Request $request)
     {
+        $user = Auth::user();
         $selectedYear = $request->query('year', kaldis_setting('current_planning_year', config('kaldis.current_planning_year')));
         $selectedMonth = $request->query('month', kaldis_setting('current_planning_month', config('kaldis.current_planning_month')));
 
-        $achievements = WeeklyAchievement::with('department')
+        $query = WeeklyAchievement::with('department')
             ->where('year', $selectedYear)
-            ->where('month', $selectedMonth)
-            ->orderByDesc('id')
-            ->get();
+            ->where('month', $selectedMonth);
+
+        if ($user->isDeptHead()) {
+            $query->where('department_id', $user->department_id);
+        }
+
+        $achievements = $query->orderByDesc('id')->get();
 
         return view('performance.achievements', compact('achievements', 'selectedYear', 'selectedMonth'));
     }
 
     public function challengesFeed(Request $request)
     {
+        $user = Auth::user();
         $selectedYear = $request->query('year', kaldis_setting('current_planning_year', config('kaldis.current_planning_year')));
         $selectedMonth = $request->query('month', kaldis_setting('current_planning_month', config('kaldis.current_planning_month')));
 
-        $challenges = WeeklyChallenge::with('department')
+        $query = WeeklyChallenge::with('department')
             ->where('year', $selectedYear)
-            ->where('month', $selectedMonth)
-            ->orderByDesc('id')
-            ->get();
+            ->where('month', $selectedMonth);
+
+        if ($user->isDeptHead()) {
+            $query->where('department_id', $user->department_id);
+        }
+
+        $challenges = $query->orderByDesc('id')->get();
 
         return view('performance.challenges', compact('challenges', 'selectedYear', 'selectedMonth'));
     }

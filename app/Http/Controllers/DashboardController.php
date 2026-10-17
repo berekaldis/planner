@@ -107,6 +107,9 @@ class DashboardController extends Controller
             ->limit(6)
             ->get();
 
+        $generalManager = \App\Models\User::whereHas('role', fn($r) => $r->whereIn('name', ['gm_management', 'gm']))->first();
+        $departments = Department::where('active', 1)->with('head')->orderBy('id')->get();
+
         return view('overview', compact(
             'user',
             'period',
@@ -134,12 +137,19 @@ class DashboardController extends Controller
             'allMonthlyPlansCount',
             'submittedMonthlyPackagesCount',
             'submittedWeeklyReportsCount',
-            'recentActivities'
+            'recentActivities',
+            'generalManager',
+            'departments'
         ));
     }
 
     public function gm(Request $request)
     {
+        $user = Auth::user();
+        if ($user->isDeptHead()) {
+            return redirect()->route('dashboard.department');
+        }
+
         $selectedYear = $request->query('year', kaldis_setting('current_planning_year', config('kaldis.current_planning_year')));
         $selectedMonth = $request->query('month', kaldis_setting('current_planning_month', config('kaldis.current_planning_month')));
 

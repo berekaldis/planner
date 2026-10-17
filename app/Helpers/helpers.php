@@ -442,14 +442,22 @@ if (!function_exists('notify_gm_submission')) {
                 $telegramText = "<b>" . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "</b>\n\n"
                     . htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
 
+                $replyMarkup = null;
                 if ($voucherUrl) {
-                    $cleanVoucherUrl = htmlspecialchars($voucherUrl, ENT_QUOTES, 'UTF-8');
+                    $cleanVoucherUrl = trim($voucherUrl);
                     $telegramText .= "\n\n📄 <a href=\"{$cleanVoucherUrl}\"><b>View Official Voucher</b></a>\n🔗 {$cleanVoucherUrl}";
+                    $replyMarkup = [
+                        'inline_keyboard' => [
+                            [
+                                ['text' => '📄 View Official Voucher', 'url' => $cleanVoucherUrl]
+                            ]
+                        ]
+                    ];
                 }
                 $telegramText .= "\n\n📅 <i>" . format_ethiopian_datetime() . "</i>";
 
                 foreach ($chatIds as $cid) {
-                    $telegram->sendMessage($cid, $telegramText);
+                    $telegram->sendMessage($cid, $telegramText, $replyMarkup);
                 }
             }
         } catch (\Throwable $e) {
@@ -485,13 +493,21 @@ if (!function_exists('notify_department_head')) {
                 $telegramText = "<b>" . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "</b>\n\n"
                     . $message;
 
+                $replyMarkup = null;
                 if ($url) {
-                    $cleanUrl = htmlspecialchars($url, ENT_QUOTES, 'UTF-8');
+                    $cleanUrl = trim($url);
                     $telegramText .= "\n\n📄 <a href=\"{$cleanUrl}\"><b>View Official Voucher / Portal</b></a>\n🔗 {$cleanUrl}";
+                    $replyMarkup = [
+                        'inline_keyboard' => [
+                            [
+                                ['text' => '📄 View Official Voucher', 'url' => $cleanUrl]
+                            ]
+                        ]
+                    ];
                 }
                 $telegramText .= "\n\n📅 <i>" . format_ethiopian_datetime() . "</i>";
 
-                $telegram->sendMessage($head->telegram_chat_id, $telegramText);
+                $telegram->sendMessage($head->telegram_chat_id, $telegramText, $replyMarkup);
             }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error("notify_department_head error: " . $e->getMessage());

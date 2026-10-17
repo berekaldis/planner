@@ -13,6 +13,7 @@ class StrategyController extends Controller
 {
     public function annualGoals(Request $request)
     {
+        $user = Auth::user();
         $selectedYear = $request->query('year', kaldis_setting('current_planning_year', config('kaldis.current_planning_year')));
         $perspective = $request->query('perspective');
         $departmentId = $request->query('department_id');
@@ -24,14 +25,24 @@ class StrategyController extends Controller
             $query->where('perspective', $perspective);
         }
 
-        if ($departmentId) {
-            $query->whereHas('departments', function ($q) use ($departmentId) {
-                $q->where('departments.id', $departmentId);
+        if ($user->isDeptHead()) {
+            $userDeptId = $user->department_id;
+            $departmentId = $userDeptId;
+            $query->where(function ($q) use ($userDeptId) {
+                $q->whereDoesntHave('departments')
+                  ->orWhereHas('departments', fn($sub) => $sub->where('departments.id', $userDeptId));
             });
+            $departments = Department::where('id', $userDeptId)->get();
+        } else {
+            if ($departmentId) {
+                $query->whereHas('departments', function ($q) use ($departmentId) {
+                    $q->where('departments.id', $departmentId);
+                });
+            }
+            $departments = Department::where('active', 1)->orderBy('department_name')->get();
         }
 
         $goals = $query->orderBy('goal_code')->get();
-        $departments = Department::where('active', 1)->orderBy('department_name')->get();
 
         $perspectives = AnnualGoal::where('year', $selectedYear)
             ->distinct()

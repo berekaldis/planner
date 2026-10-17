@@ -596,7 +596,7 @@ if (!function_exists('get_greeting')) {
 }
 
 if (!function_exists('send_telegram_notification')) {
-    function send_telegram_notification(string|int $chatId, string $message): bool {
+    function send_telegram_notification(string|int $chatId, string $message, ?array $replyMarkup = null): bool {
         try {
             $token = '';
             try {
@@ -627,15 +627,20 @@ if (!function_exists('send_telegram_notification')) {
             }
 
             $url = "https://api.telegram.org/bot{$token}/sendMessage";
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
+            $postData = [
                 'chat_id' => $chatId,
                 'text' => $message,
                 'parse_mode' => 'HTML',
                 'disable_web_page_preview' => true,
-            ]));
+            ];
+            if (!empty($replyMarkup)) {
+                $postData['reply_markup'] = json_encode($replyMarkup);
+            }
+
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_TIMEOUT, 12);
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
@@ -745,14 +750,22 @@ if (!function_exists('notify_gm_submission')) {
             if (!empty($chatIdsToNotify)) {
                 $telegramMsg = "<b>" . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "</b>\n\n"
                              . htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+                $replyMarkup = null;
                 if ($voucherUrl) {
-                    $cleanVoucherUrl = htmlspecialchars($voucherUrl, ENT_QUOTES, 'UTF-8');
+                    $cleanVoucherUrl = trim($voucherUrl);
                     $telegramMsg .= "\n\n📄 <a href=\"{$cleanVoucherUrl}\"><b>View Official Voucher</b></a>\n🔗 {$cleanVoucherUrl}";
+                    $replyMarkup = [
+                        'inline_keyboard' => [
+                            [
+                                ['text' => '📄 View Official Voucher', 'url' => $cleanVoucherUrl]
+                            ]
+                        ]
+                    ];
                 }
                 $telegramMsg .= "\n\n📅 <i>" . (function_exists('format_ethiopian_datetime') ? format_ethiopian_datetime() : date('Y-m-d H:i')) . "</i>";
 
                 foreach ($chatIdsToNotify as $chatId) {
-                    send_telegram_notification($chatId, $telegramMsg);
+                    send_telegram_notification($chatId, $telegramMsg, $replyMarkup);
                 }
             }
         } catch (\Throwable $e) {
@@ -798,12 +811,20 @@ if (!function_exists('notify_department_head')) {
             // 2. Telegram alert
             if (!empty($head['telegram_chat_id'])) {
                 $telegramText = "<b>" . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "</b>\n\n" . $message;
+                $replyMarkup = null;
                 if ($url) {
-                    $cleanUrl = htmlspecialchars($url, ENT_QUOTES, 'UTF-8');
+                    $cleanUrl = trim($url);
                     $telegramText .= "\n\n📄 <a href=\"{$cleanUrl}\"><b>View Official Voucher / Portal</b></a>\n🔗 {$cleanUrl}";
+                    $replyMarkup = [
+                        'inline_keyboard' => [
+                            [
+                                ['text' => '📄 View Official Voucher', 'url' => $cleanUrl]
+                            ]
+                        ]
+                    ];
                 }
                 $telegramText .= "\n\n📅 <i>" . (function_exists('format_ethiopian_datetime') ? format_ethiopian_datetime() : date('Y-m-d H:i')) . "</i>";
-                send_telegram_notification(trim($head['telegram_chat_id']), $telegramText);
+                send_telegram_notification(trim($head['telegram_chat_id']), $telegramText, $replyMarkup);
             }
         } catch (\Throwable $e) {
             error_log("notify_department_head error: " . $e->getMessage());

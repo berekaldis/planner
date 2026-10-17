@@ -1,6 +1,6 @@
 <?php
 /**
- * System Overview & Smart Launchpad
+ * Corporate Overview & Organizational Structure
  * Kaldis Coffee PLC
  */
 
@@ -11,596 +11,310 @@ require_once __DIR__ . '/includes/permissions.php';
 Auth::requireLogin();
 
 $currentUser = Auth::user();
-$pageTitle   = 'Overview';
+$pageTitle   = 'Corporate Overview';
 $period      = get_ethiopian_period();
 $year        = app_config('current_planning_year', $period['year'] . ' E.C.');
 $month       = app_config('current_planning_month', $period['month']);
 $week        = (int)($period['week'] ?? 1);
 
-// Ethiopian Calendar & Deadlines
-$ethToday            = gregorian_to_ethiopian_date((int)date('Y'), (int)date('n'), (int)date('j'));
-$currentEthDay       = (int)($ethToday['day'] ?? 1);
-$monthlyDeadlineDay  = (int)app_config('monthly_plan_deadline_day', 26);
-$monthlyDeadlineTime = app_config('monthly_plan_deadline_time', '17:00');
-$weeklyDeadlineDay   = app_config('weekly_deadline_day', 'Monday');
-$weeklyDeadlineTime  = app_config('weekly_deadline_time', '12:00');
-$monthlyDaysLeft     = max(0, $monthlyDeadlineDay - $currentEthDay);
+$db = Database::getConnection();
 
-// Smart snapshot stats
-$userDeptId = $currentUser['department_id'] ?? null;
-$stats = [
-    'deptTasks' => 0,
-    'deptDone' => 0,
-    'deptMonthlyPlans' => 0,
-    'submissionStatus' => 'DRAFT',
-    'monthlySubmitted' => false,
-    'totDepts' => 0,
-    'totGoals' => 0,
-];
+// Fetch General Manager
+$gmUser = $db->query("
+    SELECT u.*, r.display_name as role_title 
+    FROM users u 
+    JOIN roles r ON u.role_id = r.id 
+    WHERE r.name IN ('gm_management', 'gm') 
+    LIMIT 1
+")->fetch(PDO::FETCH_ASSOC);
 
-try {
-    $db = Database::getConnection();
-    if ($userDeptId && (Permissions::isDeptHead() || Permissions::canViewAllDepartments())) {
-        $taskQ = $db->prepare("
-            SELECT COUNT(wt.id) as tot,
-                   SUM(CASE WHEN wtr.result = 'DONE' THEN 1 ELSE 0 END) as done
-            FROM weekly_tasks wt
-            LEFT JOIN weekly_task_results wtr ON wt.id = wtr.weekly_task_id
-            WHERE wt.department_id = ? AND wt.year = ? AND wt.month = ? AND wt.week_number = ?
-        ");
-        $taskQ->execute([$userDeptId, $year, $month, $week]);
-        $tRow = $taskQ->fetch();
-        $stats['deptTasks'] = (int)($tRow['tot'] ?? 0);
-        $stats['deptDone']  = (int)($tRow['done'] ?? 0);
-
-        $mQ = $db->prepare("SELECT COUNT(*) FROM monthly_plans WHERE department_id = ? AND year = ? AND month = ?");
-        $mQ->execute([$userDeptId, $year, $month]);
-        $stats['deptMonthlyPlans'] = (int)$mQ->fetchColumn();
-
-        $subQ = $db->prepare("SELECT status, submission_status FROM weekly_reports WHERE department_id = ? AND year = ? AND month = ? AND week_number = ?");
-        $subQ->execute([$userDeptId, $year, $month, $week]);
-        $subRow = $subQ->fetch();
-        if ($subRow && $subRow['status'] === 'SUBMITTED') {
-            $stats['submissionStatus'] = $subRow['submission_status'] ?? 'ON_TIME';
-        }
-
-        $mSubQ = $db->prepare("SELECT status FROM monthly_submissions WHERE department_id = ? AND year = ? AND month = ?");
-        $mSubQ->execute([$userDeptId, $year, $month]);
-        $mSubRow = $mSubQ->fetch();
-        if ($mSubRow && $mSubRow['status'] === 'SUBMITTED') {
-            $stats['monthlySubmitted'] = true;
-        }
-    }
-    
-    $stats['totDepts'] = (int)$db->query("SELECT COUNT(*) FROM departments WHERE active = 1")->fetchColumn();
-    $stats['totGoals'] = (int)$db->query("SELECT COUNT(*) FROM annual_goals WHERE status = 'ACTIVE' OR status IS NULL")->fetchColumn();
-} catch (Exception $e) {
-    // Graceful fallback with zeroed defaults
-}
-
-$completionPct = $stats['deptTasks'] > 0 ? round(($stats['deptDone'] / $stats['deptTasks']) * 100) : 0;
+// Fetch all 13 active departments with their heads
+$deptRows = $db->query("
+    SELECT d.*, u.full_name as head_name, u.email as head_email 
+    FROM departments d 
+    LEFT JOIN users u ON d.head_user_id = u.id 
+    WHERE d.active = 1 
+    ORDER BY d.id
+")->fetchAll(PDO::FETCH_ASSOC);
 
 require_once __DIR__ . '/includes/header.php';
 ?>
 
-<div class="container-fluid py-3" style="max-width: 1280px; margin: 0 auto;">
+<style>
+    /* ── Floating & Transition Animation for Overview Logo ── */
+    @keyframes kaldisLogoFloat {
+        0% {
+            transform: translateY(0px) rotate(0deg);
+            box-shadow: 0 10px 25px -4px rgba(217, 119, 6, 0.28), 0 6px 12px -4px rgba(0, 0, 0, 0.08);
+        }
+        50% {
+            transform: translateY(-12px) rotate(0.8deg);
+            box-shadow: 0 24px 38px -6px rgba(217, 119, 6, 0.38), 0 12px 18px -4px rgba(0, 0, 0, 0.12);
+        }
+        100% {
+            transform: translateY(0px) rotate(0deg);
+            box-shadow: 0 10px 25px -4px rgba(217, 119, 6, 0.28), 0 6px 12px -4px rgba(0, 0, 0, 0.08);
+        }
+    }
 
-    <!-- ── Smart Hero Section ── -->
-    <div class="overview-hero-wrapper text-center animate-fade-up">
-        
-        <!-- Live Calendar & Ethiopian Time Window Pills -->
-        <div class="d-inline-flex align-items-center gap-2 mb-3 flex-wrap justify-content-center">
-            <span class="status-pill status-done shadow-xs">
-                <span class="status-dot dot-done status-dot-pulse"></span>
-                <span>Active Planning Cycle</span>
-            </span>
-            <span class="badge period-badge shadow-xs">
-                <i class="far fa-calendar-alt text-warning me-1"></i>
-                <?= e($period['month']) ?> <?= e($period['year']) ?> &bull; Week <?= (int)$period['week'] ?>
-            </span>
-            <span class="badge period-badge shadow-xs" title="Ethiopian Time (East Africa Time)">
-                <i class="far fa-clock text-warning me-1"></i>
-                <?= format_ethiopian_time() ?>
-            </span>
-        </div>
+    .kaldis-floating-logo-wrap {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 14px;
+        border-radius: 50%;
+        background: #ffffff;
+        border: 3.5px solid rgba(217, 119, 6, 0.35);
+        animation: kaldisLogoFloat 4.2s ease-in-out infinite;
+        transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.3s ease, box-shadow 0.3s ease;
+        cursor: pointer;
+    }
 
-        <h1 class="overview-greeting-title mb-2">
-            <?= get_greeting() ?>, <?= e(explode(' ', $currentUser['full_name'] ?? 'Colleague')[0]) ?>!
-        </h1>
-        <p class="overview-subtitle mb-4">
-            Kaldis Coffee Strategic Planning &amp; Execution Command Center
-        </p>
+    .kaldis-floating-logo-wrap:hover {
+        transform: scale(1.1) translateY(-14px);
+        border-color: #d97706;
+        box-shadow: 0 28px 45px -8px rgba(217, 119, 6, 0.45);
+    }
 
-        <!-- Brand Identity Orb -->
-        <div class="overview-image-container mb-4">
-            <img src="<?= url('/assets/images/logo.png') ?>" alt="Kaldis Coffee" class="overview-coffee-img">
-        </div>
+    .kaldis-overview-logo {
+        width: 120px;
+        height: 120px;
+        object-fit: contain;
+        transition: transform 0.35s ease;
+    }
 
-        <!-- User Role & Department Capsules -->
-        <div class="d-flex align-items-center justify-content-center gap-2 flex-wrap mb-2">
-            <span class="badge py-2 px-3 shadow-xs d-inline-flex align-items-center gap-1.5" 
-                  style="background: var(--k-gold-soft); color: var(--k-gold); border: 1px solid rgba(245,158,11,.3); font-size: 0.82rem; border-radius: 9999px;">
-                <i class="fas fa-shield-halved"></i>
-                <span><?= e($currentUser['role_display_name'] ?? 'Staff') ?></span>
-            </span>
-            <span class="badge py-2 px-3 shadow-xs d-inline-flex align-items-center gap-1.5" 
-                  style="background: var(--kaldis-card-bg); color: var(--kaldis-text-secondary); border: 1px solid var(--kaldis-border); font-size: 0.82rem; border-radius: 9999px;">
-                <i class="fas fa-building text-secondary"></i>
-                <span><?= e($currentUser['department_name'] ?? 'Corporate Office') ?></span>
-            </span>
+    .kaldis-floating-logo-wrap:hover .kaldis-overview-logo {
+        transform: rotate(-3deg) scale(1.04);
+    }
+
+    /* ── Org Tree Hierarchy Connections ── */
+    .org-tree-stem {
+        width: 3px;
+        height: 38px;
+        background: linear-gradient(180deg, #d97706 0%, rgba(217, 119, 6, 0.4) 100%);
+        margin: 0 auto;
+    }
+
+    .org-tree-hub {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #d97706;
+        border: 3px solid #ffffff;
+        box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.3);
+        margin: 0 auto;
+    }
+
+    .dept-card {
+        transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, border-color 0.22s ease;
+        background: var(--kaldis-card-bg);
+        border: 1.5px solid rgba(0, 0, 0, 0.06) !important;
+        border-radius: 14px;
+    }
+
+    .dept-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 16px 30px -10px rgba(0, 0, 0, 0.12) !important;
+        border-color: rgba(217, 119, 6, 0.4) !important;
+    }
+</style>
+
+<div class="container-fluid py-2" style="max-width: 1320px; margin: 0 auto;">
+
+    <!-- ══════════════════════════════════════════════════════════════
+         1. SMART HERO WELCOME SECTION (WITH ENLARGED FLOATING LOGO)
+    ══════════════════════════════════════════════════════════════ -->
+    <div class="card border-0 shadow-sm mb-5 overflow-hidden" style="background: var(--kaldis-card-bg); border-radius: 18px;">
+        <div class="card-body p-4 p-md-5 text-center position-relative">
+            <!-- Decorative Subtle Accent Glows -->
+            <div style="position: absolute; top: -60px; right: -60px; width: 200px; height: 200px; background: radial-gradient(circle, rgba(217,119,6,0.14) 0%, transparent 70%); border-radius: 50%; pointer-events: none;"></div>
+            <div style="position: absolute; bottom: -60px; left: -60px; width: 200px; height: 200px; background: radial-gradient(circle, rgba(37,99,235,0.09) 0%, transparent 70%); border-radius: 50%; pointer-events: none;"></div>
+
+            <!-- Live Calendar & Ethiopian Time Window Pills -->
+            <div class="d-inline-flex align-items-center gap-2 flex-wrap justify-content-center mb-4">
+                <span class="status-pill status-done shadow-xs py-1.5 px-3">
+                    <span class="status-dot dot-done status-dot-pulse"></span>
+                    <span class="fw-semibold">Active Operating Period</span>
+                </span>
+                <span class="badge period-badge shadow-xs py-2 px-3">
+                    <i class="far fa-calendar-alt text-warning me-1"></i>
+                    <?= e($period['month']) ?> <?= e($period['year']) ?> &bull; Week <?= e($week) ?>
+                </span>
+                <span class="badge period-badge shadow-xs py-2 px-3" title="Ethiopian Time (East Africa Time)">
+                    <i class="far fa-clock text-warning me-1"></i>
+                    <?= format_ethiopian_time() ?>
+                </span>
+            </div>
+
+            <!-- Enlarged Brand Identity Logo with Smooth Floating Transition -->
+            <div class="d-block mb-4">
+                <div class="kaldis-floating-logo-wrap" title="Kaldis Coffee PLC">
+                    <img src="<?= e(asset_url('assets/images/logo.png')) ?>" 
+                         alt="Kaldis Coffee PLC" 
+                         class="kaldis-overview-logo"
+                         onerror="this.src='<?= e(asset_url('images/logo.png')) ?>'">
+                </div>
+            </div>
+
+            <!-- Personalized Executive Greeting & Subtitle -->
+            <h1 class="fw-extrabold text-dark mb-2" style="font-size: clamp(1.8rem, 3.8vw, 2.5rem); letter-spacing: -0.025em;">
+                <?= get_greeting() ?>, <?= e(explode(' ', $currentUser['full_name'] ?? $currentUser['username'])[0]) ?>!
+            </h1>
+            <p class="text-muted mx-auto mb-4" style="max-width: 680px; font-size: 1.05rem; line-height: 1.6;">
+                Welcome to the <strong>Kaldis Coffee PLC</strong> Enterprise Planning &amp; Operational Governance Portal. Overseeing strategic execution across corporate leadership and all 13 operating departments.
+            </p>
+
+            <!-- User Role & Department Capsules -->
+            <div class="d-flex align-items-center justify-content-center gap-2 flex-wrap">
+                <span class="badge py-2 px-3 shadow-xs d-inline-flex align-items-center gap-1.5" 
+                      style="background: var(--k-gold-soft); color: var(--k-gold); border: 1px solid rgba(245,158,11,.3); font-size: 0.85rem; border-radius: 9999px;">
+                    <i class="fas fa-shield-halved"></i>
+                    <span><?= e(Auth::roleDisplayName()) ?></span>
+                </span>
+                <span class="badge py-2 px-3 shadow-xs d-inline-flex align-items-center gap-1.5" 
+                      style="background: var(--kaldis-card-bg); color: var(--kaldis-text-secondary); border: 1px solid var(--kaldis-border); font-size: 0.85rem; border-radius: 9999px;">
+                    <i class="fas fa-building text-secondary"></i>
+                    <span><?= e(Auth::userDepartmentName()) ?></span>
+                </span>
+                <?php if (!empty($currentUser['telegram_chat_id'])): ?>
+                    <span class="badge py-2 px-3 shadow-xs d-inline-flex align-items-center gap-1.5" 
+                          style="background: rgba(14,165,233,0.1); color: #0284c7; border: 1px solid rgba(14,165,233,0.3); font-size: 0.85rem; border-radius: 9999px;">
+                        <i class="fab fa-telegram"></i>
+                        <span>Telegram Linked</span>
+                    </span>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
 
-    <!-- ── Dual Corporate Deadlines Alert Strip ── -->
-    <div class="row g-3 mb-4">
-        <!-- Monthly Plan Deadline Card (Day 26 in Ethiopian Calendar) -->
-        <div class="col-lg-6">
-            <div class="card border-0 shadow-sm h-100" style="background: var(--kaldis-card-bg); border-radius: 14px; border-left: 5px solid #d97706 !important;">
-                <div class="card-body p-4 d-flex flex-column justify-content-between">
-                    <div>
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div class="d-flex align-items-center gap-2">
-                                <div class="rounded-3 p-2 d-flex align-items-center justify-content-center" style="background: rgba(217,119,6,0.12); color: #d97706; width: 42px; height: 42px;">
-                                    <i class="fas fa-calendar-check fs-5"></i>
-                                </div>
-                                <div>
-                                    <h6 class="fw-bold text-dark mb-0">Monthly Plan Submission Due Day</h6>
-                                    <small class="text-muted">Cycle: <strong><?= e($month) ?> <?= e($year) ?></strong></small>
-                                </div>
-                            </div>
-                            <span class="badge bg-warning-subtle text-warning fw-bold px-2.5 py-1.5" style="border-radius: 8px;">
-                                Day <?= $monthlyDeadlineDay ?> (<?= e($monthlyDeadlineTime) ?>)
-                            </span>
-                        </div>
+    <!-- ══════════════════════════════════════════════════════════════
+         2. COMPANY ORGANIZATIONAL STRUCTURE
+            Top: General Manager
+            Under GM: All 13 Department Heads with their names
+    ══════════════════════════════════════════════════════════════ -->
+    <div class="mb-5">
+        <!-- Section Header -->
+        <div class="text-center mb-4">
+            <span class="badge bg-warning-subtle text-warning-emphasis px-3 py-1.5 rounded-pill fw-bold text-uppercase mb-2" style="font-size: 0.76rem; letter-spacing: 0.05em;">
+                <i class="fas fa-sitemap me-1"></i> Governance Hierarchy
+            </span>
+            <h3 class="fw-bold text-dark mb-1">Company Organizational Structure</h3>
+            <p class="text-muted small mb-0">General Management executive leadership and all 13 operational department heads.</p>
+        </div>
 
-                        <p class="text-muted small mb-3">
-                            All departmental operational initiatives must be finalized and transmitted by <strong>Day <?= $monthlyDeadlineDay ?> in Ethiopian calendar (<?= e($monthlyDeadlineTime) ?>)</strong>.
+        <!-- ── Level 1: General Manager Card (Executive Pinnacle) ── -->
+        <div class="row justify-content-center mb-0">
+            <div class="col-md-8 col-lg-5">
+                <div class="card border-0 shadow text-center position-relative" 
+                     style="background: linear-gradient(135deg, #1c1917 0%, #292524 100%); color: #ffffff; border-radius: 16px; border-top: 4px solid #d97706 !important;">
+                    <div class="card-body p-4">
+                        <div class="d-inline-flex align-items-center justify-content-center mb-3 rounded-circle"
+                             style="width: 68px; height: 68px; background: rgba(217, 119, 6, 0.2); border: 2px solid #d97706; color: #fbbf24; font-size: 1.8rem;">
+                            <i class="fas fa-user-tie"></i>
+                        </div>
+                        <div class="badge bg-warning text-dark fw-bold text-uppercase px-2.5 py-1 mb-2" style="font-size: 0.72rem; letter-spacing: 0.05em;">
+                            Top Executive Leadership
+                        </div>
+                        <h4 class="fw-bold text-white mb-1" style="letter-spacing: -0.01em;">
+                            <?= e($gmUser['full_name'] ?? 'Tsedey Asrat') ?>
+                        </h4>
+                        <div class="text-warning fw-semibold small mb-2" style="letter-spacing: 0.03em;">
+                            General Manager (GM) &bull; Kaldis Coffee PLC
+                        </div>
+                        <p class="text-white-50 small mb-0" style="font-size: 0.82rem; line-height: 1.4;">
+                            Executive corporate governance, strategic direction, and operational oversight across all 13 departments.
                         </p>
-
-                        <!-- Progress toward Day 26 -->
-                        <div class="mb-3">
-                            <div class="d-flex justify-content-between small text-secondary fw-semibold mb-1">
-                                <span>Cycle Progress: Day <?= $currentEthDay ?> of 30</span>
-                                <span>
-                                    <?php if ($currentEthDay <= $monthlyDeadlineDay): ?>
-                                        <strong class="text-warning"><?= $monthlyDaysLeft ?> days remaining</strong> until Day <?= $monthlyDeadlineDay ?> cutoff
-                                    <?php else: ?>
-                                        <strong class="text-danger">Cutoff elapsed for <?= e($month) ?></strong>
-                                    <?php endif; ?>
-                                </span>
-                            </div>
-                            <div class="progress" style="height: 8px; border-radius: 9999px; background: rgba(0,0,0,0.06);">
-                                <?php $mProg = min(100, round(($currentEthDay / $monthlyDeadlineDay) * 100)); ?>
-                                <div class="progress-bar bg-warning" role="progressbar" style="width: <?= $mProg ?>%;"></div>
-                            </div>
-                        </div>
-
-                        <!-- Current Submission Status -->
-                        <div class="p-2.5 rounded-3 mb-3 d-flex align-items-center justify-content-between" style="background: rgba(0,0,0,0.02); border: 1px dashed var(--kaldis-border);">
-                            <span class="small text-muted">
-                                <i class="fas fa-info-circle me-1 text-primary"></i> 
-                                <?= e($currentUser['department_name'] ?? 'Your Department') ?> Status:
-                            </span>
-                            <?php if ($stats['monthlySubmitted']): ?>
-                                <span class="badge bg-success-subtle text-success fw-bold">
-                                    <i class="fas fa-check-circle me-1"></i> Package Submitted
-                                </span>
-                            <?php else: ?>
-                                <span class="badge bg-warning-subtle text-dark fw-bold">
-                                    <i class="fas fa-pen-to-square me-1"></i> Drafting (<?= $stats['deptMonthlyPlans'] ?> Plans Added)
-                                </span>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-
-                    <div class="d-flex gap-2 flex-wrap">
-                        <a href="<?= url('/department/monthly_plans.php') ?>" class="btn btn-sm btn-kaldis flex-grow-1">
-                            <i class="fas fa-plus me-1"></i> Add / Manage Monthly Plan
-                        </a>
-                        <?php if ($stats['monthlySubmitted']): ?>
-                            <a href="<?= url('/department/monthly_voucher.php') ?>" target="_blank" class="btn btn-sm btn-outline-secondary">
-                                <i class="fas fa-receipt me-1"></i> View Official Voucher
-                            </a>
-                        <?php endif; ?>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Weekly Reporting Deadline Card (Monday 12:00 PM) -->
-        <div class="col-lg-6">
-            <div class="card border-0 shadow-sm h-100" style="background: var(--kaldis-card-bg); border-radius: 14px; border-left: 5px solid #2563eb !important;">
-                <div class="card-body p-4 d-flex flex-column justify-content-between">
-                    <div>
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div class="d-flex align-items-center gap-2">
-                                <div class="rounded-3 p-2 d-flex align-items-center justify-content-center" style="background: rgba(37,99,235,0.12); color: #2563eb; width: 42px; height: 42px;">
-                                    <i class="fas fa-clock fs-5"></i>
+        <!-- ── Hierarchy Connector Stems ── -->
+        <div class="text-center my-0">
+            <div class="org-tree-stem"></div>
+            <div class="org-tree-hub"></div>
+            <div class="org-tree-stem"></div>
+        </div>
+
+        <!-- ── Level 2: 13 Operational Department Heads ── -->
+        <div class="card border-0 shadow-sm p-4 p-md-4" style="background: rgba(255, 255, 255, 0.6); border-radius: 18px; backdrop-filter: blur(8px); border: 1px solid rgba(0,0,0,0.05) !important;">
+            <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+                <div>
+                    <h5 class="fw-bold text-dark mb-0">
+                        <i class="fas fa-users-viewfinder text-primary me-2"></i> Operational Department Heads
+                    </h5>
+                    <small class="text-muted">13 operational business units reporting directly under General Management</small>
+                </div>
+                <span class="badge bg-light text-dark border px-3 py-1.5 fw-semibold font-monospace" style="font-size: 0.8rem;">
+                    13 Departments Active
+                </span>
+            </div>
+
+            <?php
+                $deptIcons = [
+                    'IT'   => ['icon' => 'fa-laptop-code', 'color' => '#7c3aed', 'bg' => 'rgba(124,58,237,0.1)'],
+                    'OPS'  => ['icon' => 'fa-store', 'color' => '#d97706', 'bg' => 'rgba(217,119,6,0.1)'],
+                    'MKT'  => ['icon' => 'fa-bullhorn', 'color' => '#ec4899', 'bg' => 'rgba(236,72,153,0.1)'],
+                    'SCM'  => ['icon' => 'fa-truck-fast', 'color' => '#0284c7', 'bg' => 'rgba(2,132,199,0.1)'],
+                    'HR'   => ['icon' => 'fa-users-gear', 'color' => '#2563eb', 'bg' => 'rgba(37,99,235,0.1)'],
+                    'FIN'  => ['icon' => 'fa-calculator', 'color' => '#059669', 'bg' => 'rgba(5,150,105,0.1)'],
+                    'QAR'  => ['icon' => 'fa-mug-hot', 'color' => '#b45309', 'bg' => 'rgba(180,83,9,0.1)'],
+                    'PM'   => ['icon' => 'fa-diagram-project', 'color' => '#4f46e5', 'bg' => 'rgba(79,70,229,0.1)'],
+                    'TND'  => ['icon' => 'fa-chalkboard-user', 'color' => '#0891b2', 'bg' => 'rgba(8,145,178,0.1)'],
+                    'RND'  => ['icon' => 'fa-flask', 'color' => '#9333ea', 'bg' => 'rgba(147,51,234,0.1)'],
+                    'SAFE' => ['icon' => 'fa-shield-halved', 'color' => '#16a34a', 'bg' => 'rgba(22,163,74,0.1)'],
+                    'LOG'  => ['icon' => 'fa-warehouse', 'color' => '#ea580c', 'bg' => 'rgba(234,88,12,0.1)'],
+                    'AUD'  => ['icon' => 'fa-clipboard-check', 'color' => '#475569', 'bg' => 'rgba(71,85,105,0.1)'],
+                ];
+            ?>
+
+            <div class="row g-3">
+                <?php foreach ($deptRows as $dept): ?>
+                    <?php
+                        $code = strtoupper($dept['department_code']);
+                        $meta = $deptIcons[$code] ?? ['icon' => 'fa-building', 'color' => '#64748b', 'bg' => 'rgba(100,116,139,0.1)'];
+                        $headName = !empty($dept['head_name']) ? $dept['head_name'] : 'Appointed Head';
+                    ?>
+                    <div class="col-md-6 col-lg-4 col-xl-3">
+                        <div class="card h-100 dept-card shadow-sm p-3.5 position-relative">
+                            <div class="d-flex align-items-start gap-3 mb-2">
+                                <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" 
+                                     style="width: 44px; height: 44px; background: <?= $meta['bg'] ?>; color: <?= $meta['color'] ?>; font-size: 1.15rem;">
+                                    <i class="fas <?= $meta['icon'] ?>"></i>
                                 </div>
-                                <div>
-                                    <h6 class="fw-bold text-dark mb-0">Weekly Reporting Deadline</h6>
-                                    <small class="text-muted">Cycle: <strong>Week <?= $week ?> (<?= e($month) ?> <?= e($year) ?>)</strong></small>
+                                <div class="flex-grow-1 overflow-hidden">
+                                    <div class="d-flex align-items-center justify-content-between gap-1 mb-1">
+                                        <span class="badge font-monospace text-uppercase" 
+                                              style="background: <?= $meta['bg'] ?>; color: <?= $meta['color'] ?>; font-size: 0.68rem; font-weight: 700; border: 1px solid <?= $meta['color'] ?>20;">
+                                            <?= e($dept['department_code']) ?>
+                                        </span>
+                                        <span class="badge bg-light text-muted border" style="font-size: 0.68rem;">Dept #<?= (int)$dept['id'] ?></span>
+                                    </div>
+                                    <h6 class="fw-bold text-dark mb-0 text-truncate" title="<?= e($dept['department_name']) ?>" style="font-size: 0.92rem;">
+                                        <?= e($dept['department_name']) ?>
+                                    </h6>
                                 </div>
                             </div>
-                            <span class="badge bg-primary-subtle text-primary fw-bold px-2.5 py-1.5" style="border-radius: 8px;">
-                                <?= e($weeklyDeadlineDay) ?> (<?= e($weeklyDeadlineTime) ?>)
-                            </span>
-                        </div>
 
-                        <p class="text-muted small mb-3">
-                            Weekly execution performance reports are audited every <strong><?= e($weeklyDeadlineDay) ?> at <?= e($weeklyDeadlineTime) ?></strong>.
-                        </p>
-
-                        <!-- Task Execution Overview -->
-                        <div class="mb-3">
-                            <div class="d-flex justify-content-between small text-secondary fw-semibold mb-1">
-                                <span>Week <?= $week ?> Tasks: <?= $stats['deptDone'] ?> DONE / <?= $stats['deptTasks'] ?> Scheduled</span>
-                                <span class="text-primary fw-bold"><?= $completionPct ?>% Complete</span>
-                            </div>
-                            <div class="progress" style="height: 8px; border-radius: 9999px; background: rgba(0,0,0,0.06);">
-                                <div class="progress-bar bg-primary" role="progressbar" style="width: <?= $completionPct ?>%;"></div>
+                            <!-- Department Head Detail Capsule -->
+                            <div class="mt-2 pt-2 border-top d-flex align-items-center gap-2">
+                                <div class="rounded-circle bg-light border d-flex align-items-center justify-content-center text-secondary flex-shrink-0"
+                                     style="width: 32px; height: 32px; font-size: 0.8rem;">
+                                    <i class="fas fa-user-check text-success"></i>
+                                </div>
+                                <div class="overflow-hidden">
+                                    <div class="fw-bold text-dark small text-truncate" title="<?= e($headName) ?>" style="font-size: 0.84rem;">
+                                        <?= e($headName) ?>
+                                    </div>
+                                    <div class="text-muted" style="font-size: 0.72rem; line-height: 1.2;">
+                                        Department Head
+                                    </div>
+                                </div>
                             </div>
                         </div>
-
-                        <!-- Current Submission Status -->
-                        <div class="p-2.5 rounded-3 mb-3 d-flex align-items-center justify-content-between" style="background: rgba(0,0,0,0.02); border: 1px dashed var(--kaldis-border);">
-                            <span class="small text-muted">
-                                <i class="fas fa-paper-plane me-1 text-primary"></i> Report Submission Status:
-                            </span>
-                            <?php if ($stats['submissionStatus'] === 'ON_TIME'): ?>
-                                <span class="badge bg-success-subtle text-success fw-bold">
-                                    <i class="fas fa-check-double me-1"></i> Submitted On-Time
-                                </span>
-                            <?php elseif ($stats['submissionStatus'] === 'LATE'): ?>
-                                <span class="badge bg-warning-subtle text-warning fw-bold">
-                                    <i class="fas fa-exclamation-triangle me-1"></i> Submitted Late
-                                </span>
-                            <?php else: ?>
-                                <span class="badge bg-secondary-subtle text-secondary fw-bold">
-                                    <i class="fas fa-clock me-1"></i> In Progress (Due <?= e($weeklyDeadlineDay) ?>)
-                                </span>
-                            <?php endif; ?>
-                        </div>
                     </div>
-
-                    <div class="d-flex gap-2 flex-wrap">
-                        <a href="<?= url('/department/performance.php') ?>" class="btn btn-sm btn-primary flex-grow-1">
-                            <i class="fas fa-check me-1"></i> Record Weekly Performance
-                        </a>
-                        <a href="<?= url('/department/weekly_plans.php') ?>" class="btn btn-sm btn-outline-secondary">
-                            <i class="fas fa-list-check me-1"></i> Schedule Tasks
-                        </a>
-                    </div>
-                </div>
+                <?php endforeach; ?>
             </div>
-        </div>
-    </div>
-
-    <!-- ── Smart Metrics Snapshot Strip ── -->
-    <div class="overview-stat-strip animate-fade-in mb-4">
-        <!-- Dept Tasks Metric -->
-        <div class="overview-stat-item">
-            <div class="overview-stat-item-icon" style="background: rgba(37,99,235,0.1); color: var(--k-blue);">
-                <i class="fas fa-list-check"></i>
-            </div>
-            <div>
-                <div class="overview-stat-item-label">Week <?= $week ?> Tasks</div>
-                <div class="overview-stat-item-val"><?= $stats['deptDone'] ?> / <?= $stats['deptTasks'] ?> <span class="badge bg-primary-subtle text-primary" style="font-size:0.7rem"><?= $completionPct ?>%</span></div>
-            </div>
-        </div>
-
-        <!-- Dept Monthly Plans -->
-        <div class="overview-stat-item">
-            <div class="overview-stat-item-icon" style="background: rgba(217,119,6,0.1); color: var(--k-gold);">
-                <i class="fas fa-calendar-days"></i>
-            </div>
-            <div>
-                <div class="overview-stat-item-label"><?= e($period['month']) ?> Plans</div>
-                <div class="overview-stat-item-val"><?= $stats['deptMonthlyPlans'] ?> Plans</div>
-            </div>
-        </div>
-
-        <!-- Enterprise Departments -->
-        <div class="overview-stat-item">
-            <div class="overview-stat-item-icon" style="background: rgba(16,185,129,0.1); color: var(--k-done);">
-                <i class="fas fa-sitemap"></i>
-            </div>
-            <div>
-                <div class="overview-stat-item-label">Active Departments</div>
-                <div class="overview-stat-item-val"><?= $stats['totDepts'] ?> Units</div>
-            </div>
-        </div>
-
-        <!-- Universal Goals -->
-        <div class="overview-stat-item">
-            <div class="overview-stat-item-icon" style="background: rgba(124,58,237,0.1); color: var(--k-purple);">
-                <i class="fas fa-bullseye"></i>
-            </div>
-            <div>
-                <div class="overview-stat-item-label">Strategic Goals (<?= e($period['year']) ?>)</div>
-                <div class="overview-stat-item-val"><?= $stats['totGoals'] ?> Goals</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ── Launchpad Section: Operations ── -->
-    <?php if (Permissions::isDeptHead() || Permissions::canViewAllDepartments()): ?>
-    <div class="mb-4">
-        <div class="overview-section-title">
-            <i class="fas fa-layer-group text-primary"></i>
-            <span>Department Operations Command</span>
-        </div>
-        <div class="row g-3">
-            <div class="col-6 col-md-4 col-lg-3">
-                <a href="<?= url('/department/dashboard.php') ?>" class="overview-launcher-card" style="--card-accent: #2563EB; --card-icon-bg: rgba(37,99,235,0.1);">
-                    <div class="overview-launcher-icon-wrap">
-                        <i class="fas fa-building-user"></i>
-                    </div>
-                    <div class="overview-launcher-title">My Workspace</div>
-                    <div class="overview-launcher-sub">Plans, weekly tasks and team deliverables</div>
-                    <div class="overview-launcher-arrow">Launch &rarr;</div>
-                </a>
-            </div>
-
-            <div class="col-6 col-md-4 col-lg-3">
-                <a href="<?= url('/department/performance.php') ?>" class="overview-launcher-card" style="--card-accent: #10B981; --card-icon-bg: rgba(16,185,129,0.1);">
-                    <div class="overview-launcher-icon-wrap">
-                        <i class="fas fa-clipboard-check"></i>
-                    </div>
-                    <div class="overview-launcher-title">Weekly Performance</div>
-                    <div class="overview-launcher-sub">Record task execution: DONE or NOT DONE</div>
-                    <div class="overview-launcher-arrow">Launch &rarr;</div>
-                </a>
-            </div>
-
-            <div class="col-6 col-md-4 col-lg-3">
-                <a href="<?= url('/department/monthly_plans.php') ?>" class="overview-launcher-card" style="--card-accent: #D97706; --card-icon-bg: rgba(217,119,6,0.1);">
-                    <div class="overview-launcher-icon-wrap">
-                        <i class="fas fa-calendar-days"></i>
-                    </div>
-                    <div class="overview-launcher-title">Monthly Plans (Day 26)</div>
-                    <div class="overview-launcher-sub">Strategic goals breakdown &amp; operational initiatives</div>
-                    <div class="overview-launcher-arrow">Launch &rarr;</div>
-                </a>
-            </div>
-
-            <div class="col-6 col-md-4 col-lg-3">
-                <a href="<?= url('/department/weekly_plans.php') ?>" class="overview-launcher-card" style="--card-accent: #0284C7; --card-icon-bg: rgba(2,132,199,0.1);">
-                    <div class="overview-launcher-icon-wrap">
-                        <i class="fas fa-list-check"></i>
-                    </div>
-                    <div class="overview-launcher-title">Weekly Breakdown</div>
-                    <div class="overview-launcher-sub">Assign and schedule specific tasks per week</div>
-                    <div class="overview-launcher-arrow">Launch &rarr;</div>
-                </a>
-            </div>
-
-            <div class="col-6 col-md-4 col-lg-3">
-                <a href="<?= url('/department/monthly_voucher.php') ?>" target="_blank" class="overview-launcher-card" style="--card-accent: #F59E0B; --card-icon-bg: rgba(245,158,11,0.12);">
-                    <div class="overview-launcher-icon-wrap">
-                        <i class="fas fa-file-invoice"></i>
-                    </div>
-                    <div class="overview-launcher-title">Official Monthly Voucher</div>
-                    <div class="overview-launcher-sub">Printable cryptographically-verified monthly plan voucher</div>
-                    <div class="overview-launcher-arrow">View Official Voucher &rarr;</div>
-                </a>
-            </div>
-
-            <div class="col-6 col-md-4 col-lg-3">
-                <a href="<?= url('/department/weekly_voucher.php') ?>" target="_blank" class="overview-launcher-card" style="--card-accent: #10B981; --card-icon-bg: rgba(16,185,129,0.12);">
-                    <div class="overview-launcher-icon-wrap">
-                        <i class="fas fa-receipt"></i>
-                    </div>
-                    <div class="overview-launcher-title">Official Weekly Voucher</div>
-                    <div class="overview-launcher-sub">Printable signed official weekly performance voucher</div>
-                    <div class="overview-launcher-arrow">View Official Voucher &rarr;</div>
-                </a>
-            </div>
-
-            <div class="col-6 col-md-4 col-lg-3">
-                <a href="<?= url('/admin/annual_goals.php') ?>" class="overview-launcher-card" style="--card-accent: #7C3AED; --card-icon-bg: rgba(124,58,237,0.1);">
-                    <div class="overview-launcher-icon-wrap">
-                        <i class="fas fa-bullseye"></i>
-                    </div>
-                    <div class="overview-launcher-title">Strategy Map</div>
-                    <div class="overview-launcher-sub">Annual goals and strategic objective mapping</div>
-                    <div class="overview-launcher-arrow">Launch &rarr;</div>
-                </a>
-            </div>
-
-            <div class="col-6 col-md-4 col-lg-3">
-                <a href="<?= url('/performance/not_done.php') ?>" class="overview-launcher-card" style="--card-accent: #F43F5E; --card-icon-bg: rgba(244,63,94,0.1);">
-                    <div class="overview-launcher-icon-wrap">
-                        <i class="fas fa-circle-exclamation"></i>
-                    </div>
-                    <div class="overview-launcher-title">Why Not Done</div>
-                    <div class="overview-launcher-sub">Root cause categorization &amp; recovery plans</div>
-                    <div class="overview-launcher-arrow">Launch &rarr;</div>
-                </a>
-            </div>
-        </div>
-    </div>
-    <?php endif; ?>
-
-    <!-- ── Launchpad Section: Executive & Performance Oversight ── -->
-    <div class="mb-4">
-        <div class="overview-section-title">
-            <i class="fas fa-chart-line text-warning"></i>
-            <span>Executive &amp; Performance Oversight</span>
-        </div>
-        <div class="row g-3">
-            <?php if (Permissions::isGM() || Permissions::isSuperAdmin() || Permissions::isHR()): ?>
-            <div class="col-6 col-md-4 col-lg-3">
-                <a href="<?= url('/management/dashboard.php') ?>" class="overview-launcher-card" style="--card-accent: #F59E0B; --card-icon-bg: rgba(245,158,11,0.12);">
-                    <div class="overview-launcher-icon-wrap">
-                        <i class="fas fa-gauge"></i>
-                    </div>
-                    <div class="overview-launcher-title">GM Dashboard</div>
-                    <div class="overview-launcher-sub">Executive oversight, KPI targets &amp; reminders</div>
-                    <div class="overview-launcher-arrow">Launch &rarr;</div>
-                </a>
-            </div>
-            <?php endif; ?>
-
-            <div class="col-6 col-md-4 col-lg-3">
-                <a href="<?= url('/performance/weekly.php') ?>" class="overview-launcher-card" style="--card-accent: #7C3AED; --card-icon-bg: rgba(124,58,237,0.1);">
-                    <div class="overview-launcher-icon-wrap">
-                        <i class="fas fa-calendar-week"></i>
-                    </div>
-                    <div class="overview-launcher-title">Weekly Reports</div>
-                    <div class="overview-launcher-sub">Organization-wide departmental summary</div>
-                    <div class="overview-launcher-arrow">Launch &rarr;</div>
-                </a>
-            </div>
-
-            <div class="col-6 col-md-4 col-lg-3">
-                <a href="<?= url('/performance/monthly.php') ?>" class="overview-launcher-card" style="--card-accent: #2563EB; --card-icon-bg: rgba(37,99,235,0.1);">
-                    <div class="overview-launcher-icon-wrap">
-                        <i class="fas fa-calendar-check"></i>
-                    </div>
-                    <div class="overview-launcher-title">Monthly Reports</div>
-                    <div class="overview-launcher-sub">Submission tracker &amp; compliance status</div>
-                    <div class="overview-launcher-arrow">Launch &rarr;</div>
-                </a>
-            </div>
-
-            <div class="col-6 col-md-4 col-lg-3">
-                <a href="<?= url('/performance/not_done.php') ?>" class="overview-launcher-card" style="--card-accent: #F43F5E; --card-icon-bg: rgba(244,63,94,0.1);">
-                    <div class="overview-launcher-icon-wrap">
-                        <i class="fas fa-circle-exclamation"></i>
-                    </div>
-                    <div class="overview-launcher-title">Why Not Done</div>
-                    <div class="overview-launcher-sub">Root cause categorization &amp; recovery plans</div>
-                    <div class="overview-launcher-arrow">Launch &rarr;</div>
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <!-- ── Launchpad Section: System Administration ── -->
-    <?php if (Permissions::isSuperAdmin() || Permissions::isITAdmin()): ?>
-    <div class="mb-4">
-        <div class="overview-section-title">
-            <i class="fas fa-sliders text-secondary"></i>
-            <span>System Governance &amp; Administration</span>
-        </div>
-        <div class="row g-3">
-            <div class="col-6 col-md-4 col-lg-3">
-                <a href="<?= url('/admin/dashboard.php') ?>" class="overview-launcher-card" style="--card-accent: #64748B; --card-icon-bg: rgba(100,116,139,0.12);">
-                    <div class="overview-launcher-icon-wrap">
-                        <i class="fas fa-gauge-high"></i>
-                    </div>
-                    <div class="overview-launcher-title">Admin Panel</div>
-                    <div class="overview-launcher-sub">Master dashboard, security &amp; parameters</div>
-                    <div class="overview-launcher-arrow">Launch &rarr;</div>
-                </a>
-            </div>
-
-            <div class="col-6 col-md-4 col-lg-3">
-                <a href="<?= url('/admin/users.php') ?>" class="overview-launcher-card" style="--card-accent: #3B82F6; --card-icon-bg: rgba(59,130,246,0.1);">
-                    <div class="overview-launcher-icon-wrap">
-                        <i class="fas fa-users-gear"></i>
-                    </div>
-                    <div class="overview-launcher-title">User Accounts</div>
-                    <div class="overview-launcher-sub">User accounts, roles, permissions &amp; Telegram</div>
-                    <div class="overview-launcher-arrow">Launch &rarr;</div>
-                </a>
-            </div>
-
-            <div class="col-6 col-md-4 col-lg-3">
-                <a href="<?= url('/admin/annual_goals.php') ?>" class="overview-launcher-card" style="--card-accent: #10B981; --card-icon-bg: rgba(16,185,129,0.1);">
-                    <div class="overview-launcher-icon-wrap">
-                        <i class="fas fa-bullseye"></i>
-                    </div>
-                    <div class="overview-launcher-title">Strategy Map</div>
-                    <div class="overview-launcher-sub">Annual goals and strategic objective mapping</div>
-                    <div class="overview-launcher-arrow">Launch &rarr;</div>
-                </a>
-            </div>
-
-            <div class="col-6 col-md-4 col-lg-3">
-                <a href="<?= url('/admin/settings.php') ?>" class="overview-launcher-card" style="--card-accent: #8B5CF6; --card-icon-bg: rgba(139,92,246,0.1);">
-                    <div class="overview-launcher-icon-wrap">
-                        <i class="fas fa-robot"></i>
-                    </div>
-                    <div class="overview-launcher-title">Settings &amp; Permissions</div>
-                    <div class="overview-launcher-sub">Day 26 deadline, RBAC permissions &amp; Telegram</div>
-                    <div class="overview-launcher-arrow">Launch &rarr;</div>
-                </a>
-            </div>
-        </div>
-    </div>
-    <?php endif; ?>
-
-    <!-- ── Corporate Planning Lifecycle Roadmap ── -->
-    <div class="card border-0 shadow-sm mb-4" style="background: var(--kaldis-card-bg); border-radius: 14px;">
-        <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
-            <h6 class="fw-bold text-dark mb-1">
-                <i class="fas fa-diagram-project text-primary me-2"></i> Kaldis Planning &amp; Execution Lifecycle Roadmap
-            </h6>
-            <p class="text-muted small mb-0">The 5-stage closed-loop corporate governance protocol.</p>
-        </div>
-        <div class="card-body p-4">
-            <div class="row g-3 text-center">
-                <div class="col-md-2 col-6">
-                    <div class="p-3 rounded-3 h-100" style="background: rgba(37,99,235,0.04); border: 1px solid rgba(37,99,235,0.12);">
-                        <div class="badge bg-primary rounded-circle mb-2" style="width: 26px; height: 26px; line-height: 18px;">1</div>
-                        <div class="fw-bold text-dark small mb-1">Annual Strategy</div>
-                        <div class="text-muted" style="font-size: 0.72rem;">Executive goals defined for <?= e($period['year']) ?></div>
-                    </div>
-                </div>
-
-                <div class="col-md-2 col-6">
-                    <div class="p-3 rounded-3 h-100" style="background: rgba(124,58,237,0.04); border: 1px solid rgba(124,58,237,0.12);">
-                        <div class="badge bg-purple rounded-circle mb-2 text-white" style="width: 26px; height: 26px; line-height: 18px; background: #7c3aed;">2</div>
-                        <div class="fw-bold text-dark small mb-1">Monthly Activation</div>
-                        <div class="text-muted" style="font-size: 0.72rem;">GM prioritizes monthly goals</div>
-                    </div>
-                </div>
-
-                <div class="col-md-3 col-12">
-                    <div class="p-3 rounded-3 h-100" style="background: rgba(217,119,6,0.06); border: 2px solid #d97706;">
-                        <div class="badge bg-warning text-dark rounded-circle mb-2 fw-bold" style="width: 26px; height: 26px; line-height: 18px;">3</div>
-                        <div class="fw-bold text-warning small mb-1">Monthly Plan Package</div>
-                        <div class="fw-bold text-dark" style="font-size: 0.75rem;">Due: Day <?= $monthlyDeadlineDay ?> Ethiopian (<?= e($monthlyDeadlineTime) ?>)</div>
-                    </div>
-                </div>
-
-                <div class="col-md-2 col-6">
-                    <div class="p-3 rounded-3 h-100" style="background: rgba(2,132,199,0.04); border: 1px solid rgba(2,132,199,0.12);">
-                        <div class="badge bg-info rounded-circle mb-2 text-white" style="width: 26px; height: 26px; line-height: 18px;">4</div>
-                        <div class="fw-bold text-dark small mb-1">Weekly Execution</div>
-                        <div class="text-muted" style="font-size: 0.72rem;">Schedule &amp; record DONE / NOT DONE</div>
-                    </div>
-                </div>
-
-                <div class="col-md-3 col-6">
-                    <div class="p-3 rounded-3 h-100" style="background: rgba(16,185,129,0.04); border: 1px solid rgba(16,185,129,0.12);">
-                        <div class="badge bg-success rounded-circle mb-2" style="width: 26px; height: 26px; line-height: 18px;">5</div>
-                        <div class="fw-bold text-dark small mb-1">Monday Reporting</div>
-                        <div class="text-muted" style="font-size: 0.72rem;">Due <?= e($weeklyDeadlineDay) ?> <?= e($weeklyDeadlineTime) ?> &amp; Vouchers</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ── Smart Footer Strip ── -->
-    <div class="card p-3 text-center border-0 shadow-xs mb-3" style="background: var(--kaldis-card-bg);">
-        <div class="d-flex align-items-center justify-content-center flex-wrap gap-3 text-muted small">
-            <span>
-                <i class="fas fa-calendar-check text-warning me-1"></i>
-                Monthly plan deadline: <strong>Day <?= $monthlyDeadlineDay ?> of Ethiopian Month at <?= e($monthlyDeadlineTime) ?></strong>
-            </span>
-            <span class="d-none d-md-inline text-muted opacity-50">&bull;</span>
-            <span>
-                <i class="fas fa-clock text-primary me-1"></i>
-                Weekly reporting deadline: <strong>Every <?= e($weeklyDeadlineDay) ?> at <?= e($weeklyDeadlineTime) ?></strong>
-            </span>
-            <span class="d-none d-md-inline text-muted opacity-50">&bull;</span>
-            <span class="d-none d-md-inline">
-                Theme: <span class="kbd-smart">Alt</span> + <span class="kbd-smart">D</span> Light/Dark
-            </span>
         </div>
     </div>
 

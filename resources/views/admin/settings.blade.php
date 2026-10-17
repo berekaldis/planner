@@ -315,109 +315,110 @@
             @endforeach
         </div>
 
-        <!-- Master Permissions Matrix Table -->
-        <div class="card border-0 shadow-sm mb-4" style="background: var(--kaldis-card-bg); border-radius: 14px; overflow: hidden;">
-            <div class="card-header bg-transparent border-0 pt-4 px-4 pb-2 d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
-                <div>
-                    <h5 class="fw-bold text-dark mb-1">
-                        <i class="fas fa-list-check text-success me-2"></i> Comprehensive Permissions Matrix
-                    </h5>
-                    <p class="text-muted small mb-0">Full catalogue of 25 system capabilities mapped across all user roles.</p>
+        <!-- Master Permissions Matrix Table Form -->
+        <form method="POST" action="{{ route('admin.settings.update') }}#permissions">
+            @csrf
+            <div class="card border-0 shadow-sm mb-4" style="background: var(--kaldis-card-bg); border-radius: 14px; overflow: hidden;">
+                <div class="card-header bg-transparent border-0 pt-4 px-4 pb-3 d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
+                    <div>
+                        <h5 class="fw-bold text-dark mb-1">
+                            <i class="fas fa-list-check text-success me-2"></i> Comprehensive Permissions Matrix
+                        </h5>
+                        <p class="text-muted small mb-0">Select or unselect privileges for each user role. Click <strong>Save Permissions</strong> to store dynamic overrides in system parameters.</p>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <button type="submit" name="save_permissions" value="1" class="btn btn-sm btn-success fw-bold px-3 py-1.5 shadow-sm">
+                            <i class="fas fa-check-double me-1"></i> Save Permissions
+                        </button>
+                        <button type="submit" name="reset_permissions" value="1" class="btn btn-sm btn-outline-danger fw-bold px-3 py-1.5" onclick="return confirm('Are you sure you want to restore all permissions to default system presets?');">
+                            <i class="fas fa-rotate-left me-1"></i> Reset Defaults
+                        </button>
+                    </div>
                 </div>
-                <div class="d-flex align-items-center gap-2">
-                    <span class="badge bg-success-subtle text-success py-1.5 px-2.5">
-                        <i class="fas fa-check me-1"></i> Authorized
-                    </span>
-                    <span class="badge bg-light text-muted border py-1.5 px-2.5">
-                        <i class="fas fa-minus me-1"></i> Restricted
-                    </span>
-                </div>
-            </div>
 
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0" style="font-size: 0.86rem;">
-                        <thead class="table-light text-uppercase fw-bold" style="font-size: 0.72rem; letter-spacing: 0.04em;">
-                            <tr>
-                                <th style="width: 32%; padding-left: 1.5rem;">Permission &amp; Responsibility Scope</th>
-                                <th class="text-center" style="width: 13.6%;">Super Admin</th>
-                                <th class="text-center" style="width: 13.6%;">General Manager</th>
-                                <th class="text-center" style="width: 13.6%;">HR Officer</th>
-                                <th class="text-center" style="width: 13.6%;">Dept Head</th>
-                                <th class="text-center" style="width: 13.6%; padding-right: 1.5rem;">IT Admin</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($permissionMatrix as $category => $permissions)
-                                <!-- Category Section Divider -->
-                                <tr style="background: rgba(0,0,0,0.025);">
-                                    <td colspan="6" class="fw-bold text-dark py-2.5" style="padding-left: 1.5rem; font-size: 0.8rem; letter-spacing: 0.02em;">
-                                        <i class="fas fa-folder-open text-primary me-2"></i> {{ strtoupper($category) }}
-                                    </td>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" style="font-size: 0.86rem;">
+                            <thead class="table-light text-uppercase fw-bold" style="font-size: 0.72rem; letter-spacing: 0.04em;">
+                                <tr>
+                                    <th style="width: 35%; padding-left: 1.5rem;">Permission &amp; Responsibility Scope</th>
+                                    <th class="text-center" style="width: 13%;">
+                                        <div>Super Admin</div>
+                                        <div class="mt-1"><span class="badge bg-danger-subtle text-danger" style="font-size:0.65rem;">Enterprise</span></div>
+                                    </th>
+                                    <th class="text-center" style="width: 13%;">
+                                        <div>General Manager</div>
+                                        <div class="mt-1"><span class="badge bg-warning-subtle text-warning-emphasis" style="font-size:0.65rem;">Executive</span></div>
+                                    </th>
+                                    <th class="text-center" style="width: 13%;">
+                                        <div>HR Officer</div>
+                                        <div class="mt-1"><span class="badge bg-primary-subtle text-primary" style="font-size:0.65rem;">Compliance</span></div>
+                                    </th>
+                                    <th class="text-center" style="width: 13%;">
+                                        <div>Dept Head</div>
+                                        <div class="mt-1"><span class="badge bg-success-subtle text-success" style="font-size:0.65rem;">Dept Only</span></div>
+                                    </th>
+                                    <th class="text-center" style="width: 13%; padding-right: 1.5rem;">
+                                        <div>IT Admin</div>
+                                        <div class="mt-1"><span class="badge bg-secondary-subtle text-secondary" style="font-size:0.65rem;">SysAdmin</span></div>
+                                    </th>
                                 </tr>
-
-                                @foreach($permissions as $permName => $data)
-                                    <tr>
-                                        <td style="padding-left: 1.5rem;">
-                                            <div class="fw-bold text-dark">{{ $permName }}</div>
-                                            <div class="text-muted small" style="font-size: 0.76rem; line-height: 1.3;">{{ $data['desc'] }}</div>
-                                        </td>
-                                        <!-- Super Admin -->
-                                        <td class="text-center">
-                                            @if($data['super_admin'])
-                                                <span class="badge bg-success-subtle text-success py-1 px-2"><i class="fas fa-check"></i></span>
-                                            @else
-                                                <span class="text-muted opacity-25">&mdash;</span>
-                                            @endif
-                                        </td>
-                                        <!-- GM -->
-                                        <td class="text-center">
-                                            @if($data['gm_management'])
-                                                <span class="badge bg-success-subtle text-success py-1 px-2"><i class="fas fa-check"></i></span>
-                                            @else
-                                                <span class="text-muted opacity-25">&mdash;</span>
-                                            @endif
-                                        </td>
-                                        <!-- HR -->
-                                        <td class="text-center">
-                                            @if($data['hr'])
-                                                <span class="badge bg-success-subtle text-success py-1 px-2"><i class="fas fa-check"></i></span>
-                                            @else
-                                                <span class="text-muted opacity-25">&mdash;</span>
-                                            @endif
-                                        </td>
-                                        <!-- Dept Head -->
-                                        <td class="text-center">
-                                            @if($data['dept_head'])
-                                                <span class="badge bg-success-subtle text-success py-1 px-2"><i class="fas fa-check"></i></span>
-                                            @else
-                                                <span class="text-muted opacity-25">&mdash;</span>
-                                            @endif
-                                        </td>
-                                        <!-- IT Admin -->
-                                        <td class="text-center" style="padding-right: 1.5rem;">
-                                            @if($data['it_admin'])
-                                                <span class="badge bg-success-subtle text-success py-1 px-2"><i class="fas fa-check"></i></span>
-                                            @else
-                                                <span class="text-muted opacity-25">&mdash;</span>
-                                            @endif
+                            </thead>
+                            <tbody>
+                                @foreach($permissionMatrix as $category => $permissions)
+                                    <!-- Category Section Divider -->
+                                    <tr style="background: rgba(0,0,0,0.025);">
+                                        <td colspan="6" class="fw-bold text-dark py-2.5" style="padding-left: 1.5rem; font-size: 0.8rem; letter-spacing: 0.02em;">
+                                            <i class="fas fa-folder-open text-primary me-2"></i> {{ strtoupper($category) }}
                                         </td>
                                     </tr>
+
+                                    @foreach($permissions as $permName => $data)
+                                        @php
+                                            $pSlug = \Illuminate\Support\Str::slug($permName, '_');
+                                        @endphp
+                                        <tr>
+                                            <td style="padding-left: 1.5rem;">
+                                                <div class="fw-bold text-dark">{{ $permName }}</div>
+                                                <div class="text-muted small" style="font-size: 0.76rem; line-height: 1.3;">{{ $data['desc'] }}</div>
+                                            </td>
+                                            @foreach(['super_admin', 'gm_management', 'hr', 'dept_head', 'it_admin'] as $roleKey)
+                                                <td class="text-center {{ $loop->last ? 'pe-4' : '' }}">
+                                                    <div class="d-flex justify-content-center">
+                                                        <input type="hidden" name="permissions[{{ $roleKey }}][{{ $pSlug }}]" value="0">
+                                                        <div class="form-check form-switch m-0">
+                                                            <input class="form-check-input permission-checkbox" 
+                                                                   type="checkbox" 
+                                                                   name="permissions[{{ $roleKey }}][{{ $pSlug }}]" 
+                                                                   value="1" 
+                                                                   {{ !empty($data[$roleKey]) ? 'checked' : '' }}
+                                                                   style="cursor: pointer; width: 2.1rem; height: 1.15rem;"
+                                                                   title="Toggle {{ $permName }} for {{ $roleKey }}">
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            @endforeach
+                                        </tr>
+                                    @endforeach
                                 @endforeach
-                            @endforeach
-                        </tbody>
-                    </table>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="card-footer bg-light p-3 small text-muted d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <span>
+                        <i class="fas fa-lock text-secondary me-1"></i>
+                        Admins can select or unselect any permission per role. Custom selections are safely persisted in <code>custom_role_permissions</code>.
+                    </span>
+                    <div class="d-flex gap-2">
+                        <button type="submit" name="save_permissions" value="1" class="btn btn-sm btn-success fw-bold px-3 py-1.5 shadow-sm">
+                            <i class="fas fa-save me-1"></i> Save Permissions Matrix
+                        </button>
+                    </div>
                 </div>
             </div>
-            
-            <div class="card-footer bg-light p-3 small text-muted d-flex align-items-center justify-content-between flex-wrap gap-2">
-                <span>
-                    <i class="fas fa-lock text-secondary me-1"></i>
-                    All permissions are strictly enforced server-side via Laravel middleware guards and cryptographic token validation.
-                </span>
-                <span class="badge bg-secondary-subtle text-secondary font-monospace">Security Standard RBAC v2.4</span>
-            </div>
-        </div>
+        </form>
     </div>
 
     <!-- ══════════════════════════════════════════════════════════════
@@ -562,6 +563,19 @@
         if (btn) {
             btn.classList.add('active');
         }
+        try {
+            history.replaceState(null, null, '#' + tabName);
+        } catch(e) {}
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const hash = (window.location.hash || '').replace('#', '');
+        if (hash) {
+            const btn = document.getElementById('btn-tab-' + hash);
+            if (btn) {
+                switchSettingsTab(hash, btn);
+            }
+        }
+    });
 </script>
 @endsection

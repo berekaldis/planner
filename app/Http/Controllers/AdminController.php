@@ -311,6 +311,24 @@ class AdminController extends Controller
             ],
         ];
 
+        // Overlay custom permissions configured by Admin if saved
+        $customPermsRaw = $settings['custom_role_permissions']->setting_value ?? null;
+        $customPerms = !empty($customPermsRaw) ? json_decode($customPermsRaw, true) : null;
+
+        if (is_array($customPerms)) {
+            foreach ($permissionMatrix as $cat => &$perms) {
+                foreach ($perms as $pName => &$pData) {
+                    $pKey = \Illuminate\Support\Str::slug($pName, '_');
+                    foreach (['super_admin', 'gm_management', 'hr', 'dept_head', 'it_admin'] as $rName) {
+                        if (isset($customPerms[$rName]) && array_key_exists($pKey, $customPerms[$rName])) {
+                            $pData[$rName] = !empty($customPerms[$rName][$pKey]);
+                        }
+                    }
+                }
+            }
+            unset($perms, $pData);
+        }
+
         return view('admin.settings', compact('settings', 'roles', 'permissionMatrix'));
     }
 
@@ -318,12 +336,27 @@ class AdminController extends Controller
     {
         $inputs = $request->except(['_token']);
 
+        if ($request->has('save_permissions')) {
+            $submittedPerms = $request->input('permissions', []);
+            SystemSetting::set('custom_role_permissions', json_encode($submittedPerms));
+            AuditLog::log('UPDATE_PERMISSIONS', 'admin', "Updated dynamic role permissions matrix");
+            return back()->with('success', 'Role permissions matrix updated successfully.');
+        }
+
+        if ($request->has('reset_permissions')) {
+            SystemSetting::set('custom_role_permissions', '');
+            AuditLog::log('RESET_PERMISSIONS', 'admin', "Restored role permissions matrix to default");
+            return back()->with('success', 'Role permissions restored to system defaults.');
+        }
+
         if (isset($inputs['monthly_plan_deadline_day'])) {
             $inputs['monthly_deadline_day'] = $inputs['monthly_plan_deadline_day'];
         }
 
         foreach ($inputs as $key => $val) {
-            SystemSetting::set($key, (string)$val);
+            if ($key !== 'permissions') {
+                SystemSetting::set($key, (string)$val);
+            }
         }
 
         AuditLog::log('UPDATE_SETTINGS', 'admin', "Updated system configuration settings");

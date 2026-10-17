@@ -58,6 +58,11 @@ class User extends Authenticatable
         ];
     }
 
+    public function getNameAttribute(): string
+    {
+        return !empty($this->full_name) ? $this->full_name : ($this->username ?? '');
+    }
+
     public function getStatusAttribute(): string
     {
         return $this->is_active ? 'ACTIVE' : 'INACTIVE';
