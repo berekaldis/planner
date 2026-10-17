@@ -24,8 +24,8 @@ return [
     // Localization & Calendar
     'timezone' => 'Africa/Addis_Ababa',
     'default_calendar' => 'EC', // 'EC' (Ethiopian Calendar) or 'GC' (Gregorian)
-    'current_planning_year' => '2019 E.C.',
-    'current_planning_month' => 'Meskerem',
+    'current_planning_year' => 'AUTO',
+    'current_planning_month' => 'AUTO',
 
     // Telegram Bot Integration
     'telegram_bot_token' => '',

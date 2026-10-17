@@ -1,0 +1,24 @@
+{
+  "name": "kaldis-planner",
+  "version": "1.0.0",
+  "description": "Kaldis Coffee PLC - Strategic Planning & Performance Management System",
+  "private": true,
+  "scripts": {
+    "dev": "php -S 127.0.0.1:8000 -t . router.php",
+    "start": "php -S 127.0.0.1:8000 -t . router.php",
+    "watch:css": "npx chokidar-cli \"assets/css/**/*.css\" -c \"echo CSS updated\"",
+    "minify:css": "npx clean-css-cli -o assets/css/style.min.css assets/css/style.css",
+    "minify:js": "npx terser assets/js/app.js -o assets/js/app.min.js --compress --mangle"
+  },
+  "devDependencies": {
+    "chokidar-cli": "^3.0.0",
+    "clean-css-cli": "^5.6.3",
+    "terser": "^5.31.0"
+  },
+  "keywords": ["php", "kaldis", "planning", "performance"],
+  "author": "Kaldis Coffee IT Department",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

@@ -42,7 +42,7 @@ $tasksStmt = $db->prepare("
            wtr.not_done_reason_id, wtr.not_done_explanation, wtr.next_action, wtr.expected_completion_date,
            rc.name as reason_name, u.full_name as marked_by_name
     FROM weekly_tasks wt
-    JOIN monthly_plans mp ON wt.monthly_plan_id = mp.id
+    LEFT JOIN monthly_plans mp ON wt.monthly_plan_id = mp.id
     LEFT JOIN annual_goals ag ON wt.annual_goal_id = ag.id
     LEFT JOIN weekly_task_results wtr ON wt.id = wtr.weekly_task_id
     LEFT JOIN reason_categories rc ON wtr.not_done_reason_id = rc.id
@@ -125,6 +125,9 @@ $canSubmit = ($totalPlanned > 0 && $unratedCount === 0);
         </p>
     </div>
     <div class="d-flex gap-2">
+        <a href="<?= url('/department/weekly_voucher.php?department_id=' . $deptId . '&year=' . urlencode($selectedYear) . '&month=' . urlencode($selectedMonth) . '&week=' . $selectedWeek) ?>" class="btn btn-outline-dark">
+            <i class="fas fa-file-invoice me-1"></i> View Voucher
+        </a>
         <a href="<?= url('/department/weekly_plans.php?year=' . urlencode($selectedYear) . '&month=' . urlencode($selectedMonth) . '&week=' . $selectedWeek . '&department_id=' . $deptId) ?>" class="btn btn-outline-secondary">
             <i class="fas fa-list-check me-1"></i> Edit Planned Tasks
         </a>
@@ -232,18 +235,42 @@ $canSubmit = ($totalPlanned > 0 && $unratedCount === 0);
 
 <!-- Submission Status Alert -->
 <?php if ($isSubmitted): ?>
-    <div class="alert alert-success d-flex align-items-center justify-content-between mb-4 shadow-sm bg-white border-success">
+    <div class="alert alert-success d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between mb-4 shadow-sm bg-white border-success gap-2">
         <div>
             <i class="fas fa-circle-check fa-2x text-success me-3"></i>
             <span>
                 <strong>Weekly Report Submitted!</strong> Status: 
-                <?= render_submission_badge($weeklyReport['submission_status']) ?> &bull; 
-                Submitted on <strong><?= date('M d, Y H:i', strtotime($weeklyReport['submitted_at'])) ?></strong> by 
+                <?= render_submission_badge($weeklyReport['submission_status']) ?>
+                <?php if (!empty($submissionRecord['approval_status'])): ?>
+                    <span class="badge <?= $submissionRecord['approval_status'] === 'APPROVED' ? 'bg-success' : ($submissionRecord['approval_status'] === 'REVISION_REQUESTED' ? 'bg-danger' : 'bg-secondary') ?> ms-1">
+                        GM: <?= e($submissionRecord['approval_status']) ?>
+                    </span>
+                <?php endif; ?>
+                &bull; Submitted on <strong><?= date('M d, Y H:i', strtotime($weeklyReport['submitted_at'])) ?></strong> by 
                 <strong><?= e($weeklyReport['submitter_name'] ?? 'Staff') ?></strong>.
             </span>
         </div>
-        <span class="badge bg-dark fs-6 font-monospace"><?= $weeklyReport['completion_percentage'] ?>% Final Score</span>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-dark fs-6 font-monospace"><?= $weeklyReport['completion_percentage'] ?>% Final Score</span>
+            <a href="<?= url('/department/weekly_voucher.php?department_id=' . $deptId . '&year=' . urlencode($selectedYear) . '&month=' . urlencode($selectedMonth) . '&week=' . $selectedWeek) ?>" class="btn btn-sm btn-dark text-nowrap">
+                <i class="fas fa-file-invoice me-1"></i> View Voucher
+            </a>
+        </div>
     </div>
+
+    <?php if (!empty($submissionRecord['gm_feedback']) || !empty($weeklyReport['gm_feedback'])): ?>
+        <?php $feedbackText = !empty($submissionRecord['gm_feedback']) ? $submissionRecord['gm_feedback'] : $weeklyReport['gm_feedback']; ?>
+        <?php $feedbackAt = !empty($submissionRecord['gm_feedback_at']) ? $submissionRecord['gm_feedback_at'] : ($weeklyReport['gm_feedback_at'] ?? null); ?>
+        <div class="card border-primary mb-4 shadow-sm">
+            <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
+                <span class="fw-bold small"><i class="fas fa-comment-dots me-1"></i> Executive Review Comments from General Manager</span>
+                <span class="small opacity-75"><?= !empty($feedbackAt) ? date('M d, Y H:i', strtotime($feedbackAt)) : '' ?></span>
+            </div>
+            <div class="card-body bg-light py-2 px-3 small">
+                <p class="mb-0 text-dark"><?= nl2br(e($feedbackText)) ?></p>
+            </div>
+        </div>
+    <?php endif; ?>
 <?php elseif ($totalPlanned === 0): ?>
     <div class="alert alert-info border-info d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between mb-4 shadow-sm bg-white gap-3">
         <div class="d-flex align-items-center">

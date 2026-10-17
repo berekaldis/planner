@@ -98,6 +98,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'annual_goal_id' => $annualGoalId
                 ]);
 
+                // Notify GM of Monthly Plan Submission
+                $deptInfo = $db->query("SELECT department_name, department_code FROM departments WHERE id = {$planDeptId}")->fetch(PDO::FETCH_ASSOC);
+                $deptCode = $deptInfo['department_code'] ?? "Dept #{$planDeptId}";
+                $deptName = $deptInfo['department_name'] ?? "Department";
+
+                $notifTitle = "Monthly {$planType} Plan Submitted: {$deptCode}";
+                $notifMessage = "{$deptName} has submitted a new Monthly {$planType} Plan for {$month} {$year}.\n"
+                              . "• Title: {$title}\n"
+                              . "• Target: {$monthlyTarget}\n"
+                              . "• Priority: {$priority}\n"
+                              . "• Definition of Done: {$dod}";
+
+                notify_gm_submission($notifTitle, $notifMessage, $planDeptId);
+
                 set_flash('success', "Monthly {$planType} Plan created successfully.");
                 redirect("/department/monthly_plans.php?year={$year}&month={$month}&department_id={$planDeptId}");
             } catch (PDOException $e) {
@@ -118,11 +132,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             set_flash('success', 'Monthly plan removed.');
             redirect("/department/monthly_plans.php?year={$selectedYear}&month={$selectedMonth}&department_id={$planDeptId}");
         }
+    } elseif ($action === 'submit_package') {
+        $subDeptId = (int)($_POST['department_id'] ?? $deptId);
+        Permissions::requireDepartmentAccess($subDeptId);
+        $notes = trim($_POST['notes'] ?? '');
+        $year = trim($_POST['year'] ?? $selectedYear);
+        $month = trim($_POST['month'] ?? $selectedMonth);
+
+        $chkPlans = $db->prepare("SELECT COUNT(*) FROM monthly_plans WHERE department_id = ? AND year = ? AND month = ?");
+        $chkPlans->execute([$subDeptId, $year, $month]);
+        $totalPlans = (int)$chkPlans->fetchColumn();
+
+        if ($totalPlans === 0) {
+            set_flash('danger', 'Cannot submit an empty plan package. Please create at least one monthly plan first.');
+            redirect("/department/monthly_plans.php?year={$year}&month={$month}&department_id={$subDeptId}");
+        }
+
+        $deadlineDay = (int)app_config('monthly_deadline_day', 5);
+        $currentEt = get_ethiopian_period();
+        $status = 'ON_TIME';
+        if ($currentEt['month'] === $month && $currentEt['year'] === $year && $currentEt['day'] > $deadlineDay) {
+            $status = 'LATE';
+        }
+
+        $now = date('Y-m-d H:i:s');
+        $upsert = $db->prepare("
+            INSERT INTO monthly_submissions (department_id, year, month, submitted_at, status, submitted_by, remarks, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE 
+                submitted_at = VALUES(submitted_at),
+                status = VALUES(status),
+                submitted_by = VALUES(submitted_by),
+                remarks = VALUES(remarks),
+                updated_at = VALUES(updated_at)
+        ");
+        $upsert->execute([$subDeptId, $year, $month, $now, $status, $userId, $notes, $now, $now]);
+
+        audit_log($userId, 'SUBMIT_MONTHLY_PACKAGE', 'monthly_submissions', "{$subDeptId}-{$year}-{$month}", null, [
+            'status' => $status,
+            'total_plans' => $totalPlans
+        ]);
+
+        $deptInfo = $db->query("SELECT department_name, department_code FROM departments WHERE id = {$subDeptId}")->fetch(PDO::FETCH_ASSOC);
+        $statusEmoji = ($status === 'ON_TIME') ? '🟢 [ON-TIME]' : '🟡 [LATE]';
+        $notifTitle = "{$statusEmoji} Monthly Plan Package: " . ($deptInfo['department_code'] ?? "Dept #{$subDeptId}");
+        $notifMessage = ($deptInfo['department_name'] ?? 'Department') . " has submitted their Monthly Plan Package for {$month} {$year}.\n"
+                      . "• Submission Timing: " . ($status === 'ON_TIME' ? 'ON-TIME SUBMISSION' : 'LATE SUBMISSION') . "\n"
+                      . "• Total Plans: {$totalPlans}";
+        if (!empty($notes)) {
+            $notifMessage .= "\n• Department Remarks: {$notes}";
+        }
+        $voucherUrl = url("/department/monthly_voucher.php?department_id={$subDeptId}&year=" . urlencode($year) . "&month=" . urlencode($month));
+        notify_gm_submission($notifTitle, $notifMessage, $subDeptId, $voucherUrl);
+
+        set_flash('success', "Monthly Plan package submitted successfully to General Management! Timing Status: {$status}.");
+        redirect("/department/monthly_plans.php?year={$year}&month={$month}&department_id={$subDeptId}");
     }
 }
 
 $pageTitle = 'Monthly Department Plans';
 require_once __DIR__ . '/../includes/header.php';
+
+// Fetch Monthly Submission Record
+$subStmt = $db->prepare("SELECT * FROM monthly_submissions WHERE department_id = ? AND year = ? AND month = ?");
+$subStmt->execute([$deptId, $selectedYear, $selectedMonth]);
+$monthlySubmission = $subStmt->fetch();
 
 // Fetch Active Annual Goals for Strategy Plan Selection (Multi-Department Ownership)
 $activeGoalsStmt = $db->prepare("
@@ -193,7 +267,13 @@ foreach ($monthlyPlans as $p) {
         <h3 class="mb-1 fw-bold text-dark"><i class="fas fa-calendar-alt text-warning me-2"></i> Monthly Department Plans</h3>
         <p class="text-muted mb-0">Manage both Strategy Plans (originating from GM-activated annual goals) and Operational Plans.</p>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="<?= url('/department/monthly_voucher.php?department_id=' . $deptId . '&year=' . urlencode($selectedYear) . '&month=' . urlencode($selectedMonth)) ?>" class="btn btn-outline-dark">
+            <i class="fas fa-file-invoice me-1"></i> View Voucher
+        </a>
+        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#submitPackageModal">
+            <i class="fas fa-paper-plane me-1"></i> Submit to GM
+        </button>
         <button class="btn btn-kaldis" data-bs-toggle="modal" data-bs-target="#createMonthlyPlanModal">
             <i class="fas fa-plus-circle me-1"></i> Add Monthly Plan
         </button>
@@ -202,6 +282,61 @@ foreach ($monthlyPlans as $p) {
         </a>
     </div>
 </div>
+
+<!-- Monthly Submission Status Banner -->
+<?php if (!empty($monthlySubmission) && in_array($monthlySubmission['status'], ['ON_TIME', 'LATE', 'SUBMITTED'])): ?>
+    <div class="alert alert-success border-0 shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-2">
+        <div>
+            <i class="fas fa-check-circle me-2 text-success"></i>
+            <strong>Plan Package Submitted:</strong> Monthly plans for <?= e($selectedMonth) ?> <?= e($selectedYear) ?> have been officially submitted to GM.
+            <span class="badge <?= $monthlySubmission['status'] === 'ON_TIME' ? 'bg-success' : 'bg-warning text-dark' ?> ms-2">
+                <?= e($monthlySubmission['status']) ?>
+            </span>
+            <?php if (!empty($monthlySubmission['approval_status'])): ?>
+                <span class="badge <?= $monthlySubmission['approval_status'] === 'APPROVED' ? 'bg-success' : ($monthlySubmission['approval_status'] === 'REVISION_REQUESTED' ? 'bg-danger' : 'bg-secondary') ?> ms-1">
+                    GM: <?= e($monthlySubmission['approval_status']) ?>
+                </span>
+            <?php endif; ?>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <div class="small text-muted">
+                Submitted on <?= date('M d, Y H:i', strtotime($monthlySubmission['submitted_at'])) ?>
+            </div>
+            <a href="<?= url('/department/monthly_voucher.php?department_id=' . $deptId . '&year=' . urlencode($selectedYear) . '&month=' . urlencode($selectedMonth)) ?>" class="btn btn-sm btn-dark">
+                <i class="fas fa-file-invoice me-1"></i> View Voucher
+            </a>
+            <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#submitPackageModal">
+                <i class="fas fa-redo me-1"></i> Re-Submit
+            </button>
+        </div>
+    </div>
+    <?php if (!empty($monthlySubmission['gm_feedback'])): ?>
+        <div class="card border-primary mb-4 shadow-sm">
+            <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
+                <span class="fw-bold small"><i class="fas fa-comment-dots me-1"></i> Executive Review Comments from General Manager</span>
+                <span class="small opacity-75"><?= !empty($monthlySubmission['gm_feedback_at']) ? date('M d, Y H:i', strtotime($monthlySubmission['gm_feedback_at'])) : '' ?></span>
+            </div>
+            <div class="card-body bg-light py-2 px-3 small">
+                <p class="mb-0 text-dark"><?= nl2br(e($monthlySubmission['gm_feedback'])) ?></p>
+            </div>
+        </div>
+    <?php endif; ?>
+<?php else: ?>
+    <div class="alert alert-warning border-0 shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-2">
+        <div>
+            <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
+            <strong>Monthly Plan Package Pending Submission:</strong> These plans have not yet been officially transmitted to General Management.
+        </div>
+        <div class="d-flex gap-2">
+            <a href="<?= url('/department/monthly_voucher.php?department_id=' . $deptId . '&year=' . urlencode($selectedYear) . '&month=' . urlencode($selectedMonth)) ?>" class="btn btn-sm btn-outline-dark">
+                <i class="fas fa-file-invoice me-1"></i> Preview Voucher
+            </a>
+            <button type="button" class="btn btn-sm btn-kaldis" data-bs-toggle="modal" data-bs-target="#submitPackageModal">
+                <i class="fas fa-paper-plane me-1"></i> Submit Package to GM
+            </button>
+        </div>
+    </div>
+<?php endif; ?>
 
 <!-- Filters Bar -->
 <div class="filter-bar mb-4">
@@ -529,6 +664,67 @@ foreach ($monthlyPlans as $p) {
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-kaldis"><i class="fas fa-save me-1"></i> Save Monthly Plan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Submit Monthly Plan Package to GM -->
+<div class="modal fade" id="submitPackageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" action="monthly_plans.php?year=<?= urlencode($selectedYear) ?>&month=<?= urlencode($selectedMonth) ?>&department_id=<?= (int)$deptId ?>">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="submit_package">
+                <input type="hidden" name="department_id" value="<?= (int)$deptId ?>">
+                <input type="hidden" name="year" value="<?= e($selectedYear) ?>">
+                <input type="hidden" name="month" value="<?= e($selectedMonth) ?>">
+
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold text-dark fs-6">
+                        <i class="fas fa-paper-plane text-success me-2"></i> Submit Monthly Plan Package to GM
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    <div class="alert alert-info py-2 px-3 small mb-3 border-0">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Submitting for <strong><?= e($monthlyPlans[0]['department_name'] ?? 'Department') ?></strong> &bull; <strong><?= e($selectedMonth) ?> <?= e($selectedYear) ?></strong>.
+                        This will notify the General Manager and record your formal submission timing.
+                    </div>
+
+                    <div class="bg-light p-3 rounded-3 mb-3 border">
+                        <div class="d-flex justify-content-between mb-1 small">
+                            <span class="text-muted">Total Monthly Plans:</span>
+                            <span class="fw-bold text-dark"><?= count($monthlyPlans) ?></span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1 small">
+                            <span class="text-muted">Strategy Plans:</span>
+                            <span class="badge bg-primary"><?= $strategyCount ?></span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1 small">
+                            <span class="text-muted">Operational Plans:</span>
+                            <span class="badge bg-info text-dark"><?= $operationalCount ?></span>
+                        </div>
+                        <div class="d-flex justify-content-between small pt-1 border-top mt-1">
+                            <span class="text-muted">Official Cutoff:</span>
+                            <span class="text-secondary fw-semibold">Day 5 of Planning Month</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Department Remarks / Notes to GM (Optional)</label>
+                        <textarea name="notes" class="form-control" rows="3" placeholder="Add executive summary notes, key focus areas, or remarks for the General Manager..."></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-success" <?= empty($monthlyPlans) ? 'disabled' : '' ?>>
+                        <i class="fas fa-check-circle me-1"></i> Transmit Package to GM
+                    </button>
                 </div>
             </form>
         </div>

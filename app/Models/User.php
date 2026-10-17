@@ -58,6 +58,11 @@ class User extends Authenticatable
         ];
     }
 
+    public function getStatusAttribute(): string
+    {
+        return $this->is_active ? 'ACTIVE' : 'INACTIVE';
+    }
+
     public function role()
     {
         return $this->belongsTo(Role::class, 'role_id');

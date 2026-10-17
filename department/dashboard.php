@@ -90,11 +90,14 @@ $chStmt->execute([$deptId, $year, $month, $currentWeek]);
 $challenges = $chStmt->fetchAll();
 ?>
 
-<!-- Header -->
+
+
+<!-- Department Workspace Header -->
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-2">
     <div>
-        <h3 class="mb-1 fw-bold text-dark">
-            <i class="fas fa-building-user text-warning me-2"></i> <?= e($department['department_name'] ?? 'Department') ?> Workspace
+        <h3 class="mb-1 fw-bold" style="color:var(--k-text)">
+            <i class="fas fa-building-user me-2" style="color:var(--k-gold)"></i>
+            <?= e($department['department_name'] ?? 'Department') ?> Workspace
         </h3>
         <p class="text-muted mb-0"><i class="fas fa-calendar-check text-success me-1"></i> Departmental Planning &amp; Execution Workspace</p>
     </div>
@@ -121,26 +124,26 @@ $challenges = $chStmt->fetchAll();
 <div class="row g-3 mb-4">
     <div class="col-md-3">
         <div class="stat-card stat-gold">
-            <i class="fas fa-calendar-alt stat-icon text-warning"></i>
+            <i class="fas fa-calendar-alt stat-icon" style="color:var(--k-gold)"></i>
             <div class="stat-label">Monthly Plans</div>
-            <div class="stat-value text-dark"><?= count($monthlyPlans) ?></div>
-            <small class="text-muted"><?= $stratPlansCount ?> Strategy &bull; <?= $opsPlansCount ?> Operational</small>
+            <div class="stat-value" style="color:var(--k-gold)"><?= count($monthlyPlans) ?></div>
+            <small class="stat-sub"><?= $stratPlansCount ?> Strategy &bull; <?= $opsPlansCount ?> Operational</small>
         </div>
     </div>
     <div class="col-md-3">
         <div class="stat-card stat-primary">
-            <i class="fas fa-tasks stat-icon text-primary"></i>
+            <i class="fas fa-tasks stat-icon" style="color:var(--k-blue)"></i>
             <div class="stat-label">Week <?= $currentWeek ?> Tasks</div>
-            <div class="stat-value text-primary"><?= $totTasks ?></div>
-            <small class="text-muted"><?= $unratedTasks ?> Awaiting evaluation</small>
+            <div class="stat-value" style="color:var(--k-blue)"><?= $totTasks ?></div>
+            <small class="stat-sub"><?= $unratedTasks ?> awaiting evaluation</small>
         </div>
     </div>
     <div class="col-md-3">
         <div class="stat-card stat-done">
-            <i class="fas fa-check-circle stat-icon text-success"></i>
+            <i class="fas fa-check-circle stat-icon" style="color:var(--k-done)"></i>
             <div class="stat-label">Tasks Completed</div>
-            <div class="stat-value text-success"><?= $doneTasks ?> / <?= $totTasks ?></div>
-            <small class="text-muted"><?= $completionPct ?>% Weekly completion</small>
+            <div class="stat-value" style="color:var(--k-done)"><?= $doneTasks ?> / <?= $totTasks ?></div>
+            <small class="stat-sub"><?= $completionPct ?>% weekly completion</small>
         </div>
     </div>
     <div class="col-md-3">
@@ -162,37 +165,41 @@ $challenges = $chStmt->fetchAll();
 <!-- Quick Workflow Actions -->
 <div class="card mb-4">
     <div class="card-body p-4">
-        <h5 class="fw-bold mb-3"><i class="fas fa-route me-2 text-warning"></i> Department Planning & Reporting Flow</h5>
-        <div class="row g-3 text-center">
-            <div class="col-md-3">
-                <a href="<?= url('/department/monthly_plans.php?year=' . urlencode($year) . '&month=' . urlencode($month) . '&department_id=' . $deptId) ?>" 
-                   class="p-3 border rounded d-block text-decoration-none text-dark bg-light hover-shadow">
-                    <i class="fas fa-calendar-days fa-2x text-primary mb-2"></i>
-                    <div class="fw-bold">1. Monthly Plans</div>
-                    <small class="text-muted">Review Strategy & Ops plans</small>
+        <h5 class="fw-bold mb-3"><i class="fas fa-route me-2" style="color:var(--k-gold)"></i> Department Planning &amp; Reporting Flow</h5>
+        <div class="row g-3">
+            <div class="col-6 col-md-3">
+                <a href="<?= url('/department/monthly_plans.php?year=' . urlencode($year) . '&month=' . urlencode($month) . '&department_id=' . $deptId) ?>"
+                   class="card card-hoverable text-decoration-none d-flex flex-column align-items-center justify-content-center text-center p-3 gap-2 h-100"
+                   style="border-top:3px solid var(--k-blue)">
+                    <i class="fas fa-calendar-days fa-2x" style="color:var(--k-blue)"></i>
+                    <div class="fw-bold" style="color:var(--k-text);font-size:.88rem">1. Monthly Plans</div>
+                    <small class="text-muted">Review Strategy &amp; Ops plans</small>
                 </a>
             </div>
-            <div class="col-md-3">
-                <a href="<?= url('/department/weekly_plans.php?year=' . urlencode($year) . '&month=' . urlencode($month) . '&week=' . $currentWeek . '&department_id=' . $deptId) ?>" 
-                   class="p-3 border rounded d-block text-decoration-none text-dark bg-light hover-shadow">
-                    <i class="fas fa-list-check fa-2x text-warning mb-2"></i>
-                    <div class="fw-bold">2. Weekly Breakdown</div>
+            <div class="col-6 col-md-3">
+                <a href="<?= url('/department/weekly_plans.php?year=' . urlencode($year) . '&month=' . urlencode($month) . '&week=' . $currentWeek . '&department_id=' . $deptId) ?>"
+                   class="card card-hoverable text-decoration-none d-flex flex-column align-items-center justify-content-center text-center p-3 gap-2 h-100"
+                   style="border-top:3px solid var(--k-gold)">
+                    <i class="fas fa-list-check fa-2x" style="color:var(--k-gold)"></i>
+                    <div class="fw-bold" style="color:var(--k-text);font-size:.88rem">2. Weekly Breakdown</div>
                     <small class="text-muted">Plan tasks for Week <?= $currentWeek ?></small>
                 </a>
             </div>
-            <div class="col-md-3">
-                <a href="<?= url('/department/performance.php?year=' . urlencode($year) . '&month=' . urlencode($month) . '&week=' . $currentWeek . '&department_id=' . $deptId) ?>" 
-                   class="p-3 border rounded d-block text-decoration-none text-dark bg-light hover-shadow">
-                    <i class="fas fa-clipboard-check fa-2x text-success mb-2"></i>
-                    <div class="fw-bold">3. Execute & Record</div>
+            <div class="col-6 col-md-3">
+                <a href="<?= url('/department/performance.php?year=' . urlencode($year) . '&month=' . urlencode($month) . '&week=' . $currentWeek . '&department_id=' . $deptId) ?>"
+                   class="card card-hoverable text-decoration-none d-flex flex-column align-items-center justify-content-center text-center p-3 gap-2 h-100"
+                   style="border-top:3px solid var(--k-done)">
+                    <i class="fas fa-clipboard-check fa-2x" style="color:var(--k-done)"></i>
+                    <div class="fw-bold" style="color:var(--k-text);font-size:.88rem">3. Execute &amp; Record</div>
                     <small class="text-muted">Mark DONE / NOT DONE</small>
                 </a>
             </div>
-            <div class="col-md-3">
-                <a href="<?= url('/department/reports.php?department_id=' . $deptId) ?>" 
-                   class="p-3 border rounded d-block text-decoration-none text-dark bg-light hover-shadow">
-                    <i class="fas fa-file-invoice fa-2x text-secondary mb-2"></i>
-                    <div class="fw-bold">4. Submission Archive</div>
+            <div class="col-6 col-md-3">
+                <a href="<?= url('/department/reports.php?department_id=' . $deptId) ?>"
+                   class="card card-hoverable text-decoration-none d-flex flex-column align-items-center justify-content-center text-center p-3 gap-2 h-100"
+                   style="border-top:3px solid var(--k-purple)">
+                    <i class="fas fa-file-invoice fa-2x" style="color:var(--k-purple)"></i>
+                    <div class="fw-bold" style="color:var(--k-text);font-size:.88rem">4. Submission Archive</div>
                     <small class="text-muted">Past department reports</small>
                 </a>
             </div>
@@ -314,7 +321,7 @@ $challenges = $chStmt->fetchAll();
                         <tr>
                             <td><?= render_plan_type_badge($t['plan_type']) ?></td>
                             <td>
-                                <div class="fw-bold text-dark"><?= e($t['task_title']) ?></div>
+                                <div class="fw-bold" style="color:var(--k-text)"><?= e($t['task_title']) ?></div>
                                 <small class="text-muted"><?= e($t['expected_result']) ?></small>
                             </td>
                             <td><small class="fw-semibold text-secondary"><?= e($t['responsible_person']) ?></small></td>

@@ -138,6 +138,38 @@ class DashboardController extends Controller
             ];
         }
 
+        $selectedWeek = (int)$request->query('week', (function_exists('get_current_planning_week') ? get_current_planning_week() : 1) ?: 1);
+
+        // Monthly submissions by department
+        $monthlySubmissions = \App\Models\MonthlySubmission::where('year', $selectedYear)
+            ->where('month', $selectedMonth)
+            ->get()
+            ->keyBy('department_id');
+
+        // All monthly plans across departments
+        $allMonthlyPlans = MonthlyPlan::with(['department', 'annualGoal'])
+            ->where('year', $selectedYear)
+            ->where('month', $selectedMonth)
+            ->orderBy('department_id')
+            ->orderBy('plan_type', 'desc')
+            ->get();
+
+        $monthlyPlansByDept = $allMonthlyPlans->groupBy('department_id');
+
+        // Weekly submissions & reports for selected week
+        $weeklySubmissions = Submission::with('submitter')
+            ->where('year', $selectedYear)
+            ->where('month', $selectedMonth)
+            ->where('week_number', $selectedWeek)
+            ->get()
+            ->keyBy('department_id');
+
+        $weeklyReports = \App\Models\WeeklyReport::where('year', $selectedYear)
+            ->where('month', $selectedMonth)
+            ->where('week_number', $selectedWeek)
+            ->get()
+            ->keyBy('department_id');
+
         // Stepper Phase logic
         $currentPhase = 1;
         if ($activeStrategiesCount > 0 && $totalMonthlyPlans > 0 && $totalTasks > 0) {
@@ -149,6 +181,7 @@ class DashboardController extends Controller
         return view('dashboard.gm', compact(
             'selectedYear',
             'selectedMonth',
+            'selectedWeek',
             'totalDepartments',
             'totalStrategies',
             'activeStrategiesCount',
@@ -163,8 +196,101 @@ class DashboardController extends Controller
             'missingSubmissions',
             'rootCauses',
             'departmentPerformances',
+            'monthlySubmissions',
+            'monthlyPlansByDept',
+            'allMonthlyPlans',
+            'weeklySubmissions',
+            'weeklyReports',
             'currentPhase'
         ));
+    }
+
+    public function remind(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user->isGM() && !$user->isSuperAdmin()) {
+            abort(403, 'Only General Management can send executive reminders.');
+        }
+
+        $deptId = (int)$request->input('department_id');
+        $dept = Department::with('head')->findOrFail($deptId);
+
+        $year = $request->input('year', kaldis_setting('current_planning_year', config('kaldis.current_planning_year')));
+        $month = $request->input('month', kaldis_setting('current_planning_month', config('kaldis.current_planning_month')));
+        $type = $request->input('type', 'WEEKLY'); // 'WEEKLY' or 'MONTHLY'
+        $week = (int)$request->input('week', 1);
+
+        $telegram = app(\App\Services\TelegramService::class);
+        $head = $dept->head;
+
+        $sent = false;
+        if ($telegram && $telegram->isConfigured() && $head && !empty($head->telegram_chat_id)) {
+            if ($type === 'MONTHLY') {
+                $msg = "⚠️ <b>Kaldis Executive Reminder: Monthly Plan Required</b>\n\n"
+                     . "Dear <b>{$head->full_name}</b>,\n"
+                     . "The Monthly Plan package for <b>{$dept->department_name}</b> ({$month} {$year}) is currently <b>NOT SUBMITTED</b>.\n\n"
+                     . "Please log in to the planning system and submit your department's monthly strategic & operational plans.\n\n"
+                     . "☕ <i>Kaldis Coffee PLC — Office of the General Manager</i>";
+            } else {
+                $msg = "⚠️ <b>Kaldis Executive Reminder: Weekly Performance Report Required</b>\n\n"
+                     . "Dear <b>{$head->full_name}</b>,\n"
+                     . "The Weekly Performance Report for <b>{$dept->department_name}</b> ({$month} {$year}, Week {$week}) has not been submitted.\n\n"
+                     . "Please evaluate your weekly planned tasks and submit your execution report as soon as possible.\n\n"
+                     . "☕ <i>Kaldis Coffee PLC — Office of the General Manager</i>";
+            }
+
+            $res = $telegram->sendMessage($head->telegram_chat_id, $msg);
+            $sent = !empty($res['ok']);
+        }
+
+        // Also add in-app reminder
+        if ($head) {
+            \Illuminate\Support\Facades\DB::table('notifications')->insert([
+                'user_id' => $head->id,
+                'department_id' => $deptId,
+                'title' => "Executive Reminder: " . ($type === 'MONTHLY' ? "Monthly Plan Required" : "Weekly Report Required (Week {$week})"),
+                'message' => "General Management has sent an urgent reminder to submit your department's " . ($type === 'MONTHLY' ? "Monthly Plan" : "Weekly Performance Report") . " for {$month} {$year}.",
+                'notification_type' => 'REMINDER',
+                'created_at' => now(),
+            ]);
+        }
+
+        \App\Models\AuditLog::log('GM_SENT_REMINDER', 'management', "GM sent {$type} submission reminder to Dept {$dept->department_code} ({$dept->department_name})");
+
+        if ($sent) {
+            return back()->with('success', "Telegram & In-App reminder dispatched directly to {$head->full_name} ({$dept->department_name})!");
+        } else {
+            return back()->with('warning', "In-App reminder recorded for {$dept->department_name}. (Note: Telegram chat ID not registered for department head)");
+        }
+    }
+
+    public function runTelegramCheck(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user->isGM() && !$user->isSuperAdmin()) {
+            abort(403, 'Only General Management can trigger automated Telegram checks.');
+        }
+
+        $year = $request->input('year', kaldis_setting('current_planning_year', config('kaldis.current_planning_year')));
+        $month = $request->input('month', kaldis_setting('current_planning_month', config('kaldis.current_planning_month')));
+        $week = (int)$request->input('week', (function_exists('get_current_planning_week') ? get_current_planning_week() : 1) ?: 1);
+
+        // Run both weekly cutoff check & monthly plan check
+        \Illuminate\Support\Facades\Artisan::call('kaldis:deadline-check', [
+            '--year' => $year,
+            '--month' => $month,
+            '--week' => $week,
+        ]);
+
+        \Illuminate\Support\Facades\Artisan::call('kaldis:monthly-reminder', [
+            '--type' => 'reminder',
+            '--year' => $year,
+            '--month' => $month,
+        ]);
+
+        \App\Models\AuditLog::log('GM_TRIGGERED_CRON', 'management', "GM manually triggered automated Telegram compliance check for {$month} {$year} (Week {$week})");
+
+        return back()->with('success', "Automated Telegram notifications & Executive Summary reports successfully dispatched to General Management and Department Heads for {$month} {$year} (Week {$week})!");
     }
 
     public function department(Request $request)
@@ -174,6 +300,11 @@ class DashboardController extends Controller
 
         if (!$user->canAccessAllDepartments() && $user->department_id != $deptId) {
             $deptId = $user->department_id;
+        }
+
+        if (!$deptId) {
+            $firstDept = Department::where('active', 1)->first();
+            $deptId = $firstDept ? $firstDept->id : 1;
         }
 
         $department = Department::findOrFail($deptId);

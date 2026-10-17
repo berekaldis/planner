@@ -4,74 +4,56 @@
 
 @section('content')
 <div class="login-card">
-    <div class="text-center">
-        <img src="{{ asset('images/logo.png') }}" alt="Kaldis Coffee" class="login-logo" onerror="this.src='{{ asset('assets/images/logo.png') }}'">
-        <h4 class="fw-bold text-dark mb-1">Kaldis Coffee PLC</h4>
-        <p class="text-muted small mb-4">Strategic Planning & Performance Management</p>
+    <div class="text-center mb-4">
+        <img src="{{ asset('assets/images/logo.png') }}" alt="Kaldis Coffee" class="login-logo" onerror="this.src='{{ asset('images/logo.png') }}'">
+        <h3 class="brand-title mb-1">Kaldis Coffee PLC</h3>
+        <p class="text-muted small mb-0 fw-semibold">
+            Strategic Planning &bull; Execution &bull; Performance
+        </p>
     </div>
 
     @if($errors->any())
-        <div class="alert alert-danger py-2 px-3 small border-0 mb-3 rounded-3">
-            <i class="fas fa-exclamation-circle me-1"></i> {{ $errors->first() }}
+        <div class="alert alert-danger py-2 px-3 small mb-3 rounded-3 d-flex align-items-center gap-2">
+            <i class="fas fa-exclamation-circle text-danger flex-shrink-0"></i>
+            <span>{{ $errors->first() }}</span>
         </div>
     @endif
 
     <form method="POST" action="{{ route('login.post') }}">
         @csrf
         <div class="mb-3">
-            <label class="form-label small fw-semibold text-secondary">Username</label>
+            <label class="form-label">Username</label>
             <div class="input-group">
-                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-user small"></i></span>
-                <input type="text" name="username" id="usernameInput" class="form-control border-start-0" placeholder="Enter username" value="{{ old('username') }}" required autofocus>
+                <span class="input-group-text"><i class="fas fa-user text-muted"></i></span>
+                <input type="text" name="username" id="usernameInput" class="form-control" placeholder="Enter username (e.g. gm or admin)" value="{{ old('username') }}" required autofocus>
             </div>
         </div>
 
         <div class="mb-3">
-            <label class="form-label small fw-semibold text-secondary">Password</label>
+            <label class="form-label">Password</label>
             <div class="input-group">
-                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-lock small"></i></span>
-                <input type="password" name="password" id="passwordInput" class="form-control border-start-0" placeholder="••••••••" required>
+                <span class="input-group-text"><i class="fas fa-lock text-muted"></i></span>
+                <input type="password" name="password" id="passwordInput" class="form-control" placeholder="Enter password" required>
             </div>
         </div>
 
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div class="form-check">
                 <input type="checkbox" name="remember" class="form-check-input" id="rememberMe">
-                <label class="form-check-label small text-muted" for="rememberMe">Keep me logged in</label>
+                <label class="form-check-label small text-muted" for="rememberMe">Remember me</label>
             </div>
         </div>
 
-        <button type="submit" class="btn btn-kaldis-login w-100 mb-4">
-            Sign In to System <i class="fas fa-arrow-right ms-1"></i>
+        <button type="submit" class="btn btn-kaldis-login w-100">
+            Sign In to Portal <i class="fas fa-arrow-right ms-1"></i>
         </button>
     </form>
 
-    <!-- 1-Click Quick Fill Credentials -->
-    <div class="p-3 bg-light rounded-3 border">
-        <div class="small fw-bold text-secondary mb-2 text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.05em;">
-            <i class="fas fa-key me-1 text-warning"></i> Quick Demo Access (Default: admin123)
-        </div>
-        <div class="d-flex flex-wrap gap-1">
-            <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2 small" onclick="fillCreds('gm', 'admin123')">
-                <i class="fas fa-user-tie me-1"></i> General Manager
-            </button>
-            <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2 small" onclick="fillCreds('it_head', 'admin123')">
-                <i class="fas fa-laptop-code me-1"></i> IT Dept Head
-            </button>
-            <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2 small" onclick="fillCreds('ops_head', 'admin123')">
-                <i class="fas fa-store me-1"></i> Ops Head
-            </button>
-            <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2 small" onclick="fillCreds('admin', 'admin123')">
-                <i class="fas fa-shield-alt me-1"></i> Admin
-            </button>
-        </div>
+    <div class="text-center mt-3 pt-2">
+        <small class="text-muted" style="font-size: 0.72rem;">&copy; {{ date('Y') }} Kaldis Coffee PLC &bull; IT Department</small>
     </div>
 </div>
+@endsection
 
-<script>
-    function fillCreds(u, p) {
-        document.getElementById('usernameInput').value = u;
-        document.getElementById('passwordInput').value = p;
-    }
-</script>
+@section('scripts')
 @endsection

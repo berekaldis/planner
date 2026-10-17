@@ -26,12 +26,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $username = trim($_POST['username'] ?? '');
         $email = trim($_POST['email'] ?? '');
         $fullName = trim($_POST['full_name'] ?? '');
-        $password = trim($_POST['password'] ?? 'admin123');
+        $password = trim($_POST['password'] ?? '');
         $roleId = (int)($_POST['role_id'] ?? 0);
         $deptId = filter_input(INPUT_POST, 'department_id', FILTER_VALIDATE_INT) ?: null;
         $telegramId = trim($_POST['telegram_chat_id'] ?? '') ?: null;
 
-        if (!empty($username) && !empty($email) && !empty($fullName) && $roleId > 0) {
+        if (!empty($username) && !empty($email) && !empty($fullName) && !empty($password) && $roleId > 0) {
             try {
                 $hash = password_hash($password, PASSWORD_DEFAULT);
                 $stmt = $db->prepare("
@@ -55,6 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     } elseif ($action === 'update_user') {
         $editId = (int)($_POST['user_id'] ?? 0);
+        $username = trim($_POST['username'] ?? '');
         $email = trim($_POST['email'] ?? '');
         $fullName = trim($_POST['full_name'] ?? '');
         $roleId = (int)($_POST['role_id'] ?? 0);
@@ -62,26 +63,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $telegramId = trim($_POST['telegram_chat_id'] ?? '') ?: null;
         $isActive = (int)($_POST['is_active'] ?? 1);
 
-        if ($editId > 0 && !empty($email) && !empty($fullName) && $roleId > 0) {
+        if ($editId > 0 && !empty($username) && !empty($email) && !empty($fullName) && $roleId > 0) {
             try {
+                // Verify username is not taken by another user
+                $dupCheck = $db->prepare("SELECT id FROM users WHERE username = ? AND id != ?");
+                $dupCheck->execute([$username, $editId]);
+                if ($dupCheck->fetch()) {
+                    set_flash('danger', "The username '{$username}' is already taken by another account.");
+                    redirect('/admin/users.php');
+                }
+
+                // Verify email is not taken by another user
+                $dupEmail = $db->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
+                $dupEmail->execute([$email, $editId]);
+                if ($dupEmail->fetch()) {
+                    set_flash('danger', "The email '{$email}' is already taken by another account.");
+                    redirect('/admin/users.php');
+                }
+
                 $stmt = $db->prepare("
                     UPDATE users SET
-                        email = ?, full_name = ?, role_id = ?, department_id = ?, telegram_chat_id = ?, is_active = ?, updated_at = NOW()
+                        username = ?, email = ?, full_name = ?, role_id = ?, department_id = ?, telegram_chat_id = ?, is_active = ?, updated_at = NOW()
                     WHERE id = ?
                 ");
-                $stmt->execute([$email, $fullName, $roleId, $deptId, $telegramId, $isActive, $editId]);
+                $stmt->execute([$username, $email, $fullName, $roleId, $deptId, $telegramId, $isActive, $editId]);
+
+                // Keep current session in sync if admin updated themselves
+                if ($editId === $userId) {
+                    $_SESSION['user']['username'] = $username;
+                    $_SESSION['user']['full_name'] = $fullName;
+                    $_SESSION['user']['email'] = $email;
+                }
 
                 audit_log($userId, 'USER_UPDATED', 'users', (string)$editId, null, [
+                    'username' => $username,
                     'role_id' => $roleId,
                     'department_id' => $deptId,
                     'is_active' => $isActive
                 ]);
 
-                set_flash('success', "User updated successfully.");
+                set_flash('success', "User '{$username}' updated successfully.");
                 redirect('/admin/users.php');
             } catch (PDOException $e) {
                 set_flash('danger', "Error updating user: " . $e->getMessage());
             }
+        } else {
+            set_flash('danger', "Please fill in all required fields (username, full name, email, and role).");
         }
     } elseif ($action === 'reset_password') {
         $editId = (int)($_POST['user_id'] ?? 0);
@@ -219,7 +246,7 @@ $users = $db->query($usersQuery)->fetchAll();
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-bold">INITIAL PASSWORD <span class="text-danger">*</span></label>
-                            <input type="password" name="password" class="form-control" value="admin123" required>
+                            <input type="password" name="password" class="form-control" placeholder="••••••••" required minlength="6">
                         </div>
 
                         <div class="col-md-6">
@@ -276,10 +303,15 @@ $users = $db->query($usersQuery)->fetchAll();
                 <div class="modal-body p-4">
                     <div class="row g-3">
                         <div class="col-md-6">
+                            <label class="form-label small fw-bold">USERNAME <span class="text-danger">*</span></label>
+                            <input type="text" name="username" id="edit_username" class="form-control font-monospace" required placeholder="e.g. jdoe">
+                            <small class="text-muted"><i class="fas fa-check-circle text-success me-1"></i> Editable by Admin</small>
+                        </div>
+                        <div class="col-md-6">
                             <label class="form-label small fw-bold">FULL NAME <span class="text-danger">*</span></label>
                             <input type="text" name="full_name" id="edit_full_name" class="form-control" required>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-12">
                             <label class="form-label small fw-bold">EMAIL ADDRESS <span class="text-danger">*</span></label>
                             <input type="email" name="email" id="edit_email" class="form-control" required>
                         </div>
@@ -359,6 +391,7 @@ $users = $db->query($usersQuery)->fetchAll();
 <script>
 function editUser(u) {
     document.getElementById('edit_user_id').value = u.id;
+    document.getElementById('edit_username').value = u.username || '';
     document.getElementById('edit_full_name').value = u.full_name;
     document.getElementById('edit_email').value = u.email;
     document.getElementById('edit_role_id').value = u.role_id;

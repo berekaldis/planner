@@ -17,27 +17,6 @@ if (!Auth::check()) {
     redirect('/login.php');
 }
 
-$role = Permissions::getRole();
+// All authenticated users start from the OverView page
+redirect('/overview.php');
 
-switch ($role) {
-    case Permissions::ROLE_SUPER_ADMIN:
-    case Permissions::ROLE_IT_ADMIN:
-        redirect('/admin/dashboard.php');
-        break;
-
-    case Permissions::ROLE_GM:
-        redirect('/management/dashboard.php');
-        break;
-
-    case Permissions::ROLE_DEPT_HEAD:
-        redirect('/department/dashboard.php');
-        break;
-
-    case Permissions::ROLE_HR:
-        redirect('/performance/weekly.php');
-        break;
-
-    default:
-        redirect('/department/dashboard.php');
-        break;
-}

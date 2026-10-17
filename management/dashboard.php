@@ -12,8 +12,51 @@ Permissions::requireRole([Permissions::ROLE_SUPER_ADMIN, Permissions::ROLE_GM, P
 
 $db = Database::getConnection();
 
-$year = app_config('current_planning_year', '2019 E.C.');
-$month = app_config('current_planning_month', 'Nehase');
+$years = get_planning_years();
+$months = get_ethiopian_months();
+$year = $_GET['year'] ?? app_config('current_planning_year', '2019 E.C.');
+$month = $_GET['month'] ?? app_config('current_planning_month', 'Meskerem');
+$selectedWeek = !empty($_GET['week']) ? (int)$_GET['week'] : 1;
+
+// Handle Telegram Reminder action if requested
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'remind_department') {
+    require_csrf();
+    $targetDeptId = (int)($_POST['department_id'] ?? 0);
+    $remindType = $_POST['remind_type'] ?? 'weekly'; // 'weekly' or 'monthly'
+
+    $targetDept = $db->query("SELECT * FROM departments WHERE id = {$targetDeptId}")->fetch();
+    if ($targetDept) {
+        $deptHead = $db->query("SELECT * FROM users WHERE department_id = {$targetDeptId} AND role IN ('DEPARTMENT_HEAD', 'MANAGER') ORDER BY id ASC LIMIT 1")->fetch();
+        $headName = $deptHead['full_name'] ?? 'Department Head';
+        $chatId = $deptHead['telegram_chat_id'] ?? null;
+
+        if ($remindType === 'monthly') {
+            $msg = "<b>URGENT REMINDER: Monthly Plan Submission</b>\n"
+                 . "Dear {$headName} ({$targetDept['department_code']}),\n"
+                 . "Your Monthly Plan Package for <b>{$month} {$year}</b> has not yet been submitted to the General Manager.\n"
+                 . "Please finalize and submit your plan package immediately.\n"
+                 . "Link: " . url("/department/monthly_plans.php?department_id={$targetDeptId}&year=" . urlencode($year) . "&month=" . urlencode($month));
+        } else {
+            $msg = "<b>URGENT REMINDER: Weekly Performance Report</b>\n"
+                 . "Dear {$headName} ({$targetDept['department_code']}),\n"
+                 . "Your Week {$selectedWeek} ({$month} {$year}) performance report is currently pending submission.\n"
+                 . "Please evaluate your deliverables and submit the report to General Management.\n"
+                 . "Link: " . url("/department/performance.php?department_id={$targetDeptId}&year=" . urlencode($year) . "&month=" . urlencode($month) . "&week={$selectedWeek}");
+        }
+
+        if (!empty($chatId)) {
+            send_telegram_notification($msg, $chatId);
+        }
+        $db->prepare("
+            INSERT INTO notifications (user_id, title, message, type, is_read, created_at)
+            SELECT id, 'Urgent: Submission Required', ?, 'warning', 0, NOW()
+            FROM users WHERE department_id = ?
+        ")->execute([$msg, $targetDeptId]);
+
+        set_flash('success', "Urgent submission reminder sent to {$targetDept['department_name']} via in-app & Telegram.");
+        redirect($_SERVER['REQUEST_URI']);
+    }
+}
 
 // 1. Planning Metrics
 $totAnnualGoals = $db->query("SELECT COUNT(*) FROM annual_goals WHERE year = '{$year}' AND status = 'ACTIVE'")->fetchColumn();
@@ -98,7 +141,82 @@ $deptExecData = $db->query("
     GROUP BY d.id, d.department_code, d.department_name
     ORDER BY d.department_name ASC
 ")->fetchAll();
+
+// 8. Weekly & Monthly Executive Command Center Data
+$allActiveDepts = $db->query("SELECT id, department_name, department_code FROM departments WHERE active = 1 ORDER BY department_name ASC")->fetchAll();
+
+$weeklyDeptData = [];
+foreach ($allActiveDepts as $d) {
+    $dId = (int)$d['id'];
+    $sub = $db->query("SELECT * FROM submissions WHERE department_id = {$dId} AND year = '{$year}' AND month = '{$month}' AND week_number = {$selectedWeek}")->fetch();
+    $rep = $db->query("SELECT * FROM weekly_reports WHERE department_id = {$dId} AND year = '{$year}' AND month = '{$month}' AND week_number = {$selectedWeek}")->fetch();
+    $tasks = $db->query("
+        SELECT COUNT(wt.id) as total,
+               SUM(CASE WHEN wtr.result = 'DONE' THEN 1 ELSE 0 END) as done,
+               SUM(CASE WHEN wtr.result = 'NOT_DONE' THEN 1 ELSE 0 END) as not_done
+        FROM weekly_tasks wt
+        LEFT JOIN weekly_task_results wtr ON wt.id = wtr.weekly_task_id
+        WHERE wt.department_id = {$dId} AND wt.year = '{$year}' AND wt.month = '{$month}' AND wt.week_number = {$selectedWeek}
+    ")->fetch();
+
+    $tTotal = (int)($tasks['total'] ?? 0);
+    $tDone = (int)($tasks['done'] ?? 0);
+    $rate = $tTotal > 0 ? round(($tDone / $tTotal) * 100, 1) : 0;
+    
+    $timingStatus = 'NOT_SUBMITTED';
+    if ($sub && in_array($sub['status'], ['ON_TIME', 'LATE'])) {
+        $timingStatus = $sub['status'];
+    } elseif ($rep && in_array($rep['submission_status'] ?? '', ['ON_TIME', 'LATE'])) {
+        $timingStatus = $rep['submission_status'];
+    }
+
+    $weeklyDeptData[] = [
+        'dept' => $d,
+        'submission' => $sub ?: $rep,
+        'status' => $timingStatus,
+        'approval_status' => $sub['approval_status'] ?? ($rep['approval_status'] ?? 'PENDING'),
+        'gm_feedback' => $sub['gm_feedback'] ?? ($rep['gm_feedback'] ?? ''),
+        'total_tasks' => $tTotal,
+        'done_tasks' => $tDone,
+        'completion_rate' => $rate,
+    ];
+}
+
+$monthlyDeptData = [];
+foreach ($allActiveDepts as $d) {
+    $dId = (int)$d['id'];
+    $sub = $db->query("SELECT * FROM monthly_submissions WHERE department_id = {$dId} AND year = '{$year}' AND month = '{$month}'")->fetch();
+    $plans = $db->query("
+        SELECT COUNT(id) as total,
+               SUM(CASE WHEN plan_type = 'STRATEGY' THEN 1 ELSE 0 END) as strategy_count,
+               SUM(CASE WHEN plan_type = 'OPERATIONAL' THEN 1 ELSE 0 END) as operational_count
+        FROM monthly_plans
+        WHERE department_id = {$dId} AND year = '{$year}' AND month = '{$month}'
+    ")->fetch();
+
+    $pTotal = (int)($plans['total'] ?? 0);
+    $pStrat = (int)($plans['strategy_count'] ?? 0);
+    $pOps = (int)($plans['operational_count'] ?? 0);
+
+    $mStatus = 'NOT_SUBMITTED';
+    if ($sub && in_array($sub['status'], ['ON_TIME', 'LATE'])) {
+        $mStatus = $sub['status'];
+    }
+
+    $monthlyDeptData[] = [
+        'dept' => $d,
+        'submission' => $sub,
+        'status' => $mStatus,
+        'approval_status' => $sub['approval_status'] ?? 'PENDING',
+        'gm_feedback' => $sub['gm_feedback'] ?? '',
+        'total_plans' => $pTotal,
+        'strategy_plans' => $pStrat,
+        'operational_plans' => $pOps,
+    ];
+}
 ?>
+<?php $user = Auth::user(); ?>
+
 
 <!-- Page Header -->
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-2">
@@ -115,6 +233,235 @@ $deptExecData = $db->query("
         <a href="<?= url('/performance/weekly.php') ?>" class="btn btn-kaldis-dark">
             <i class="fas fa-eye me-1"></i> Weekly Scorecard
         </a>
+    </div>
+</div>
+
+<!-- Dynamic Planning Period & Week Filter Bar -->
+<div class="filter-bar mb-4">
+    <form method="GET" action="dashboard.php" class="row g-3 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label small fw-bold text-muted text-uppercase">Planning Year</label>
+            <select name="year" class="form-select form-select-sm" onchange="this.form.submit()">
+                <?php foreach ($years as $y): ?>
+                    <option value="<?= e($y) ?>" <?= $year === $y ? 'selected' : '' ?>><?= e($y) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small fw-bold text-muted text-uppercase">Planning Month</label>
+            <select name="month" class="form-select form-select-sm" onchange="this.form.submit()">
+                <?php foreach ($months as $m): ?>
+                    <option value="<?= e($m) ?>" <?= $month === $m ? 'selected' : '' ?>><?= e($m) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small fw-bold text-muted text-uppercase">Execution Week</label>
+            <select name="week" class="form-select form-select-sm" onchange="this.form.submit()">
+                <?php for ($w = 1; $w <= 5; $w++): ?>
+                    <option value="<?= $w ?>" <?= $selectedWeek === $w ? 'selected' : '' ?>>Week <?= $w ?></option>
+                <?php endfor; ?>
+            </select>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-sm btn-kaldis w-100">
+                <i class="fas fa-arrows-rotate me-1"></i> Refresh Command Center
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- EXECUTIVE PLANS & REPORTS COMMAND CENTER -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-bottom py-3">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
+            <div>
+                <h5 class="fw-bold text-dark mb-0">
+                    <i class="fas fa-layer-group text-warning me-2"></i> Executive Plans &amp; Reports Command Center
+                </h5>
+                <small class="text-muted">Direct oversight of company-wide monthly plans, weekly execution reports, and official vouchers</small>
+            </div>
+            <ul class="nav nav-pills card-header-pills" id="gmCommandTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active btn-sm" id="weekly-tab" data-bs-toggle="tab" data-bs-target="#tab-weekly" type="button" role="tab">
+                        <i class="fas fa-calendar-week me-1"></i> Weekly Reports (Week <?= $selectedWeek ?>)
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link btn-sm" id="monthly-tab" data-bs-toggle="tab" data-bs-target="#tab-monthly" type="button" role="tab">
+                        <i class="fas fa-calendar-alt me-1"></i> Monthly Plans Overview
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="tab-content" id="gmCommandTabsContent">
+            <!-- TAB 1: WEEKLY REPORTS -->
+            <div class="tab-pane fade show active" id="tab-weekly" role="tabpanel">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 250px;">Department</th>
+                                <th style="width: 150px;">Submission Status</th>
+                                <th style="width: 220px;">Execution Progress</th>
+                                <th style="width: 140px;">GM Approval</th>
+                                <th style="width: 200px;" class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($weeklyDeptData as $row): ?>
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold text-dark"><?= e($row['dept']['department_name']) ?></div>
+                                        <span class="badge bg-light text-secondary border font-monospace"><?= e($row['dept']['department_code']) ?></span>
+                                    </td>
+                                    <td>
+                                        <?php if ($row['status'] === 'ON_TIME'): ?>
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                                <i class="fas fa-check-circle me-1"></i> ON-TIME
+                                            </span>
+                                        <?php elseif ($row['status'] === 'LATE'): ?>
+                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">
+                                                <i class="fas fa-exclamation-triangle me-1"></i> LATE
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
+                                                <i class="fas fa-times-circle me-1"></i> NOT SUBMITTED
+                                            </span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex justify-content-between small mb-1">
+                                            <span class="text-muted"><?= $row['done_tasks'] ?> / <?= $row['total_tasks'] ?> Done</span>
+                                            <strong class="text-primary"><?= $row['completion_rate'] ?>%</strong>
+                                        </div>
+                                        <div class="progress" style="height: 6px;">
+                                            <div class="progress-bar <?= $row['completion_rate'] >= 80 ? 'bg-success' : ($row['completion_rate'] >= 50 ? 'bg-primary' : 'bg-warning') ?>" 
+                                                 style="width: <?= $row['completion_rate'] ?>%;"></div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <?php if (!empty($row['approval_status'])): ?>
+                                            <span class="badge <?= $row['approval_status'] === 'APPROVED' ? 'bg-success' : ($row['approval_status'] === 'REVISION_REQUESTED' ? 'bg-danger' : 'bg-secondary') ?> px-2 py-1">
+                                                <?= e($row['approval_status']) ?>
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="text-muted small">&mdash;</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="<?= url('/department/weekly_voucher.php?department_id=' . $row['dept']['id'] . '&year=' . urlencode($year) . '&month=' . urlencode($month) . '&week=' . $selectedWeek) ?>" 
+                                               class="btn btn-outline-dark" title="View Official Weekly Voucher">
+                                                <i class="fas fa-file-invoice me-1"></i> Voucher
+                                            </a>
+                                            <a href="<?= url('/department/performance.php?department_id=' . $row['dept']['id'] . '&year=' . urlencode($year) . '&month=' . urlencode($month) . '&week=' . $selectedWeek) ?>" 
+                                               class="btn btn-outline-secondary" title="View Execution Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <?php if ($row['status'] === 'NOT_SUBMITTED'): ?>
+                                                <form method="POST" action="dashboard.php" class="d-inline" onsubmit="return confirm('Dispatch Telegram & in-app reminder to <?= e($row['dept']['department_name']) ?>?');">
+                                                    <?= csrf_field() ?>
+                                                    <input type="hidden" name="action" value="remind_department">
+                                                    <input type="hidden" name="department_id" value="<?= $row['dept']['id'] ?>">
+                                                    <input type="hidden" name="remind_type" value="weekly">
+                                                    <button type="submit" class="btn btn-outline-warning text-dark" title="Dispatch Telegram Reminder">
+                                                        <i class="fab fa-telegram-plane"></i> Remind
+                                                    </button>
+                                                </form>
+                                            <?php endif; ?>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 2: MONTHLY PLANS -->
+            <div class="tab-pane fade" id="tab-monthly" role="tabpanel">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 250px;">Department</th>
+                                <th style="width: 150px;">Submission Status</th>
+                                <th style="width: 220px;">Plan Breakdown</th>
+                                <th style="width: 140px;">GM Approval</th>
+                                <th style="width: 200px;" class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($monthlyDeptData as $row): ?>
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold text-dark"><?= e($row['dept']['department_name']) ?></div>
+                                        <span class="badge bg-light text-secondary border font-monospace"><?= e($row['dept']['department_code']) ?></span>
+                                    </td>
+                                    <td>
+                                        <?php if ($row['status'] === 'ON_TIME'): ?>
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                                <i class="fas fa-check-circle me-1"></i> ON-TIME
+                                            </span>
+                                        <?php elseif ($row['status'] === 'LATE'): ?>
+                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">
+                                                <i class="fas fa-exclamation-triangle me-1"></i> LATE
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
+                                                <i class="fas fa-times-circle me-1"></i> NOT SUBMITTED
+                                            </span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <strong class="text-dark"><?= $row['total_plans'] ?> Plans Total</strong>
+                                        <div class="small text-muted">
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle me-1"><?= $row['strategy_plans'] ?> Strategy</span>
+                                            <span class="badge bg-info-subtle text-info border border-info-subtle"><?= $row['operational_plans'] ?> Operational</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <?php if (!empty($row['approval_status'])): ?>
+                                            <span class="badge <?= $row['approval_status'] === 'APPROVED' ? 'bg-success' : ($row['approval_status'] === 'REVISION_REQUESTED' ? 'bg-danger' : 'bg-secondary') ?> px-2 py-1">
+                                                <?= e($row['approval_status']) ?>
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="text-muted small">&mdash;</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="<?= url('/department/monthly_voucher.php?department_id=' . $row['dept']['id'] . '&year=' . urlencode($year) . '&month=' . urlencode($month)) ?>" 
+                                               class="btn btn-outline-dark" title="View Official Monthly Voucher">
+                                                <i class="fas fa-file-invoice me-1"></i> Voucher
+                                            </a>
+                                            <a href="<?= url('/department/monthly_plans.php?department_id=' . $row['dept']['id'] . '&year=' . urlencode($year) . '&month=' . urlencode($month)) ?>" 
+                                               class="btn btn-outline-secondary" title="View Monthly Plans">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <?php if ($row['status'] === 'NOT_SUBMITTED'): ?>
+                                                <form method="POST" action="dashboard.php" class="d-inline" onsubmit="return confirm('Dispatch Telegram & in-app reminder to <?= e($row['dept']['department_name']) ?>?');">
+                                                    <?= csrf_field() ?>
+                                                    <input type="hidden" name="action" value="remind_department">
+                                                    <input type="hidden" name="department_id" value="<?= $row['dept']['id'] ?>">
+                                                    <input type="hidden" name="remind_type" value="monthly">
+                                                    <button type="submit" class="btn btn-outline-warning text-dark" title="Dispatch Telegram Reminder">
+                                                        <i class="fab fa-telegram-plane"></i> Remind
+                                                    </button>
+                                                </form>
+                                            <?php endif; ?>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 

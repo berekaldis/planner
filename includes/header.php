@@ -1,6 +1,6 @@
 <?php
 /**
- * Global Header with Light/Dark Theme & Sidebar Toggle
+ * Global Header with Light/Dark Theme Toggle & Sidebar State Initializer
  * Kaldis Coffee PLC
  */
 
@@ -66,8 +66,13 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- FontAwesome 6 -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-    <!-- Kaldis Custom Stylesheet -->
-    <link href="<?= url('/assets/css/style.css') ?>" rel="stylesheet">
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="<?= url('/assets/images/logo.png') ?>">
+    <link rel="shortcut icon" type="image/png" href="<?= url('/assets/images/logo.png') ?>">
+    <!-- TomSelect 2.4 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+    <!-- Kaldis Custom Stylesheet with Cache Busting -->
+    <link href="<?= url('/assets/css/style.css') ?>?v=<?= time() ?>" rel="stylesheet">
 </head>
 <body>
 
@@ -75,25 +80,24 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
     <nav class="navbar navbar-expand kaldis-navbar sticky-top">
         <div class="container-fluid px-3">
             
-            <!-- Left: Sidebar Toggle & Official Kaldis Brand Logo -->
+            <!-- Left: Brand Logo & Mobile Toggle -->
             <div class="d-flex align-items-center">
-                <button id="sidebarToggle" class="btn btn-outline-secondary btn-sm me-3 border shadow-sm" type="button" 
-                        title="Toggle Sidebar Navigation (Alt+S)" aria-label="Toggle navigation">
-                    <i class="fas fa-bars"></i>
+                <button id="mobileSidebarToggle" class="btn btn-outline-secondary btn-sm rounded-circle d-lg-none me-2 d-flex align-items-center justify-content-center shadow-xs" 
+                        style="width: 36px; height: 36px;" type="button" aria-label="Toggle Navigation">
+                    <i class="fas fa-bars text-secondary"></i>
                 </button>
-                <a class="navbar-brand me-3" href="<?= url('/index.php') ?>">
+                <a class="navbar-brand me-3 d-flex align-items-center text-decoration-none" href="<?= url('/overview.php') ?>">
                     <img src="<?= url('/assets/images/logo.png') ?>" alt="Kaldis Coffee" class="kaldis-brand-img">
                     <div class="d-none d-md-block ms-2 lh-sm">
                         <div class="brand-title">KALDIS COFFEE PLC</div>
-                        <div class="brand-subtitle">PLANNING & PERFORMANCE</div>
+                        <div class="brand-subtitle">PLANNING &amp; PERFORMANCE</div>
                     </div>
                 </a>
             </div>
 
-            <!-- Right: Active Period Badge, Theme Toggle, Notification Bell & User Profile -->
+            <!-- Right: Period Badges, Dark Mode Toggle, Notifications & User Profile -->
             <div class="d-flex align-items-center gap-2 gap-md-3 ms-auto">
                 
-
                 <!-- Planning Period Badge -->
                 <?php $ethPeriod = get_ethiopian_period(); ?>
                 <div class="d-none d-lg-flex align-items-center me-1">
@@ -107,7 +111,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
 
                 <!-- Theme Toggle Button (Light Mode / Dark Mode) -->
                 <button id="themeToggle" class="btn btn-outline-secondary btn-sm rounded-circle d-flex align-items-center justify-content-center shadow-sm" 
-                        style="width: 36px; height: 36px;" type="button" title="Toggle Light / Dark Mode (Alt+D)">
+                        style="width: 36px; height: 36px;" type="button" title="Toggle Light / Dark Mode (Alt+D)" aria-label="Toggle Dark Mode">
                     <i id="themeToggleIcon" class="fas fa-moon text-secondary"></i>
                 </button>
 
@@ -123,7 +127,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                         <?php endif; ?>
                     </button>
                     <div class="dropdown-menu dropdown-menu-end shadow-lg notification-menu p-0">
-                        <div class="p-3 bg-light text-dark d-flex justify-content-between align-items-center border-bottom border-warning">
+                        <div class="p-3 d-flex justify-content-between align-items-center border-bottom border-warning" style="background:var(--kaldis-border-subtle);color:var(--kaldis-text);">
                             <span class="fw-bold small"><i class="fas fa-bell me-1 text-warning"></i> Notifications</span>
                             <span class="badge bg-warning text-dark font-monospace"><?= count($notifications) ?> Total</span>
                         </div>
@@ -189,7 +193,9 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
     <div class="app-wrapper">
         <?php require_once __DIR__ . '/sidebar.php'; ?>
 
-        <main class="main-content">
+        <!-- Content Wrapper (Main Content + Footer Flow) -->
+        <div class="content-wrapper">
+            <main class="main-content">
             <!-- Flash Alert -->
             <?php if ($flash): ?>
                 <div class="alert alert-<?= e($flash['type']) ?> alert-dismissible fade show shadow-sm" role="alert">

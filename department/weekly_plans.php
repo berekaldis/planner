@@ -50,18 +50,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $month = trim($_POST['month'] ?? $selectedMonth);
         $week = (int)($_POST['week_number'] ?? $selectedWeek);
 
-        if (!$monthlyPlanId || empty($taskTitle) || empty($expectedResult) || empty($responsible)) {
-            set_flash('danger', 'Please complete all required fields (Parent Plan, Task, Expected Result, Responsible Person).');
+        if (empty($taskTitle) || empty($expectedResult) || empty($responsible)) {
+            set_flash('danger', 'Please complete all required fields (Task Description, Expected Result, Responsible Person).');
         } else {
             try {
-                // Fetch parent monthly plan to inherit plan_type and annual_goal_id
-                $mpStmt = $db->prepare("SELECT plan_type, annual_goal_id FROM monthly_plans WHERE id = ? AND department_id = ?");
-                $mpStmt->execute([$monthlyPlanId, $taskDeptId]);
-                $parentPlan = $mpStmt->fetch();
-
-                if (!$parentPlan) {
-                    set_flash('danger', 'Selected monthly plan does not belong to your department.');
-                    redirect("/department/weekly_plans.php?year={$year}&month={$month}&week={$week}&department_id={$taskDeptId}");
+                $parentPlan = ['plan_type' => 'OPERATIONAL', 'annual_goal_id' => null];
+                if ($monthlyPlanId) {
+                    // Fetch parent monthly plan to inherit plan_type and annual_goal_id
+                    $mpStmt = $db->prepare("SELECT plan_type, annual_goal_id FROM monthly_plans WHERE id = ? AND department_id = ?");
+                    $mpStmt->execute([$monthlyPlanId, $taskDeptId]);
+                    $fetchedPlan = $mpStmt->fetch();
+                    if ($fetchedPlan) {
+                        $parentPlan = $fetchedPlan;
+                    }
                 }
 
                 // Ensure weekly_plan master record exists
@@ -90,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     )
                 ");
                 $insTask->execute([
-                    $weeklyPlanId, $monthlyPlanId, $taskDeptId, $year, $month, $week,
+                    $weeklyPlanId, $monthlyPlanId ?: null, $taskDeptId, $year, $month, $week,
                     $parentPlan['plan_type'], $parentPlan['annual_goal_id'], $taskTitle, $expectedResult,
                     $responsible, $priority, $dueDate, $dependency, $notes, $userId
                 ]);
@@ -104,6 +105,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'task' => $taskTitle,
                     'type' => $parentPlan['plan_type']
                 ]);
+
+                // Notify GM of Weekly Task Creation
+                $deptInfo = $db->query("SELECT department_name, department_code FROM departments WHERE id = {$taskDeptId}")->fetch(PDO::FETCH_ASSOC);
+                $deptCode = $deptInfo['department_code'] ?? "Dept #{$taskDeptId}";
+                $deptName = $deptInfo['department_name'] ?? "Department";
+
+                $notifTitle = "Weekly Plan Task Created: {$deptCode}";
+                $notifMessage = "{$deptName} has scheduled a new Weekly Task for {$month} {$year} (Week {$week}).\n"
+                              . "• Task: {$taskTitle}\n"
+                              . "• Expected Result: {$expectedResult}\n"
+                              . "• Responsible: {$responsible}\n"
+                              . "• Priority: {$priority}";
+
+                notify_gm_submission($notifTitle, $notifMessage, $taskDeptId);
 
                 set_flash('success', "Weekly task '{$taskTitle}' planned for Week {$week}.");
                 redirect("/department/weekly_plans.php?year={$year}&month={$month}&week={$week}&department_id={$taskDeptId}");
@@ -144,7 +159,7 @@ $tasksStmt = $db->prepare("
     SELECT wt.*, mp.title as monthly_plan_title, ag.goal_code,
            wtr.result as performance_result, wtr.not_done_explanation, rc.name as reason_category_name
     FROM weekly_tasks wt
-    JOIN monthly_plans mp ON wt.monthly_plan_id = mp.id
+    LEFT JOIN monthly_plans mp ON wt.monthly_plan_id = mp.id
     LEFT JOIN annual_goals ag ON wt.annual_goal_id = ag.id
     LEFT JOIN weekly_task_results wtr ON wt.id = wtr.weekly_task_id
     LEFT JOIN reason_categories rc ON wtr.not_done_reason_id = rc.id
@@ -153,6 +168,11 @@ $tasksStmt = $db->prepare("
 ");
 $tasksStmt->execute([$deptId, $selectedYear, $selectedMonth, $selectedWeek]);
 $weeklyTasks = $tasksStmt->fetchAll();
+
+// Fetch Weekly Submission Status
+$subStmt = $db->prepare("SELECT * FROM submissions WHERE department_id = ? AND year = ? AND month = ? AND week_number = ?");
+$subStmt->execute([$deptId, $selectedYear, $selectedMonth, $selectedWeek]);
+$weeklySubmission = $subStmt->fetch();
 ?>
 
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-2">
@@ -160,7 +180,10 @@ $weeklyTasks = $tasksStmt->fetchAll();
         <h3 class="mb-1 fw-bold text-dark"><i class="fas fa-list-check text-warning me-2"></i> Weekly Department Plans</h3>
         <p class="text-muted mb-0">Break down your Monthly Strategy & Operational plans into weekly actionable tasks.</p>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="<?= url('/department/weekly_voucher.php?department_id=' . $deptId . '&year=' . urlencode($selectedYear) . '&month=' . urlencode($selectedMonth) . '&week=' . $selectedWeek) ?>" class="btn btn-outline-dark">
+            <i class="fas fa-file-invoice me-1"></i> View Voucher
+        </a>
         <button class="btn btn-kaldis" data-bs-toggle="modal" data-bs-target="#createTaskModal">
             <i class="fas fa-plus-circle me-1"></i> Add Weekly Task
         </button>
@@ -169,6 +192,43 @@ $weeklyTasks = $tasksStmt->fetchAll();
         </a>
     </div>
 </div>
+
+<!-- Weekly Submission Status Banner -->
+<?php if (!empty($weeklySubmission) && in_array($weeklySubmission['status'], ['ON_TIME', 'LATE', 'SUBMITTED'])): ?>
+    <div class="alert alert-success border-0 shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-2">
+        <div>
+            <i class="fas fa-check-circle me-2 text-success"></i>
+            <strong>Report Submitted:</strong> Week <?= $selectedWeek ?> performance report has been officially submitted.
+            <span class="badge <?= $weeklySubmission['status'] === 'ON_TIME' ? 'bg-success' : 'bg-warning text-dark' ?> ms-2">
+                <?= e($weeklySubmission['status']) ?>
+            </span>
+            <?php if (!empty($weeklySubmission['approval_status'])): ?>
+                <span class="badge <?= $weeklySubmission['approval_status'] === 'APPROVED' ? 'bg-success' : ($weeklySubmission['approval_status'] === 'REVISION_REQUESTED' ? 'bg-danger' : 'bg-secondary') ?> ms-1">
+                    GM: <?= e($weeklySubmission['approval_status']) ?>
+                </span>
+            <?php endif; ?>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <div class="small text-muted">
+                Submitted on <?= date('M d, Y H:i', strtotime($weeklySubmission['submitted_at'])) ?>
+            </div>
+            <a href="<?= url('/department/weekly_voucher.php?department_id=' . $deptId . '&year=' . urlencode($selectedYear) . '&month=' . urlencode($selectedMonth) . '&week=' . $selectedWeek) ?>" class="btn btn-sm btn-dark">
+                <i class="fas fa-file-invoice me-1"></i> View Voucher
+            </a>
+        </div>
+    </div>
+    <?php if (!empty($weeklySubmission['gm_feedback'])): ?>
+        <div class="card border-primary mb-4 shadow-sm">
+            <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
+                <span class="fw-bold small"><i class="fas fa-comment-dots me-1"></i> Executive Review Comments from General Manager</span>
+                <span class="small opacity-75"><?= !empty($weeklySubmission['gm_feedback_at']) ? date('M d, Y H:i', strtotime($weeklySubmission['gm_feedback_at'])) : '' ?></span>
+            </div>
+            <div class="card-body bg-light py-2 px-3 small">
+                <p class="mb-0 text-dark"><?= nl2br(e($weeklySubmission['gm_feedback'])) ?></p>
+            </div>
+        </div>
+    <?php endif; ?>
+<?php endif; ?>
 
 <!-- Filters Bar -->
 <div class="filter-bar mb-4">
@@ -293,7 +353,11 @@ $weeklyTasks = $tasksStmt->fetchAll();
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <div class="small fw-semibold text-secondary"><?= e($task['monthly_plan_title']) ?></div>
+                                <?php if (!empty($task['monthly_plan_title'])): ?>
+                                    <div class="small fw-semibold text-secondary"><?= e($task['monthly_plan_title']) ?></div>
+                                <?php else: ?>
+                                    <small class="text-muted"><i class="fas fa-list-check me-1"></i> Direct Weekly Task</small>
+                                <?php endif; ?>
                             </td>
                             <td>
                                 <small class="fw-semibold text-dark"><?= e($task['responsible_person']) ?></small>
@@ -347,20 +411,10 @@ $weeklyTasks = $tasksStmt->fetchAll();
 
                 <div class="modal-body p-4">
                     <div class="mb-3">
-                        <label class="form-label small fw-bold">SELECT PARENT MONTHLY PLAN <span class="text-danger">*</span></label>
-                        <?php if (empty($availableMonthlyPlans)): ?>
-                            <div class="alert alert-light border-warning d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between p-3 mb-0 gap-2">
-                                <div>
-                                    <i class="fas fa-exclamation-triangle text-warning me-2"></i>
-                                    <strong>No Monthly Plans Created:</strong> You must create a Monthly Plan for <strong><?= e($selectedMonth) ?> <?= e($selectedYear) ?></strong> before scheduling weekly tasks.
-                                </div>
-                                <a href="monthly_plans.php?year=<?= urlencode($selectedYear) ?>&month=<?= urlencode($selectedMonth) ?>&department_id=<?= (int)$deptId ?>" class="btn btn-sm btn-kaldis text-nowrap">
-                                    <i class="fas fa-plus me-1"></i> Create Monthly Plan &rarr;
-                                </a>
-                            </div>
-                        <?php else: ?>
-                            <select name="monthly_plan_id" id="monthlyPlanSelect" class="form-select" required onchange="autoFillTaskFromMonthlyPlan(this)">
-                                <option value="">-- Choose Monthly Plan --</option>
+                        <label class="form-label small fw-bold">LINK TO MONTHLY PLAN <span class="badge bg-light text-muted border ms-1">OPTIONAL</span></label>
+                        <select name="monthly_plan_id" id="monthlyPlanSelect" class="form-select" onchange="autoFillTaskFromMonthlyPlan(this)">
+                            <option value="">-- Direct Weekly Task (No Monthly Plan Required) --</option>
+                            <?php if (!empty($availableMonthlyPlans)): ?>
                                 <?php foreach ($availableMonthlyPlans as $mp): ?>
                                     <option value="<?= (int)$mp['id'] ?>"
                                             data-title="<?= htmlspecialchars($mp['title'], ENT_QUOTES, 'UTF-8') ?>"
@@ -370,14 +424,14 @@ $weeklyTasks = $tasksStmt->fetchAll();
                                         <?= e($mp['title']) ?> (Target: <?= e($mp['monthly_target']) ?>)
                                     </option>
                                 <?php endforeach; ?>
-                            </select>
-                            <small class="text-muted">Tip: Selecting a plan auto-fills suggested task title & result details!</small>
-                        <?php endif; ?>
+                            <?php endif; ?>
+                        </select>
+                        <small class="text-muted">You can create a task directly or link it to an existing Monthly Strategy/Operational plan.</small>
                     </div>
 
                     <div class="row g-3">
                         <div class="col-12">
-                            <label class="form-label small fw-bold">TASK DESCRIPTION <span class="text-danger">*</span></label>
+                            <label class="form-label small fw-bold">WEEKLY TASK DESCRIPTION <span class="text-danger">*</span></label>
                             <input type="text" name="task_title" id="task_title" class="form-control" placeholder="e.g. Collect requirements from operations or Complete PM for Bole branch" required>
                         </div>
 
@@ -419,9 +473,10 @@ $weeklyTasks = $tasksStmt->fetchAll();
 
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-kaldis" <?= empty($availableMonthlyPlans) ? 'disabled' : '' ?>>
+                    <button type="submit" class="btn btn-kaldis">
                         <i class="fas fa-save me-1"></i> Save Task
                     </button>
+                </div>
                 </div>
             </form>
         </div>

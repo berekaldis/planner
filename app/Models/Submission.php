@@ -19,6 +19,7 @@ class Submission extends Model
         'submission_channel',
         'submitted_by',
         'consecutive_missed_count',
+        'approval_status',
         'remarks',
     ];
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AuditLog;
 use App\Models\Department;
 use App\Models\MonthlyPlan;
+use App\Models\Submission;
 use App\Models\WeeklyPlan;
 use App\Models\WeeklyTask;
 use Illuminate\Http\Request;
@@ -19,6 +20,11 @@ class WeeklyPlanController extends Controller
 
         if (!$user->canAccessAllDepartments() && $user->department_id != $deptId) {
             $deptId = $user->department_id;
+        }
+
+        if (!$deptId) {
+            $firstDept = Department::where('active', 1)->first();
+            $deptId = $firstDept ? $firstDept->id : 1;
         }
 
         $department = Department::findOrFail($deptId);
@@ -58,6 +64,12 @@ class WeeklyPlanController extends Controller
             ? Department::where('active', 1)->orderBy('department_name')->get()
             : collect([$department]);
 
+        $submission = Submission::where('department_id', $deptId)
+            ->where('year', $selectedYear)
+            ->where('month', $selectedMonth)
+            ->where('week_number', $selectedWeek)
+            ->first();
+
         return view('weekly.plans', compact(
             'department',
             'weeklyPlan',
@@ -66,7 +78,8 @@ class WeeklyPlanController extends Controller
             'allDepartments',
             'selectedYear',
             'selectedMonth',
-            'selectedWeek'
+            'selectedWeek',
+            'submission'
         ));
     }
 
@@ -121,7 +134,7 @@ class WeeklyPlanController extends Controller
             'task_description' => $validated['task_description'] ?? null,
             'expected_result' => $validated['expected_result'] ?? ($validated['task_target'] ?? 'Completed'),
             'priority' => $validated['priority'],
-            'responsible_person' => $validated['responsible_person'] ?? ($validated['assigned_to'] ?? null),
+            'responsible_person' => $validated['responsible_person'] ?? ($validated['assigned_to'] ?? ($user->full_name ?: ($user->username ?: 'Unassigned'))),
             'due_date' => $validated['due_date'] ?? ($validated['deadline_date'] ?? null),
             'created_by' => $user->id,
         ]);

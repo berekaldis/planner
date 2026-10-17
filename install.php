@@ -202,7 +202,7 @@ if ($action === 'install' && $canInstall) {
         CREATE TABLE IF NOT EXISTS `weekly_tasks` (
             `id` INT AUTO_INCREMENT PRIMARY KEY,
             `weekly_plan_id` INT NOT NULL,
-            `monthly_plan_id` INT NOT NULL,
+            `monthly_plan_id` INT NULL,
             `department_id` INT NOT NULL,
             `year` VARCHAR(50) NOT NULL,
             `month` VARCHAR(50) NOT NULL,
@@ -221,7 +221,7 @@ if ($action === 'install' && $canInstall) {
             `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
             `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             FOREIGN KEY (`weekly_plan_id`) REFERENCES `weekly_plans`(`id`) ON DELETE CASCADE,
-            FOREIGN KEY (`monthly_plan_id`) REFERENCES `monthly_plans`(`id`) ON DELETE CASCADE,
+            FOREIGN KEY (`monthly_plan_id`) REFERENCES `monthly_plans`(`id`) ON DELETE SET NULL,
             FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`),
             FOREIGN KEY (`annual_goal_id`) REFERENCES `annual_goals`(`id`) ON DELETE SET NULL,
             FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE SET NULL

@@ -42,8 +42,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $updStmt->execute([$key, $val, $userId]);
         }
 
+        // Auto register/update Telegram Webhook
+        if (!empty($settingsToSave['telegram_bot_token'])) {
+            require_once __DIR__ . '/../config/telegram.php';
+            $telegram = new TelegramNotifier($settingsToSave['telegram_bot_token']);
+            if (!empty($settingsToSave['telegram_webhook_url'])) {
+                $whRes = $telegram->setWebhook($settingsToSave['telegram_webhook_url']);
+                if (!empty($whRes['ok'])) {
+                    set_flash('success', 'System configurations saved & Telegram Webhook registered successfully!');
+                } else {
+                    set_flash('warning', 'Settings saved, but Telegram Webhook registration returned: ' . ($whRes['description'] ?? 'Unknown error'));
+                }
+            }
+        } else {
+            set_flash('success', 'System configurations saved successfully.');
+        }
+
         audit_log($userId, 'SYSTEM_SETTINGS_UPDATED', 'settings', null, null, $settingsToSave);
-        set_flash('success', 'System configurations saved successfully.');
         redirect('/admin/settings.php');
     } elseif ($action === 'test_telegram') {
         $chatId = trim($_POST['test_chat_id'] ?? '');
@@ -78,8 +93,9 @@ require_once __DIR__ . '/../includes/header.php';
 $settingsRows = $db->query("SELECT setting_key, setting_value FROM system_settings")->fetchAll(PDO::FETCH_KEY_PAIR);
 $deadlineDay = $settingsRows['weekly_deadline_day'] ?? app_config('weekly_deadline_day', 'Monday');
 $deadlineTime = $settingsRows['weekly_deadline_time'] ?? app_config('weekly_deadline_time', '12:00');
-$currentYear = $settingsRows['current_planning_year'] ?? app_config('current_planning_year', '2019 E.C.');
-$currentMonth = $settingsRows['current_planning_month'] ?? app_config('current_planning_month', 'Nehase');
+$ethPeriod = get_ethiopian_period();
+$currentYear = $settingsRows['current_planning_year'] ?? 'AUTO';
+$currentMonth = $settingsRows['current_planning_month'] ?? 'AUTO';
 $hrRecipients = $settingsRows['escalation_recipients_hr'] ?? 'hr@kaldiscoffee.com';
 $gmRecipients = $settingsRows['escalation_recipients_gm'] ?? 'gm@kaldiscoffee.com';
 $botToken = $settingsRows['telegram_bot_token'] ?? '';
@@ -111,18 +127,28 @@ $months = get_ethiopian_months();
                 <div class="col-md-6">
                     <label class="form-label small fw-bold">ACTIVE PLANNING YEAR</label>
                     <select name="current_planning_year" class="form-select">
+                        <option value="AUTO" <?= ($currentYear === 'AUTO' || empty($currentYear)) ? 'selected' : '' ?>>
+                            Auto: Ethiopian Calendar (Currently <?= e($ethPeriod['year']) ?>)
+                        </option>
                         <?php foreach ($years as $y): ?>
                             <option value="<?= e($y) ?>" <?= $currentYear === $y ? 'selected' : '' ?>><?= e($y) ?></option>
                         <?php endforeach; ?>
                     </select>
+                    <small class="text-muted">Active planning year in Ethiopian Calendar.</small>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label small fw-bold">ACTIVE PLANNING MONTH</label>
                     <select name="current_planning_month" class="form-select">
+                        <option value="AUTO" <?= ($currentMonth === 'AUTO' || empty($currentMonth)) ? 'selected' : '' ?>>
+                            Auto: Ethiopian Calendar (Currently <?= e($ethPeriod['month']) ?>)
+                        </option>
                         <?php foreach ($months as $m): ?>
-                            <option value="<?= e($m) ?>" <?= $currentMonth === $m ? 'selected' : '' ?>><?= e($m) ?></option>
+                            <option value="<?= e($m) ?>" <?= $currentMonth === $m ? 'selected' : '' ?>>
+                                <?= e($m) ?><?= $m === $ethPeriod['month'] ? ' (Current Month)' : '' ?>
+                            </option>
                         <?php endforeach; ?>
                     </select>
+                    <small class="text-muted">Defaults automatically to current Ethiopian calendar month (<?= e($ethPeriod['month']) ?>) and rolls over automatically when the month changes (e.g. to Hidar).</small>
                 </div>
 
                 <div class="col-md-6">

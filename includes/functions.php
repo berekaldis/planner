@@ -35,7 +35,37 @@ if (!function_exists('app_config')) {
         if ($key === null) {
             return $config;
         }
+        if ($key === 'current_planning_month') {
+            return function_exists('get_current_planning_month') ? get_current_planning_month() : ($config[$key] ?? $default);
+        }
+        if ($key === 'current_planning_year') {
+            return function_exists('get_current_planning_year') ? get_current_planning_year() : ($config[$key] ?? $default);
+        }
         return $config[$key] ?? $default;
+    }
+}
+
+if (!function_exists('get_base_url')) {
+    function get_base_url(): string {
+        static $base = null;
+        if ($base !== null) {
+            return $base;
+        }
+
+        $reqUri = $_SERVER['REQUEST_URI'] ?? '';
+        $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+
+        if (str_starts_with($reqUri, '/Planner') || str_starts_with($scriptName, '/Planner')) {
+            $base = '/Planner';
+        } else {
+            $configured = rtrim((string)app_config('base_url', ''), '/');
+            if ($configured !== '' && (str_starts_with($reqUri, $configured) || str_starts_with($scriptName, $configured))) {
+                $base = $configured;
+            } else {
+                $base = '';
+            }
+        }
+        return $base;
     }
 }
 
@@ -45,9 +75,9 @@ if (class_exists('Illuminate\Container\Container')) {
         $container->singleton('url', function() {
             return new class {
                 public function to($path = '', $extra = [], $secure = null) {
-                    $baseUrl = rtrim(app_config('base_url', '/Planner'), '/');
+                    $baseUrl = get_base_url();
                     $cleanPath = '/' . ltrim($path, '/');
-                    return $baseUrl . $cleanPath;
+                    return ($baseUrl ?: '') . $cleanPath;
                 }
             };
         });
@@ -57,8 +87,8 @@ if (class_exists('Illuminate\Container\Container')) {
         $container->singleton('redirect', function() {
             return new class {
                 public function to($path, $status = 302, $headers = [], $secure = null) {
-                    $baseUrl = rtrim(app_config('base_url', '/Planner'), '/');
-                    $fullUrl = $baseUrl . '/' . ltrim($path, '/');
+                    $baseUrl = get_base_url();
+                    $fullUrl = ($baseUrl ?: '') . '/' . ltrim($path, '/');
                     header('Location: ' . $fullUrl, true, $status);
                     exit;
                 }
@@ -73,9 +103,9 @@ if (class_exists('Illuminate\Container\Container')) {
  */
 if (!function_exists('url')) {
     function url(string $path = ''): string {
-        $baseUrl = rtrim(app_config('base_url', '/Planner'), '/');
+        $baseUrl = get_base_url();
         $cleanPath = '/' . ltrim($path, '/');
-        return $baseUrl . $cleanPath;
+        return ($baseUrl ?: '') . $cleanPath;
     }
 }
 
@@ -203,6 +233,64 @@ if (!function_exists('get_current_planning_week')) {
     }
 }
 
+if (!function_exists('normalize_ethiopian_month')) {
+    function normalize_ethiopian_month(?string $month): string {
+        if (!$month) return 'Meskerem';
+        $m = trim($month);
+        $map = [
+            'tikemt' => 'Tikimt',
+            'tikemet' => 'Tikimt',
+            'hidare' => 'Hidar',
+            'magabit' => 'Megabit',
+            'miyazya' => 'Miazia',
+        ];
+        $lower = strtolower($m);
+        return $map[$lower] ?? ucfirst($lower);
+    }
+}
+
+if (!function_exists('get_current_planning_month')) {
+    function get_current_planning_month(): string {
+        $setting = null;
+        try {
+            $db = Database::getConnection();
+            $stmt = $db->query("SELECT setting_value FROM system_settings WHERE setting_key = 'current_planning_month'");
+            $val = $stmt ? $stmt->fetchColumn() : null;
+            if ($val !== false && $val !== null) {
+                $setting = trim((string)$val);
+            }
+        } catch (\Throwable $e) {}
+
+        if (empty($setting) || strtoupper($setting) === 'AUTO') {
+            $eth = get_ethiopian_period();
+            return $eth['month'];
+        }
+
+        return normalize_ethiopian_month($setting);
+    }
+}
+
+if (!function_exists('get_current_planning_year')) {
+    function get_current_planning_year(): string {
+        $setting = null;
+        try {
+            $db = Database::getConnection();
+            $stmt = $db->query("SELECT setting_value FROM system_settings WHERE setting_key = 'current_planning_year'");
+            $val = $stmt ? $stmt->fetchColumn() : null;
+            if ($val !== false && $val !== null) {
+                $setting = trim((string)$val);
+            }
+        } catch (\Throwable $e) {}
+
+        if (empty($setting) || strtoupper($setting) === 'AUTO') {
+            $eth = get_ethiopian_period();
+            return $eth['year'];
+        }
+
+        return $setting;
+    }
+}
+
 /**
  * Render Status Badge for Tasks (DONE / NOT_DONE)
  */
@@ -277,4 +365,186 @@ if (!function_exists('get_weekly_deadline')) {
         return date('Y-m-d 12:00:00', strtotime('next Monday'));
     }
 }
+
+/**
+ * Get dynamic greeting (Good Morning / Good Afternoon / Good Evening)
+ */
+if (!function_exists('get_greeting')) {
+    function get_greeting(): string {
+        $hour = (int)date('G');
+        if ($hour >= 5 && $hour < 12) {
+            return 'Good Morning';
+        } elseif ($hour >= 12 && $hour < 18) {
+            return 'Good Afternoon';
+        } else {
+            return 'Good Evening';
+        }
+    }
+}
+
+if (!function_exists('send_telegram_notification')) {
+    function send_telegram_notification(string|int $chatId, string $message): bool {
+        try {
+            $token = '';
+            try {
+                if (!class_exists('Database')) {
+                    @require_once __DIR__ . '/../config/database.php';
+                }
+                if (class_exists('Database')) {
+                    $db = Database::getConnection();
+                    $stmt = $db->query("SELECT setting_value FROM system_settings WHERE setting_key = 'telegram_bot_token'");
+                    $val = $stmt ? $stmt->fetchColumn() : null;
+                    if (!empty($val)) {
+                        $token = trim($val);
+                    }
+                }
+            } catch (\Throwable $e) {}
+
+            if (empty($token)) {
+                $config = @include __DIR__ . '/../config/telegram.php';
+                if (is_array($config) && !empty($config['bot_token'])) {
+                    $token = trim($config['bot_token']);
+                } else {
+                    $token = getenv('TELEGRAM_BOT_TOKEN') ?: '8370988256:AAE8aG5s2vzEy6PfSH2b-Fiufr_num0A_rY';
+                }
+            }
+
+            if (empty($token) || empty($chatId)) {
+                return false;
+            }
+
+            $url = "https://api.telegram.org/bot{$token}/sendMessage";
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
+                'chat_id' => $chatId,
+                'text' => $message,
+                'parse_mode' => 'HTML',
+                'disable_web_page_preview' => true,
+            ]));
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 12);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+
+            $response = curl_exec($ch);
+            $err = curl_error($ch);
+            curl_close($ch);
+
+            if ($err) {
+                error_log("send_telegram_notification curl error: " . $err);
+                return false;
+            }
+
+            $res = json_decode($response, true);
+            $ok = !empty($res['ok']);
+
+            try {
+                if (isset($db)) {
+                    $logStmt = $db->prepare("
+                        INSERT INTO telegram_messages (message_id, telegram_user_id, message_text, direction, status, created_at)
+                        VALUES (:mid, :uid, :msg, 'OUTGOING', :st, NOW())
+                    ");
+                    $logStmt->execute([
+                        ':mid' => $res['result']['message_id'] ?? 0,
+                        ':uid' => (string)$chatId,
+                        ':msg' => $message,
+                        ':st' => $ok ? 'SENT' : 'FAILED',
+                    ]);
+                }
+            } catch (\Throwable $e) {}
+
+            return $ok;
+        } catch (\Throwable $e) {
+            error_log("send_telegram_notification error: " . $e->getMessage());
+            return false;
+        }
+    }
+}
+
+/**
+ * Dispatch notification to General Management (GM) on Department submissions
+ * Supports both in-app notifications and Telegram alerts
+ */
+if (!function_exists('notify_gm_submission')) {
+    function notify_gm_submission(string $title, string $message, ?int $deptId = null, ?string $voucherUrl = null): void {
+        try {
+            if (!class_exists('Database')) {
+                require_once __DIR__ . '/../config/database.php';
+            }
+            $db = Database::getConnection();
+
+            // 1. Fetch GM users (role = gm_management or super_admin, or role_id IN (1, 2))
+            $gmStmt = $db->query("
+                SELECT u.id, u.telegram_chat_id, u.full_name
+                FROM users u
+                JOIN roles r ON u.role_id = r.id
+                WHERE (r.name IN ('gm_management', 'super_admin', 'gm', 'general_manager') OR u.role_id IN (1, 2)) AND u.is_active = 1
+            ");
+            $gmUsers = $gmStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // 2. Insert in-app notifications
+            $insNotif = $db->prepare("
+                INSERT INTO notifications (user_id, department_id, title, message, notification_type, created_at)
+                VALUES (:uid, :did, :title, :msg, 'REPORT_SUBMISSION', NOW())
+            ");
+
+            $chatIdsToNotify = [];
+            $fullMessage = $message . ($voucherUrl ? "\n\nVoucher: " . $voucherUrl : '');
+
+            if (!empty($gmUsers)) {
+                foreach ($gmUsers as $gm) {
+                    $insNotif->execute([
+                        ':uid' => $gm['id'],
+                        ':did' => $deptId,
+                        ':title' => $title,
+                        ':msg' => $fullMessage
+                    ]);
+                    if (!empty($gm['telegram_chat_id'])) {
+                        $chatIdsToNotify[] = trim($gm['telegram_chat_id']);
+                    }
+                }
+            } else {
+                $insNotif->execute([
+                    ':uid' => null,
+                    ':did' => $deptId,
+                    ':title' => $title,
+                    ':msg' => $fullMessage
+                ]);
+            }
+
+            // Also check system_settings for escalation_recipients_gm
+            $sysStmt = $db->query("SELECT setting_value FROM system_settings WHERE setting_key = 'escalation_recipients_gm'");
+            $gmRecipientsSetting = trim((string)($sysStmt->fetchColumn() ?: ''));
+            if (!empty($gmRecipientsSetting)) {
+                $recipients = array_map('trim', explode(',', $gmRecipientsSetting));
+                foreach ($recipients as $rec) {
+                    if (is_numeric($rec) || str_starts_with($rec, '@')) {
+                        $chatIdsToNotify[] = $rec;
+                    }
+                }
+            }
+
+            $chatIdsToNotify = array_unique(array_filter($chatIdsToNotify));
+
+            // 3. Send Telegram Notification if configured
+            if (!empty($chatIdsToNotify)) {
+                $telegramMsg = "<b>" . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "</b>\n\n"
+                             . htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+                if ($voucherUrl) {
+                    $telegramMsg .= "\n\n📄 <a href=\"" . htmlspecialchars($voucherUrl, ENT_QUOTES, 'UTF-8') . "\"><b>View Official Voucher</b></a>";
+                }
+                $telegramMsg .= "\n\n📅 <i>" . date('Y-m-d H:i') . "</i>";
+
+                foreach ($chatIdsToNotify as $chatId) {
+                    send_telegram_notification($chatId, $telegramMsg);
+                }
+            }
+        } catch (\Throwable $e) {
+            error_log("notify_gm_submission error: " . $e->getMessage());
+        }
+    }
+}
+
 

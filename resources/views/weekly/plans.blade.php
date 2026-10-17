@@ -10,6 +10,9 @@
         <p class="text-muted small mb-0">{{ $department->department_name }} &bull; Week {{ $selectedWeek }} ({{ $selectedMonth }} {{ $selectedYear }})</p>
     </div>
     <div class="d-flex gap-2">
+        <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" class="btn btn-outline-dark btn-sm">
+            <i class="fas fa-file-invoice me-1"></i> View Voucher
+        </a>
         <button type="button" class="btn btn-kaldis btn-sm" data-bs-toggle="modal" data-bs-target="#createTaskModal">
             <i class="fas fa-plus-circle me-1"></i> Schedule Weekly Task
         </button>
@@ -18,6 +21,42 @@
         </a>
     </div>
 </div>
+
+@if(isset($submission) && $submission && in_array($submission->status, ['ON_TIME', 'LATE', 'SUBMITTED']))
+    <div class="alert alert-success border-0 shadow-sm d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <i class="fas fa-check-circle me-2 text-success"></i>
+            <strong>Report Submitted:</strong> Week {{ $selectedWeek }} performance report has been officially submitted.
+            <span class="badge {{ $submission->status === 'ON_TIME' ? 'bg-success' : 'bg-warning text-dark' }} ms-2">
+                {{ $submission->status }}
+            </span>
+            @if(!empty($submission->approval_status))
+                <span class="badge {{ $submission->approval_status === 'APPROVED' ? 'bg-success' : ($submission->approval_status === 'REVISION_REQUESTED' ? 'bg-danger' : 'bg-secondary') }} ms-1">
+                    GM: {{ $submission->approval_status }}
+                </span>
+            @endif
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <div class="small text-muted">
+                Submitted on {{ $submission->submitted_at ? \Carbon\Carbon::parse($submission->submitted_at)->format('M d, Y H:i') : '' }}
+            </div>
+            <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" class="btn btn-sm btn-dark">
+                <i class="fas fa-file-invoice me-1"></i> View Weekly Voucher
+            </a>
+        </div>
+    </div>
+    @if(!empty($submission->gm_feedback))
+        <div class="card border-primary mb-4 shadow-sm">
+            <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
+                <span class="fw-bold small"><i class="fas fa-comment-dots me-1"></i> Executive Review Comments from General Manager</span>
+                <span class="small opacity-75">{{ $submission->gm_feedback_at ? \Carbon\Carbon::parse($submission->gm_feedback_at)->format('M d, Y H:i') : '' }}</span>
+            </div>
+            <div class="card-body bg-light py-2 px-3 small">
+                <p class="mb-0 text-dark">{{ $submission->gm_feedback }}</p>
+            </div>
+        </div>
+    @endif
+@endif
 
 <!-- Filters Bar -->
 <div class="filter-bar">
@@ -117,13 +156,13 @@
                             @endif
                         </td>
                         <td>
-                            <span class="small fw-semibold text-dark">{{ $task->task_target }}</span>
+                            <span class="small fw-semibold text-dark">{{ $task->expected_result ?: $task->task_target }}</span>
                         </td>
                         <td>
                             <span class="badge bg-light text-secondary border">{{ $task->priority }}</span>
                         </td>
                         <td>
-                            <small class="text-muted">{{ $task->assigned_to ?: 'Unassigned' }}</small>
+                            <small class="text-muted">{{ $task->responsible_person ?: ($task->assigned_to ?: 'Unassigned') }}</small>
                         </td>
                         <td class="text-end">
                             <form method="POST" action="{{ route('weekly.tasks.destroy', $task->id) }}" onsubmit="return confirm('Delete this weekly task?');">

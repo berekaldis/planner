@@ -57,4 +57,14 @@ class WeeklyTask extends Model
     {
         return $this->hasMany(WeeklyChallenge::class, 'related_weekly_task_id');
     }
+
+    public function getTaskTargetAttribute(): ?string
+    {
+        return $this->expected_result;
+    }
+
+    public function getAssignedToAttribute(): ?string
+    {
+        return $this->responsible_person;
+    }
 }

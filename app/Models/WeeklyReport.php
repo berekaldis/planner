@@ -22,6 +22,9 @@ class WeeklyReport extends Model
         'submitted_at',
         'submission_status',
         'notes',
+        'gm_feedback',
+        'gm_feedback_at',
+        'approval_status',
     ];
 
     protected function casts(): array
@@ -29,6 +32,7 @@ class WeeklyReport extends Model
         return [
             'completion_percentage' => 'decimal:2',
             'submitted_at' => 'datetime',
+            'gm_feedback_at' => 'datetime',
         ];
     }
 

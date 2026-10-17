@@ -195,17 +195,24 @@ try {
         ]);
     }
 
-    // 7. Audit log
-    audit_log($userId, 'WEEKLY_REPORT_SUBMITTED', 'reports', "dept_{$deptId}_w{$week}", null, [
-        'year' => $year,
-        'month' => $month,
-        'week' => $week,
-        'total_tasks' => $totalTasks,
-        'done' => $doneCount,
-        'not_done' => $notDoneCount,
-        'completion_percentage' => $completionPct,
-        'submission_status' => $submissionStatus
-    ]);
+    // 8. Dispatch notification to GM (In-app + Telegram)
+    $deptInfo = $db->query("SELECT department_name, department_code FROM departments WHERE id = {$deptId}")->fetch(PDO::FETCH_ASSOC);
+    $deptName = $deptInfo['department_name'] ?? "Dept #{$deptId}";
+    $deptCode = $deptInfo['department_code'] ?? "DEPT";
+    $statusEmoji = ($submissionStatus === 'ON_TIME') ? '🟢 [ON-TIME]' : '🟡 [LATE]';
+    $notifTitle = "{$statusEmoji} Weekly Performance Report: {$deptCode}";
+    $notifMessage = "{$deptName} has submitted their Weekly Performance Report for {$month} {$year} (Week {$week}).\n"
+                  . "• Submission Timing: " . ($submissionStatus === 'ON_TIME' ? 'ON-TIME SUBMISSION' : 'LATE SUBMISSION') . "\n"
+                  . "• Completion Rate: {$completionPct}%\n"
+                  . "• Task Execution: {$totalTasks} Total (DONE: {$doneCount}, NOT DONE: {$notDoneCount})";
+    if (!empty($notes)) {
+        $notifMessage .= "\n• Department Remarks: {$notes}";
+    }
+
+    $baseUrl = rtrim((string)(getenv('APP_URL') ?: (defined('APP_URL') ? APP_URL : 'http://localhost/Planner')), '/');
+    $voucherUrl = "{$baseUrl}/department/weekly_voucher.php?department_id={$deptId}&year={$year}&month={$month}&week={$week}";
+
+    notify_gm_submission($notifTitle, $notifMessage, $deptId, $voucherUrl);
 
     echo json_encode([
         'success' => true,

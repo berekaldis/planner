@@ -10,6 +10,12 @@
         <p class="text-muted small mb-0">{{ $department->department_name }} &bull; {{ $selectedMonth }} {{ $selectedYear }}</p>
     </div>
     <div class="d-flex gap-2">
+        <a href="{{ route('monthly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth]) }}" class="btn btn-outline-dark btn-sm">
+            <i class="fas fa-file-invoice me-1"></i> View Voucher
+        </a>
+        <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#submitPackageModal">
+            <i class="fas fa-paper-plane me-1"></i> Submit to GM
+        </button>
         <button type="button" class="btn btn-kaldis btn-sm" data-bs-toggle="modal" data-bs-target="#createMonthlyPlanModal">
             <i class="fas fa-plus-circle me-1"></i> Add Monthly Plan
         </button>
@@ -18,6 +24,61 @@
         </a>
     </div>
 </div>
+
+<!-- Monthly Submission Status Banner -->
+@if($submission && in_array($submission->status, ['ON_TIME', 'LATE', 'SUBMITTED']))
+    <div class="alert alert-success border-0 shadow-sm d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <i class="fas fa-check-circle me-2 text-success"></i>
+            <strong>Plan Package Submitted:</strong> Monthly plans for {{ $selectedMonth }} {{ $selectedYear }} have been officially submitted to GM.
+            <span class="badge {{ $submission->status === 'ON_TIME' ? 'bg-success' : 'bg-warning text-dark' }} ms-2">
+                {{ $submission->status }}
+            </span>
+            @if(!empty($submission->approval_status))
+                <span class="badge {{ $submission->approval_status === 'APPROVED' ? 'bg-success' : ($submission->approval_status === 'REVISION_REQUESTED' ? 'bg-danger' : 'bg-secondary') }} ms-1">
+                    GM: {{ $submission->approval_status }}
+                </span>
+            @endif
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <div class="small text-muted">
+                Submitted on {{ $submission->submitted_at ? \Carbon\Carbon::parse($submission->submitted_at)->format('M d, Y H:i') : '' }}
+            </div>
+            <a href="{{ route('monthly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth]) }}" class="btn btn-sm btn-dark">
+                <i class="fas fa-file-invoice me-1"></i> View Voucher
+            </a>
+            <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#submitPackageModal">
+                <i class="fas fa-redo me-1"></i> Re-Submit
+            </button>
+        </div>
+    </div>
+    @if(!empty($submission->gm_feedback))
+        <div class="card border-primary mb-4 shadow-sm">
+            <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
+                <span class="fw-bold small"><i class="fas fa-comment-dots me-1"></i> Executive Review Comments from General Manager</span>
+                <span class="small opacity-75">{{ $submission->gm_feedback_at ? \Carbon\Carbon::parse($submission->gm_feedback_at)->format('M d, Y H:i') : '' }}</span>
+            </div>
+            <div class="card-body bg-light py-2 px-3 small">
+                <p class="mb-0 text-dark">{{ $submission->gm_feedback }}</p>
+            </div>
+        </div>
+    @endif
+@else
+    <div class="alert alert-warning border-0 shadow-sm d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
+            <strong>Monthly Plan Package Pending Submission:</strong> These plans have not yet been officially transmitted to General Management.
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ route('monthly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth]) }}" class="btn btn-sm btn-outline-dark">
+                <i class="fas fa-file-invoice me-1"></i> Preview Voucher
+            </a>
+            <button type="button" class="btn btn-sm btn-kaldis" data-bs-toggle="modal" data-bs-target="#submitPackageModal">
+                <i class="fas fa-paper-plane me-1"></i> Submit Package to GM
+            </button>
+        </div>
+    </div>
+@endif
 
 <!-- Filters Bar -->
 <div class="filter-bar">
@@ -263,6 +324,66 @@
                 <div class="modal-footer bg-light">
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-sm btn-kaldis">Save Monthly Plan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Submit Monthly Plan Package -->
+<div class="modal fade" id="submitPackageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" action="{{ route('monthly.plans.submit_package') }}">
+                @csrf
+                <input type="hidden" name="department_id" value="{{ $department->id }}">
+                <input type="hidden" name="year" value="{{ $selectedYear }}">
+                <input type="hidden" name="month" value="{{ $selectedMonth }}">
+
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold text-dark fs-6">
+                        <i class="fas fa-paper-plane text-success me-2"></i> Submit Monthly Plan Package to GM
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    <div class="alert alert-info py-2 px-3 small mb-3 border-0">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Submitting for <strong>{{ $department->department_name }}</strong> &bull; <strong>{{ $selectedMonth }} {{ $selectedYear }}</strong>.
+                        This will notify the General Manager and record your formal submission timing.
+                    </div>
+
+                    <div class="bg-light p-3 rounded-3 mb-3 border">
+                        <div class="d-flex justify-content-between mb-1 small">
+                            <span class="text-muted">Total Monthly Plans:</span>
+                            <span class="fw-bold text-dark">{{ $monthlyPlans->count() }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1 small">
+                            <span class="text-muted">Strategy Plans:</span>
+                            <span class="badge bg-primary">{{ $monthlyPlans->where('plan_type', 'STRATEGY')->count() }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1 small">
+                            <span class="text-muted">Operational Plans:</span>
+                            <span class="badge bg-info text-dark">{{ $monthlyPlans->where('plan_type', 'OPERATIONAL')->count() }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between small pt-1 border-top mt-1">
+                            <span class="text-muted">Official Cutoff:</span>
+                            <span class="text-secondary fw-semibold">Day 5 of Planning Month</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Department Remarks / Notes to GM (Optional)</label>
+                        <textarea name="notes" class="form-control" rows="3" placeholder="Add executive summary notes, key focus areas, or remarks for the General Manager..."></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-success" {{ $monthlyPlans->isEmpty() ? 'disabled' : '' }}>
+                        <i class="fas fa-check-circle me-1"></i> Transmit Package to GM
+                    </button>
                 </div>
             </form>
         </div>

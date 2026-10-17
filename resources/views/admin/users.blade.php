@@ -6,7 +6,9 @@
 <!-- Header -->
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h4 class="fw-bold text-dark mb-1">User Accounts & Roles</h4>
+        <h4 class="fw-bold text-dark mb-1">
+            <i class="fas fa-users-gear text-warning me-2"></i> User Accounts & Roles
+        </h4>
         <p class="text-muted small mb-0">System access control, role appointments, and department associations</p>
     </div>
     <button type="button" class="btn btn-kaldis btn-sm" data-bs-toggle="modal" data-bs-target="#addUserModal">
@@ -16,11 +18,11 @@
 
 <!-- Users Table -->
 <div class="card mb-4">
-    <div class="card-header">
+    <div class="card-header d-flex justify-content-between align-items-center">
         <span><i class="fas fa-users me-1 text-secondary"></i> Registered Accounts ({{ $users->count() }})</span>
     </div>
     <div class="table-responsive">
-        <table class="table table-hover mb-0">
+        <table class="table table-hover mb-0 align-middle">
             <thead>
                 <tr>
                     <th>Full Name & Username</th>
@@ -29,19 +31,22 @@
                     <th>Department</th>
                     <th style="width: 100px;">Status</th>
                     <th>Last Login</th>
+                    <th style="width: 110px;" class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($users as $u)
                     <tr>
                         <td>
-                            <strong class="text-dark">{{ $u->full_name }}</strong>
-                            <div class="small text-muted font-monospace">{{ $u->username }}</div>
+                            <strong class="text-dark d-block">{{ $u->full_name }}</strong>
+                            <span class="small font-monospace badge bg-light text-dark border">
+                                <i class="fas fa-at me-1 text-warning"></i>{{ $u->username }}
+                            </span>
                         </td>
-                        <td><small>{{ $u->email }}</small></td>
+                        <td><small class="text-muted">{{ $u->email }}</small></td>
                         <td>
                             <span class="badge bg-secondary-subtle text-secondary border">
-                                {{ $u->role->role_name ?? 'N/A' }}
+                                {{ $u->role->display_name ?? $u->role->name ?? 'N/A' }}
                             </span>
                         </td>
                         <td>
@@ -58,6 +63,21 @@
                         </td>
                         <td class="small text-muted">
                             {{ $u->last_login_at ? $u->last_login_at->diffForHumans() : 'Never' }}
+                        </td>
+                        <td class="text-end">
+                            <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2"
+                                    onclick="openEditUserModal({{ json_encode([
+                                        'id' => $u->id,
+                                        'username' => $u->username,
+                                        'full_name' => $u->full_name,
+                                        'email' => $u->email,
+                                        'role_id' => $u->role_id,
+                                        'department_id' => $u->department_id,
+                                        'telegram_chat_id' => $u->telegram_chat_id,
+                                        'status' => $u->status
+                                    ]) }})">
+                                <i class="fas fa-user-pen me-1"></i> Edit
+                            </button>
                         </td>
                     </tr>
                 @endforeach
@@ -79,16 +99,16 @@
                 <div class="modal-body p-4">
                     <div class="mb-3">
                         <label class="form-label small fw-semibold text-secondary">Full Name <span class="text-danger">*</span></label>
-                        <input type="text" name="full_name" class="form-control" placeholder="e.g. John Doe" required>
+                        <input type="text" name="full_name" class="form-control" placeholder="e.g. Abebe Bikila" required>
                     </div>
                     <div class="row g-2 mb-3">
                         <div class="col-md-6">
                             <label class="form-label small fw-semibold text-secondary">Username <span class="text-danger">*</span></label>
-                            <input type="text" name="username" class="form-control" placeholder="username" required>
+                            <input type="text" name="username" class="form-control font-monospace" placeholder="username" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-semibold text-secondary">Password <span class="text-danger">*</span></label>
-                            <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+                            <input type="password" name="password" class="form-control" placeholder="••••••••" required minlength="6">
                         </div>
                     </div>
                     <div class="mb-3">
@@ -100,7 +120,7 @@
                             <label class="form-label small fw-semibold text-secondary">Role <span class="text-danger">*</span></label>
                             <select name="role_id" class="form-select" required>
                                 @foreach($roles as $r)
-                                    <option value="{{ $r->id }}">{{ $r->role_name }}</option>
+                                    <option value="{{ $r->id }}">{{ $r->display_name ?? $r->name }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -114,12 +134,18 @@
                             </select>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold text-secondary">Status <span class="text-danger">*</span></label>
-                        <select name="status" class="form-select">
-                            <option value="ACTIVE" selected>ACTIVE</option>
-                            <option value="INACTIVE">INACTIVE</option>
-                        </select>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-secondary">Telegram Chat ID</label>
+                            <input type="text" name="telegram_chat_id" class="form-control font-monospace" placeholder="e.g. 123456789">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-secondary">Status <span class="text-danger">*</span></label>
+                            <select name="status" class="form-select">
+                                <option value="ACTIVE" selected>ACTIVE</option>
+                                <option value="INACTIVE">INACTIVE</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer bg-light">
@@ -130,4 +156,115 @@
         </div>
     </div>
 </div>
+
+<!-- Modal: Edit User (Admin can edit Username) -->
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <form id="editUserForm" method="POST" action="">
+                @csrf
+                @method('PUT')
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold text-dark fs-6"><i class="fas fa-user-pen text-warning me-2"></i> Edit User Account</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Full Name <span class="text-danger">*</span></label>
+                        <input type="text" name="full_name" id="editFullName" class="form-control" required>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-secondary">
+                                Username <span class="text-danger">*</span>
+                                <span class="badge bg-warning-subtle text-warning border ms-1" style="font-size:0.65rem;">Admin Editable</span>
+                            </label>
+                            <input type="text" name="username" id="editUsername" class="form-control font-monospace" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-secondary">New Password</label>
+                            <input type="password" name="password" id="editPassword" class="form-control" placeholder="Leave blank to keep" minlength="6">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Email <span class="text-danger">*</span></label>
+                        <input type="email" name="email" id="editEmail" class="form-control" required>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-secondary">Role <span class="text-danger">*</span></label>
+                            <select name="role_id" id="editRoleId" class="form-select" required>
+                                @foreach($roles as $r)
+                                    <option value="{{ $r->id }}">{{ $r->display_name ?? $r->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-secondary">Department</label>
+                            <select name="department_id" id="editDeptId" class="form-select">
+                                <option value="">None (Global / Admin)</option>
+                                @foreach($departments as $d)
+                                    <option value="{{ $d->id }}">{{ $d->department_name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-secondary">Telegram Chat ID</label>
+                            <input type="text" name="telegram_chat_id" id="editTelegramId" class="form-control font-monospace">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-secondary">Status <span class="text-danger">*</span></label>
+                            <select name="status" id="editStatus" class="form-select">
+                                <option value="ACTIVE">ACTIVE</option>
+                                <option value="INACTIVE">INACTIVE</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-kaldis">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function openEditUserModal(user) {
+    const form = document.getElementById('editUserForm');
+    form.action = "{{ url('/admin/users') }}/" + user.id;
+
+    document.getElementById('editUsername').value = user.username || '';
+    document.getElementById('editFullName').value = user.full_name || '';
+    document.getElementById('editEmail').value = user.email || '';
+    document.getElementById('editPassword').value = '';
+    const roleSelect = document.getElementById('editRoleId');
+    if (roleSelect && roleSelect.tomselect) {
+        roleSelect.tomselect.setValue(user.role_id || '');
+    } else if (roleSelect) {
+        roleSelect.value = user.role_id || '';
+    }
+
+    const deptSelect = document.getElementById('editDeptId');
+    if (deptSelect && deptSelect.tomselect) {
+        deptSelect.tomselect.setValue(user.department_id || '');
+    } else if (deptSelect) {
+        deptSelect.value = user.department_id || '';
+    }
+
+    document.getElementById('editTelegramId').value = user.telegram_chat_id || '';
+
+    const statusSelect = document.getElementById('editStatus');
+    if (statusSelect && statusSelect.tomselect) {
+        statusSelect.tomselect.setValue(user.status || 'ACTIVE');
+    } else if (statusSelect) {
+        statusSelect.value = user.status || 'ACTIVE';
+    }
+
+    new bootstrap.Modal(document.getElementById('editUserModal')).show();
+}
+</script>
 @endsection

@@ -27,6 +27,11 @@ class PerformanceController extends Controller
             $deptId = $user->department_id;
         }
 
+        if (!$deptId) {
+            $firstDept = Department::where('active', 1)->first();
+            $deptId = $firstDept ? $firstDept->id : 1;
+        }
+
         $department = Department::findOrFail($deptId);
 
         $selectedYear = $request->query('year', kaldis_setting('current_planning_year', config('kaldis.current_planning_year')));
@@ -170,7 +175,12 @@ class PerformanceController extends Controller
             'quantified_result' => 'nullable|string|max:100',
         ]);
 
-        $text = $validated['achievement_text'] ?? ($validated['achievement_title'] . (!empty($validated['description']) ? ' - ' . $validated['description'] : ''));
+        $title = trim($validated['achievement_title'] ?? '');
+        $desc = trim($validated['description'] ?? '');
+        $text = $validated['achievement_text'] ?? ($title !== '' ? $title . ($desc !== '' ? ' - ' . $desc : '') : $desc);
+        if (empty($text)) {
+            $text = 'Weekly achievement recorded';
+        }
 
         $ach = WeeklyAchievement::create([
             'department_id' => $validated['department_id'],
@@ -214,7 +224,12 @@ class PerformanceController extends Controller
             'related_weekly_task_id' => 'nullable|exists:weekly_tasks,id',
         ]);
 
-        $text = $validated['challenge_text'] ?? ($validated['challenge_title'] . (!empty($validated['description']) ? ' - ' . $validated['description'] : ''));
+        $title = trim($validated['challenge_title'] ?? '');
+        $desc = trim($validated['description'] ?? '');
+        $text = $validated['challenge_text'] ?? ($title !== '' ? $title . ($desc !== '' ? ' - ' . $desc : '') : $desc);
+        if (empty($text)) {
+            $text = 'Weekly challenge recorded';
+        }
 
         $challenge = WeeklyChallenge::create([
             'department_id' => $validated['department_id'],
@@ -339,6 +354,27 @@ class PerformanceController extends Controller
                 "Submitted weekly report for Week {$validated['week_number']} ({$compliance}, {$completionRate}%)"
             );
         });
+
+        // Dispatch GM notification (In-app + Telegram)
+        $dept = Department::find($deptId);
+        $statusEmoji = ($compliance === 'ON_TIME') ? '🟢 [ON-TIME]' : '🟡 [LATE]';
+        $notifTitle = "{$statusEmoji} Weekly Performance Report: " . ($dept->department_code ?? "Dept #{$deptId}");
+        $notifMessage = ($dept->department_name ?? 'Department') . " has submitted their Weekly Performance Report for {$validated['month']} {$validated['year']} (Week {$validated['week_number']}).\n"
+                      . "• Submission Timing: " . ($compliance === 'ON_TIME' ? 'ON-TIME SUBMISSION' : 'LATE SUBMISSION') . "\n"
+                      . "• Completion Rate: {$completionRate}%\n"
+                      . "• Task Execution: {$totalTasks} Total (DONE: {$doneTasks}, NOT DONE: {$notDoneTasks})";
+        if (!empty($validated['notes'])) {
+            $notifMessage .= "\n• Department Remarks: {$validated['notes']}";
+        }
+
+        $voucherUrl = route('weekly.voucher', [
+            'department_id' => $deptId,
+            'year' => $validated['year'],
+            'month' => $validated['month'],
+            'week' => $validated['week_number'],
+        ]);
+
+        notify_gm_submission($notifTitle, $notifMessage, $deptId, $voucherUrl);
 
         return back()->with('success', "Weekly report submitted successfully! Status: {$compliance} ({$completionRate}% Completion).");
     }
@@ -496,5 +532,46 @@ class PerformanceController extends Controller
             ->get();
 
         return view('performance.challenges', compact('challenges', 'selectedYear', 'selectedMonth'));
+    }
+
+    public function saveWeeklyFeedback(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user->isGM() && !$user->isSuperAdmin()) {
+            abort(403, 'Only General Management can submit executive review comments.');
+        }
+
+        $validated = $request->validate([
+            'department_id' => 'required|exists:departments,id',
+            'year' => 'required|string',
+            'month' => 'required|string',
+            'week_number' => 'required|integer|min:1|max:5',
+            'approval_status' => 'required|in:PENDING,APPROVED,REVISION_REQUESTED',
+            'gm_feedback' => 'nullable|string',
+        ]);
+
+        WeeklyReport::updateOrCreate([
+            'department_id' => $validated['department_id'],
+            'year' => $validated['year'],
+            'month' => $validated['month'],
+            'week_number' => $validated['week_number'],
+        ], [
+            'approval_status' => $validated['approval_status'],
+            'gm_feedback' => $validated['gm_feedback'],
+            'gm_feedback_at' => now(),
+        ]);
+
+        Submission::updateOrCreate([
+            'department_id' => $validated['department_id'],
+            'year' => $validated['year'],
+            'month' => $validated['month'],
+            'week_number' => $validated['week_number'],
+        ], [
+            'approval_status' => $validated['approval_status'],
+        ]);
+
+        AuditLog::log('GM_FEEDBACK_WEEKLY', 'performance', "GM evaluated Weekly Report Week {$validated['week_number']} for Dept {$validated['department_id']}: {$validated['approval_status']}");
+
+        return back()->with('success', 'General Manager feedback & approval status saved successfully.');
     }
 }

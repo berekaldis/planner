@@ -21,6 +21,11 @@ class MonthlyPlanController extends Controller
             $deptId = $user->department_id;
         }
 
+        if (!$deptId) {
+            $firstDept = Department::where('active', 1)->first();
+            $deptId = $firstDept ? $firstDept->id : 1;
+        }
+
         $department = Department::findOrFail($deptId);
 
         $selectedYear = $request->query('year', kaldis_setting('current_planning_year', config('kaldis.current_planning_year')));
@@ -57,6 +62,11 @@ class MonthlyPlanController extends Controller
             ? Department::where('active', 1)->orderBy('department_name')->get()
             : collect([$department]);
 
+        $submission = \App\Models\MonthlySubmission::where('department_id', $deptId)
+            ->where('year', $selectedYear)
+            ->where('month', $selectedMonth)
+            ->first();
+
         return view('monthly.index', compact(
             'department',
             'monthlyPlans',
@@ -64,8 +74,116 @@ class MonthlyPlanController extends Controller
             'allDepartments',
             'selectedYear',
             'selectedMonth',
-            'planTypeFilter'
+            'planTypeFilter',
+            'submission'
         ));
+    }
+
+    public function submitPackage(Request $request)
+    {
+        $user = Auth::user();
+        $deptId = (int)$request->input('department_id', $user->department_id);
+
+        if (!$user->canAccessAllDepartments() && $user->department_id != $deptId) {
+            abort(403, 'Cannot submit plans for another department.');
+        }
+
+        $validated = $request->validate([
+            'department_id' => 'required|exists:departments,id',
+            'year' => 'required|string',
+            'month' => 'required|string',
+            'notes' => 'nullable|string',
+        ]);
+
+        $plans = MonthlyPlan::where('department_id', $deptId)
+            ->where('year', $validated['year'])
+            ->where('month', $validated['month'])
+            ->get();
+
+        if ($plans->isEmpty()) {
+            return back()->withErrors(['submission' => 'Cannot submit an empty plan package. Please create at least one monthly plan first.']);
+        }
+
+        $stratCount = $plans->where('plan_type', 'STRATEGY')->count();
+        $opsCount = $plans->where('plan_type', 'OPERATIONAL')->count();
+        $totalPlans = $plans->count();
+
+        // Check Monthly Deadline (default 5th of Ethiopian month at 17:00)
+        $deadlineDay = (int)kaldis_setting('monthly_deadline_day', 5);
+        $currentEt = get_ethiopian_period();
+        $isCurrentMonth = ($currentEt['month'] === $validated['month'] && $currentEt['year'] === $validated['year']);
+        
+        $status = 'ON_TIME';
+        if ($isCurrentMonth && $currentEt['day'] > $deadlineDay) {
+            $status = 'LATE';
+        }
+
+        $deadlineAt = now()->startOfMonth()->addDays($deadlineDay)->setTime(17, 0);
+
+        \App\Models\MonthlySubmission::updateOrCreate([
+            'department_id' => $deptId,
+            'year' => $validated['year'],
+            'month' => $validated['month'],
+        ], [
+            'deadline_at' => $deadlineAt,
+            'submitted_at' => now(),
+            'status' => $status,
+            'submitted_by' => $user->id,
+            'remarks' => $validated['notes'] ?? "Submitted package of {$totalPlans} monthly plans ({$stratCount} Strategy, {$opsCount} Operational).",
+        ]);
+
+        AuditLog::log('SUBMIT_MONTHLY_PLANS', 'monthly_plans', "Submitted monthly plan package for {$validated['month']} {$validated['year']} ({$status})");
+
+        // Notify GM
+        $dept = Department::find($deptId);
+        $statusEmoji = ($status === 'ON_TIME') ? '🟢 [ON-TIME]' : '🟡 [LATE]';
+        $notifTitle = "{$statusEmoji} Monthly Plan Package: " . ($dept->department_code ?? "Dept #{$deptId}");
+        $notifMessage = ($dept->department_name ?? 'Department') . " has submitted their Monthly Plan Package for {$validated['month']} {$validated['year']}.\n"
+                      . "• Submission Timing: " . ($status === 'ON_TIME' ? 'ON-TIME SUBMISSION' : 'LATE SUBMISSION') . "\n"
+                      . "• Total Plans: {$totalPlans} ({$stratCount} Strategy, {$opsCount} Operational)";
+        if (!empty($validated['notes'])) {
+            $notifMessage .= "\n• Department Remarks: {$validated['notes']}";
+        }
+
+        $voucherUrl = route('monthly.voucher', [
+            'department_id' => $deptId,
+            'year' => $validated['year'],
+            'month' => $validated['month'],
+        ]);
+
+        notify_gm_submission($notifTitle, $notifMessage, $deptId, $voucherUrl);
+
+        return back()->with('success', "Monthly Plan package submitted successfully to General Management! Timing Status: {$status}.");
+    }
+
+    public function saveFeedback(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user->isGM() && !$user->isSuperAdmin()) {
+            abort(403, 'Only General Management can submit executive review comments.');
+        }
+
+        $validated = $request->validate([
+            'department_id' => 'required|exists:departments,id',
+            'year' => 'required|string',
+            'month' => 'required|string',
+            'approval_status' => 'required|in:PENDING,APPROVED,REVISION_REQUESTED',
+            'gm_feedback' => 'nullable|string',
+        ]);
+
+        \App\Models\MonthlySubmission::updateOrCreate([
+            'department_id' => $validated['department_id'],
+            'year' => $validated['year'],
+            'month' => $validated['month'],
+        ], [
+            'approval_status' => $validated['approval_status'],
+            'gm_feedback' => $validated['gm_feedback'],
+            'gm_feedback_at' => now(),
+        ]);
+
+        AuditLog::log('GM_FEEDBACK_MONTHLY', 'monthly_plans', "GM evaluated Monthly Plans for Dept {$validated['department_id']}: {$validated['approval_status']}");
+
+        return back()->with('success', 'General Manager feedback & approval status saved successfully.');
     }
 
     public function store(Request $request)

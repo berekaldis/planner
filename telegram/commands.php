@@ -21,52 +21,60 @@ class TelegramCommandHandler {
     /**
      * Handle incoming message object from Telegram
      */
+    /**
+     * Handle incoming message object from Telegram
+     */
     public function handle(array $message): void {
-        $chatId = $message['chat']['id'] ?? null;
-        $text = trim($message['text'] ?? '');
-        $username = $message['from']['username'] ?? '';
-        $firstName = $message['from']['first_name'] ?? '';
+        try {
+            $chatId = $message['chat']['id'] ?? null;
+            $text = trim($message['text'] ?? ($message['caption'] ?? ''));
+            $username = $message['from']['username'] ?? '';
+            $firstName = $message['from']['first_name'] ?? 'User';
 
-        if (!$chatId) return;
+            if (!$chatId) return;
 
-        // Try to identify user by telegram_chat_id or username
-        $user = $this->identifyUser((string)$chatId, $username);
+            // Try to identify user by telegram_chat_id or username
+            $user = $this->identifyUser((string)$chatId, $username);
 
-        // Parse command
-        $parts = explode(' ', $text, 2);
-        $command = strtolower($parts[0] ?? '');
-        $argument = trim($parts[1] ?? '');
+            // Parse command (Strip @BotName suffix if present e.g. /start@KaldisPlannerBot -> /start)
+            $parts = explode(' ', $text, 2);
+            $rawCmd = strtolower(trim($parts[0] ?? ''));
+            $command = strtolower(explode('@', $rawCmd)[0]);
+            $argument = trim($parts[1] ?? '');
 
-        // Command routing
-        switch ($command) {
-            case '/start':
-                $this->cmdStart($chatId, $firstName, $user);
-                break;
+            // Command routing
+            switch ($command) {
+                case '/start':
+                    $this->cmdStart($chatId, $firstName, $user);
+                    break;
 
-            case '/status':
-                $this->cmdStatus($chatId, $user);
-                break;
+                case '/status':
+                    $this->cmdStatus($chatId, $user);
+                    break;
 
-            case '/myreport':
-                $this->cmdMyReport($chatId, $user);
-                break;
+                case '/myreport':
+                    $this->cmdMyReport($chatId, $user);
+                    break;
 
-            case '/report':
-                $this->cmdReport($chatId, $user);
-                break;
+                case '/report':
+                    $this->cmdReport($chatId, $user);
+                    break;
 
-            case '/achievement':
-                $this->cmdAchievement($chatId, $user, $argument);
-                break;
+                case '/achievement':
+                    $this->cmdAchievement($chatId, $user, $argument);
+                    break;
 
-            case '/challenge':
-                $this->cmdChallenge($chatId, $user, $argument);
-                break;
+                case '/challenge':
+                    $this->cmdChallenge($chatId, $user, $argument);
+                    break;
 
-            case '/help':
-            default:
-                $this->cmdHelp($chatId);
-                break;
+                case '/help':
+                default:
+                    $this->cmdHelp($chatId);
+                    break;
+            }
+        } catch (\Throwable $e) {
+            error_log("TelegramCommandHandler handle error: " . $e->getMessage());
         }
     }
 
@@ -83,7 +91,7 @@ class TelegramCommandHandler {
         $stmt->execute([$chatId]);
         $user = $stmt->fetch();
 
-        // Fallback by username
+        // Fallback by username or email match
         if (!$user && !empty($username)) {
             $cleanUsername = ltrim($username, '@');
             $stmt2 = $this->db->prepare("
@@ -91,10 +99,10 @@ class TelegramCommandHandler {
                 FROM users u
                 LEFT JOIN departments d ON u.department_id = d.id
                 LEFT JOIN roles r ON u.role_id = r.id
-                WHERE (u.username = ? OR u.telegram_chat_id = ?) AND u.is_active = 1
+                WHERE (u.username = ? OR u.email LIKE ?) AND u.is_active = 1
                 LIMIT 1
             ");
-            $stmt2->execute([$cleanUsername, '@' . $cleanUsername]);
+            $stmt2->execute([$cleanUsername, $cleanUsername . '@%']);
             $user = $stmt2->fetch();
 
             if ($user && empty($user['telegram_chat_id'])) {
@@ -108,21 +116,26 @@ class TelegramCommandHandler {
     }
 
     private function cmdStart(string|int $chatId, string $firstName, ?array $user): void {
+        $safeFirstName = htmlspecialchars($firstName, ENT_QUOTES, 'UTF-8');
         if ($user) {
-            $msg = "☕ <b>Welcome, {$user['full_name']}!</b>\n\n"
-                 . "You are connected as <b>{$user['department_name']} ({$user['department_code']})</b>.\n\n"
+            $safeFullName = htmlspecialchars($user['full_name'] ?? 'User', ENT_QUOTES, 'UTF-8');
+            $safeDeptName = htmlspecialchars($user['department_name'] ?? 'Department', ENT_QUOTES, 'UTF-8');
+            $safeDeptCode = htmlspecialchars($user['department_code'] ?? 'DEPT', ENT_QUOTES, 'UTF-8');
+
+            $msg = "☕ <b>Welcome, {$safeFullName}!</b>\n\n"
+                 . "You are connected as <b>{$safeDeptName} ({$safeDeptCode})</b>.\n\n"
                  . "Use this bot to monitor your weekly tasks, log achievements/challenges, and track reporting deadlines.\n\n"
                  . "<b>Available Commands:</b>\n"
-                 . "/status &mdash; Check current week's plan & submission status\n"
-                 . "/myreport &mdash; View your latest submitted report\n"
-                 . "/achievement &lt;text&gt; &mdash; Log a weekly achievement\n"
-                 . "/challenge &lt;text&gt; &mdash; Log a weekly challenge\n"
-                 . "/help &mdash; Show commands list";
+                 . "/status — Check current week's plan &amp; submission status\n"
+                 . "/myreport — View your latest submitted report\n"
+                 . "/achievement &lt;text&gt; — Log a weekly achievement\n"
+                 . "/challenge &lt;text&gt; — Log a weekly challenge\n"
+                 . "/help — Show commands list";
         } else {
             $msg = "☕ <b>Welcome to Kaldis Coffee Planning Bot!</b>\n\n"
-                 . "Hello {$firstName}. Your Telegram account is not yet bound to a Department Head profile.\n\n"
+                 . "Hello {$safeFirstName}. Your Telegram account is not yet bound to a Department profile.\n\n"
                  . "Your Telegram Chat ID is: <code>{$chatId}</code>\n\n"
-                 . "Please contact your IT Administrator or provide this Chat ID in your Profile settings on the Kaldis Planning portal to link your department.";
+                 . "Please contact your IT Administrator or set your Chat ID in User Accounts settings to link your profile.";
         }
         $this->notifier->sendMessage($chatId, $msg);
     }
@@ -238,7 +251,8 @@ class TelegramCommandHandler {
         ");
         $stmt->execute([$user['department_id'], $year, $month, $week, $text, $user['id']]);
 
-        $this->notifier->sendMessage($chatId, "🏆 <b>Achievement Recorded!</b>\n\n\"{$text}\"\nHas been added to Week {$week}'s report.");
+        $safeText = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+        $this->notifier->sendMessage($chatId, "🏆 <b>Achievement Recorded!</b>\n\n\"{$safeText}\"\nHas been added to Week {$week}'s report.");
     }
 
     private function cmdChallenge(string|int $chatId, ?array $user, string $text): void {
@@ -263,18 +277,20 @@ class TelegramCommandHandler {
         ");
         $stmt->execute([$user['department_id'], $year, $month, $week, $text, $user['id']]);
 
-        $this->notifier->sendMessage($chatId, "⚠️ <b>Challenge Recorded!</b>\n\n\"{$text}\"\nHas been logged for management review.");
+        $safeText = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+        $this->notifier->sendMessage($chatId, "⚠️ <b>Challenge Recorded!</b>\n\n\"{$safeText}\"\nHas been logged for management review.");
     }
 
     private function cmdHelp(string|int $chatId): void {
         $msg = "🤖 <b>Kaldis Coffee Planning Bot Commands:</b>\n\n"
-             . "/start &mdash; Welcome & Account Status\n"
-             . "/status &mdash; Check current week's execution & reporting status\n"
-             . "/myreport &mdash; View your latest submitted report\n"
-             . "/report &mdash; Submission guide & portal link\n"
-             . "/achievement &lt;text&gt; &mdash; Record an achievement directly\n"
-             . "/challenge &lt;text&gt; &mdash; Record a challenge directly\n"
-             . "/help &mdash; Show this help menu";
+             . "/start — Welcome &amp; Account Status\n"
+             . "/status — Check current week's execution &amp; reporting status\n"
+             . "/myreport — View your latest submitted report\n"
+             . "/report — Submission guide &amp; portal link\n"
+             . "/achievement &lt;text&gt; — Record an achievement directly\n"
+             . "/challenge &lt;text&gt; — Record a challenge directly\n"
+             . "/help — Show this help menu";
         $this->notifier->sendMessage($chatId, $msg);
+
     }
 }
