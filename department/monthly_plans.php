@@ -148,7 +148,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect("/department/monthly_plans.php?year={$year}&month={$month}&department_id={$subDeptId}");
         }
 
-        $deadlineDay = (int)app_config('monthly_deadline_day', 5);
+        $deadlineDay = 26;
+        try {
+            $stD = $db->query("SELECT setting_value FROM system_settings WHERE setting_key IN ('monthly_plan_deadline_day', 'monthly_deadline_day') ORDER BY id ASC LIMIT 1");
+            $vD = $stD ? $stD->fetchColumn() : null;
+            if ($vD !== false && $vD !== null && is_numeric($vD)) {
+                $deadlineDay = (int)$vD;
+            }
+        } catch (\Throwable $e) {}
+
         $currentEt = get_ethiopian_period();
         $status = 'ON_TIME';
         if ($currentEt['month'] === $month && $currentEt['year'] === $year && $currentEt['day'] > $deadlineDay) {
@@ -714,7 +722,7 @@ foreach ($monthlyPlans as $p) {
                         </div>
                         <div class="d-flex justify-content-between small pt-1 border-top mt-1">
                             <span class="text-muted">Official Cutoff:</span>
-                            <span class="text-secondary fw-semibold">Day 5 of Planning Month</span>
+                            <span class="text-secondary fw-semibold">Day 26 of Ethiopian Month (17:00)</span>
                         </div>
                     </div>
 

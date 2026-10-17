@@ -23,6 +23,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $settingsToSave = [
             'weekly_deadline_day' => trim($_POST['weekly_deadline_day'] ?? 'Monday'),
             'weekly_deadline_time' => trim($_POST['weekly_deadline_time'] ?? '12:00'),
+            'monthly_plan_deadline_day' => (int)($_POST['monthly_plan_deadline_day'] ?? 26),
+            'monthly_plan_deadline_time' => trim($_POST['monthly_plan_deadline_time'] ?? '17:00'),
+            'monthly_deadline_day' => (int)($_POST['monthly_plan_deadline_day'] ?? 26),
             'current_planning_year' => trim($_POST['current_planning_year'] ?? '2019 E.C.'),
             'current_planning_month' => trim($_POST['current_planning_month'] ?? 'Meskerem'),
             'escalation_recipients_hr' => trim($_POST['escalation_recipients_hr'] ?? 'hr@kaldiscoffee.com'),
@@ -93,6 +96,8 @@ require_once __DIR__ . '/../includes/header.php';
 $settingsRows = $db->query("SELECT setting_key, setting_value FROM system_settings")->fetchAll(PDO::FETCH_KEY_PAIR);
 $deadlineDay = $settingsRows['weekly_deadline_day'] ?? app_config('weekly_deadline_day', 'Monday');
 $deadlineTime = $settingsRows['weekly_deadline_time'] ?? app_config('weekly_deadline_time', '12:00');
+$monthlyDeadlineDay = (int)($settingsRows['monthly_plan_deadline_day'] ?? $settingsRows['monthly_deadline_day'] ?? app_config('monthly_plan_deadline_day', 26));
+$monthlyDeadlineTime = $settingsRows['monthly_plan_deadline_time'] ?? app_config('monthly_plan_deadline_time', '17:00');
 $ethPeriod = get_ethiopian_period();
 $currentYear = $settingsRows['current_planning_year'] ?? 'AUTO';
 $currentMonth = $settingsRows['current_planning_month'] ?? 'AUTO';
@@ -158,12 +163,29 @@ $months = get_ethiopian_months();
                             <option value="<?= $day ?>" <?= $deadlineDay === $day ? 'selected' : '' ?>><?= $day ?></option>
                         <?php endforeach; ?>
                     </select>
-                    <small class="text-muted">Default is Monday.</small>
+                    <small class="text-muted">Weekly report submission due day (default is Monday).</small>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label small fw-bold">WEEKLY CUTOFF TIME (24H) <span class="text-danger">*</span></label>
                     <input type="time" name="weekly_deadline_time" class="form-control" value="<?= e($deadlineTime) ?>" required>
-                    <small class="text-muted">Default is 12:00 PM.</small>
+                    <small class="text-muted">Weekly cutoff time (default is 12:00 PM).</small>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label small fw-bold"><i class="far fa-calendar-check text-warning me-1"></i> MONTHLY PLAN SUBMIT DAY (ETHIOPIAN CALENDAR) <span class="text-danger">*</span></label>
+                    <select name="monthly_plan_deadline_day" class="form-select" required>
+                        <?php for ($d = 1; $d <= 30; $d++): ?>
+                            <option value="<?= $d ?>" <?= $monthlyDeadlineDay === $d ? 'selected' : '' ?>>
+                                Day <?= $d ?> of Ethiopian Month <?= $d === 26 ? '(Official Corporate Cutoff: Day 26)' : '' ?>
+                            </option>
+                        <?php endfor; ?>
+                    </select>
+                    <small class="text-muted">Official due date for monthly plan submission: <strong>Day 26 in Ethiopian calendar</strong>.</small>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small fw-bold"><i class="far fa-clock text-warning me-1"></i> MONTHLY PLAN CUTOFF TIME (24H) <span class="text-danger">*</span></label>
+                    <input type="time" name="monthly_plan_deadline_time" class="form-control" value="<?= e($monthlyDeadlineTime) ?>" required>
+                    <small class="text-muted">End of day cutoff time for plan transmission (default: 17:00 / 11:00 Ethiopian Afternoon).</small>
                 </div>
             </div>
         </div>

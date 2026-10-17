@@ -80,10 +80,46 @@
                                     <option value="{{ $day }}" {{ ($settings['weekly_deadline_day']->setting_value ?? 'Monday') === $day ? 'selected' : '' }}>{{ $day }}</option>
                                 @endforeach
                             </select>
+                            <div class="form-text text-muted small">
+                                Weekly report submission due day (default: Monday).
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-semibold text-secondary">Weekly Reporting Deadline Cutoff Time</label>
                             <input type="time" name="weekly_deadline_time" class="form-control" value="{{ $settings['weekly_deadline_time']->setting_value ?? '12:00' }}" required>
+                            <div class="form-text text-muted small">
+                                Weekly cutoff time (default: 12:00 PM).
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-secondary">
+                                <i class="far fa-calendar-check text-warning me-1"></i> Monthly Plan Submit Day (Ethiopian Calendar)
+                            </label>
+                            @php
+                                $savedMonthlyDay = (int)($settings['monthly_plan_deadline_day']->setting_value ?? $settings['monthly_deadline_day']->setting_value ?? 26);
+                            @endphp
+                            <select name="monthly_plan_deadline_day" class="form-select">
+                                @for($d = 1; $d <= 30; $d++)
+                                    <option value="{{ $d }}" {{ $savedMonthlyDay === $d ? 'selected' : '' }}>
+                                        Day {{ $d }} of Ethiopian Month {{ $d === 26 ? '(Official Corporate Cutoff: Day 26)' : '' }}
+                                    </option>
+                                @endfor
+                            </select>
+                            <div class="form-text text-muted small">
+                                Due date for monthly plan submission: <strong>Day 26 in Ethiopian calendar</strong>.
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-secondary">
+                                <i class="far fa-clock text-warning me-1"></i> Monthly Plan Submission Cutoff Time
+                            </label>
+                            <input type="time" name="monthly_plan_deadline_time" class="form-control" value="{{ $settings['monthly_plan_deadline_time']->setting_value ?? '17:00' }}" required>
+                            <div class="form-text text-muted small">
+                                End of day cutoff time for plan transmission (default: 17:00 / 11:00 Ethiopian Afternoon).
+                            </div>
                         </div>
                     </div>
 

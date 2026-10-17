@@ -331,7 +331,7 @@ require_once __DIR__ . '/../includes/header.php';
                 </div>
                 <div class="text-end">
                     <div class="voucher-ref-badge mb-1"><?= e($voucherRef) ?></div>
-                    <div class="small text-light opacity-75">Generated: <?= date('M d, Y H:i') ?></div>
+                    <div class="small text-light opacity-75">Generated: <?= format_ethiopian_datetime() ?></div>
                 </div>
             </div>
         </div>
@@ -353,12 +353,12 @@ require_once __DIR__ . '/../includes/header.php';
                             <span class="text-muted small text-uppercase d-block">Submission Status</span>
                             <span class="small">
                                 <?php if ($submission && !empty($submission['submitted_at'])): ?>
-                                    Submitted on <strong><?= date('M d, Y H:i', strtotime($submission['submitted_at'])) ?></strong>
+                                    Submitted on <strong><?= format_ethiopian_datetime($submission['submitted_at']) ?></strong>
                                     <?php if (!empty($submission['submitter_name'])): ?>
                                         by <?= e($submission['submitter_name']) ?>
                                     <?php endif; ?>
                                 <?php elseif ($weeklyReport && !empty($weeklyReport['submitted_at'])): ?>
-                                    Submitted on <strong><?= date('M d, Y H:i', strtotime($weeklyReport['submitted_at'])) ?></strong>
+                                    Submitted on <strong><?= format_ethiopian_datetime($weeklyReport['submitted_at']) ?></strong>
                                     <?php if (!empty($weeklyReport['submitter_name'])): ?>
                                         by <?= e($weeklyReport['submitter_name']) ?>
                                     <?php endif; ?>
@@ -620,7 +620,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <div class="signature-line">
                         <div><?= e($submission['submitter_name'] ?? ($weeklyReport['submitter_name'] ?? 'Department Head')) ?></div>
                         <small class="text-muted">Prepared &amp; Submitted By</small>
-                        <div class="text-muted small mt-1"><?= !empty($submission['submitted_at']) ? date('M d, Y', strtotime($submission['submitted_at'])) : (!empty($weeklyReport['submitted_at']) ? date('M d, Y', strtotime($weeklyReport['submitted_at'])) : 'Date: _____________') ?></div>
+                        <div class="text-muted small mt-1"><?= !empty($submission['submitted_at']) ? format_ethiopian_date($submission['submitted_at']) : (!empty($weeklyReport['submitted_at']) ? format_ethiopian_date($weeklyReport['submitted_at']) : 'Date: _____________') ?></div>
                     </div>
                 </div>
                 <div class="col-4">

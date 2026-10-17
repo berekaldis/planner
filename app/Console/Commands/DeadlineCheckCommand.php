@@ -187,7 +187,7 @@ class DeadlineCheckCommand extends Command
             if (!empty($gmChatIds)) {
                 $execMsg = "📊 <b>Kaldis Executive Weekly Cutoff Report</b>\n";
                 $execMsg .= "📅 <b>Period:</b> Week {$week} &bull; {$month} {$year}\n";
-                $execMsg .= "⏰ <b>Cutoff Evaluation:</b> " . now()->format('M d, Y h:i A') . "\n\n";
+                $execMsg .= "⏰ <b>Cutoff Evaluation:</b> " . format_ethiopian_datetime() . "\n\n";
 
                 $execMsg .= "📈 <b>Company Submission Performance:</b>\n";
                 $execMsg .= "• Total Departments: <b>{$totalDepts}</b>\n";

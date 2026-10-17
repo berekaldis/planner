@@ -10,8 +10,8 @@
         <p class="text-muted small mb-0">{{ $department->department_name }} &bull; Week {{ $selectedWeek }} ({{ $selectedMonth }} {{ $selectedYear }})</p>
     </div>
     <div class="d-flex gap-2">
-        <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" class="btn btn-outline-dark btn-sm">
-            <i class="fas fa-file-invoice me-1"></i> View Voucher
+        <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" class="btn btn-outline-dark btn-sm" target="_blank" title="Open Official Voucher in new tab">
+            <i class="fas fa-file-invoice me-1"></i> View Official Voucher
         </a>
         <a href="{{ route('weekly.plans', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" class="btn btn-outline-secondary btn-sm">
             <i class="fas fa-tasks me-1"></i> Edit Planned Tasks
@@ -83,10 +83,10 @@
         </div>
         <div class="d-flex align-items-center gap-2">
             <div class="small text-muted">
-                Submitted by {{ $submission->submitter->full_name ?? 'Department Head' }} on {{ $submission->submitted_at ? $submission->submitted_at->format('M d, Y H:i') : '' }}
+                Submitted by {{ $submission->submitter->full_name ?? 'Department Head' }} on {{ $submission->submitted_at ? format_ethiopian_datetime($submission->submitted_at) : '' }}
             </div>
-            <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" class="btn btn-sm btn-dark">
-                <i class="fas fa-file-invoice me-1"></i> View Voucher
+            <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" class="btn btn-sm btn-dark" target="_blank" title="Open Official Voucher in new tab">
+                <i class="fas fa-file-invoice me-1"></i> View Official Voucher
             </a>
         </div>
     </div>
@@ -94,7 +94,7 @@
         <div class="card border-primary mb-4 shadow-sm">
             <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
                 <span class="fw-bold small"><i class="fas fa-comment-dots me-1"></i> Executive Review Comments from General Manager</span>
-                <span class="small opacity-75">{{ $submission->gm_feedback_at ? \Carbon\Carbon::parse($submission->gm_feedback_at)->format('M d, Y H:i') : '' }}</span>
+                <span class="small opacity-75">{{ $submission->gm_feedback_at ? format_ethiopian_datetime($submission->gm_feedback_at) : '' }}</span>
             </div>
             <div class="card-body bg-light py-2 px-3 small">
                 <p class="mb-0 text-dark">{{ $submission->gm_feedback }}</p>

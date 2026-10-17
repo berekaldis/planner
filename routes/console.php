@@ -14,24 +14,26 @@ Schedule::command('kaldis:deadline-check')
     ->timezone('Africa/Addis_Ababa')
     ->description('Weekly Cutoff Compliance Check & GM Executive Telegram Summary (Monday 12:05)');
 
-// 3. Monthly Strategic & Operational Plans: Daily morning reminder on Days 1-4 of each month
+// 3. Monthly Strategic & Operational Plans: Daily morning reminder on Days 20-25 of each Ethiopian month before Day 26
 Schedule::command('kaldis:monthly-reminder --type=reminder')
     ->dailyAt('09:00')
     ->timezone('Africa/Addis_Ababa')
     ->when(function () {
         $et = function_exists('get_ethiopian_period') ? get_ethiopian_period() : ['day' => (int)date('j')];
         $day = $et['day'] ?? (int)date('j');
-        return $day >= 1 && $day <= 4;
+        $deadlineDay = (int)kaldis_setting('monthly_plan_deadline_day', 26);
+        return $day >= ($deadlineDay - 6) && $day < $deadlineDay;
     })
-    ->description('Monthly Plan Submission Reminder to Department Heads (Days 1-4)');
+    ->description('Monthly Plan Submission Reminder to Department Heads (Days before Day 26)');
 
-// 4. Monthly Strategic & Operational Plans: Cutoff on Day 5 at 17:05 & GM Executive Summary
+// 4. Monthly Strategic & Operational Plans: Cutoff on Day 26 at 17:05 & GM Executive Summary
 Schedule::command('kaldis:monthly-reminder --type=cutoff')
     ->dailyAt('17:05')
     ->timezone('Africa/Addis_Ababa')
     ->when(function () {
         $et = function_exists('get_ethiopian_period') ? get_ethiopian_period() : ['day' => (int)date('j')];
         $day = $et['day'] ?? (int)date('j');
-        return $day === 5;
+        $deadlineDay = (int)kaldis_setting('monthly_plan_deadline_day', 26);
+        return $day === $deadlineDay;
     })
-    ->description('Monthly Plan Cutoff Compliance Check & GM Executive Telegram Summary (Day 5 17:05)');
+    ->description('Monthly Plan Cutoff Compliance Check & GM Executive Telegram Summary (Day 26 17:05)');

@@ -101,8 +101,8 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                 <!-- Planning Period Badge -->
                 <?php $ethPeriod = get_ethiopian_period(); ?>
                 <div class="d-none d-lg-flex align-items-center me-1">
-                    <span class="badge period-badge me-2 py-2 px-3 shadow-sm">
-                        <i class="far fa-calendar-alt text-warning me-1"></i> <?= e($ethPeriod['month']) ?> <?= e($ethPeriod['year']) ?> &bull; Week <?= (int)$ethPeriod['week'] ?>
+                    <span class="badge period-badge me-2 py-2 px-3 shadow-sm" title="Ethiopian Date & Time">
+                        <i class="far fa-calendar-alt text-warning me-1"></i> <?= e($ethPeriod['month']) ?> <?= e($ethPeriod['year']) ?> &bull; Week <?= (int)$ethPeriod['week'] ?> &bull; <i class="far fa-clock text-warning ms-1 me-1"></i> <?= format_ethiopian_time() ?>
                     </span>
                     <span class="badge dept-badge py-2 px-3 shadow-sm">
                         <i class="fas fa-building text-muted me-1"></i> <?= Permissions::isGM() ? 'Executive Management' : (Permissions::isSuperAdmin() ? 'Enterprise Administration' : e($currentUser['department_name'] ?? 'Corporate Office')) ?>

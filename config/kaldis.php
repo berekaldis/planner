@@ -8,6 +8,9 @@ return [
     'current_planning_month' => env('KALDIS_PLANNING_MONTH', 'AUTO'),
     'weekly_deadline_day' => env('KALDIS_WEEKLY_DEADLINE_DAY', 'Monday'),
     'weekly_deadline_time' => env('KALDIS_WEEKLY_DEADLINE_TIME', '12:00'),
+    'monthly_plan_deadline_day' => (int)env('KALDIS_MONTHLY_PLAN_DEADLINE_DAY', 26),
+    'monthly_plan_deadline_time' => env('KALDIS_MONTHLY_PLAN_DEADLINE_TIME', '17:00'),
+    'monthly_deadline_day' => (int)env('KALDIS_MONTHLY_PLAN_DEADLINE_DAY', 26),
     'ethiopian_months' => [
         'Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yakatit',
         'Megabit', 'Miazia', 'Ginbot', 'Sene', 'Hamle', 'Nehase'

@@ -552,8 +552,11 @@
 
             <!-- Right: Period Badges, Theme Toggle, User Profile -->
             <div class="d-flex align-items-center gap-2 gap-md-3 ms-auto">
-                <span class="badge period-badge py-2 px-3 shadow-sm d-none d-sm-inline-flex">
+                <span class="badge period-badge py-2 px-3 shadow-sm d-none d-sm-inline-flex" title="Ethiopian Date">
                     <i class="far fa-calendar-alt text-warning me-1"></i> {{ format_et_calendar() }}
+                </span>
+                <span class="badge period-badge py-2 px-3 shadow-sm d-none d-md-inline-flex" title="Ethiopian Time (East Africa Time)">
+                    <i class="far fa-clock text-warning me-1"></i> {{ format_ethiopian_time() }}
                 </span>
 
                 <!-- Theme Toggle Button (Light Mode / Dark Mode) -->

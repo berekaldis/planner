@@ -225,7 +225,7 @@
                 <div class="col-md-3 col-6">
                     <span class="text-muted small fw-semibold d-block text-uppercase">Submission Date</span>
                     <strong class="text-dark fs-6">
-                        {{ $submission && $submission->submitted_at ? $submission->submitted_at->format('M d, Y h:i A') : 'Pending Submission' }}
+                        {{ $submission && $submission->submitted_at ? format_ethiopian_datetime($submission->submitted_at) : 'Pending Submission' }}
                     </strong>
                     <small class="text-muted d-block">Channel: {{ $submission->submission_channel ?? 'WEB PORTAL' }}</small>
                 </div>
@@ -464,7 +464,7 @@
             </div>
             
             <div class="text-center mt-3 text-muted" style="font-size: 0.72rem;">
-                Official Corporate Planning Voucher &bull; Kaldis Coffee PLC &bull; Generated: {{ date('Y-m-d H:i:s') }}
+                Official Corporate Planning Voucher &bull; Kaldis Coffee PLC &bull; Generated: {{ format_ethiopian_datetime() }}
             </div>
         </div>
     </div>

@@ -211,6 +211,10 @@ class AdminController extends Controller
     {
         $inputs = $request->except(['_token']);
 
+        if (isset($inputs['monthly_plan_deadline_day'])) {
+            $inputs['monthly_deadline_day'] = $inputs['monthly_plan_deadline_day'];
+        }
+
         foreach ($inputs as $key => $val) {
             SystemSetting::set($key, (string)$val);
         }

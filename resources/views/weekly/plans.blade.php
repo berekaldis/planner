@@ -10,8 +10,8 @@
         <p class="text-muted small mb-0">{{ $department->department_name }} &bull; Week {{ $selectedWeek }} ({{ $selectedMonth }} {{ $selectedYear }})</p>
     </div>
     <div class="d-flex gap-2">
-        <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" class="btn btn-outline-dark btn-sm">
-            <i class="fas fa-file-invoice me-1"></i> View Voucher
+        <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" class="btn btn-outline-dark btn-sm" target="_blank" title="Open Official Voucher in new tab">
+            <i class="fas fa-file-invoice me-1"></i> View Official Voucher
         </a>
         <button type="button" class="btn btn-kaldis btn-sm" data-bs-toggle="modal" data-bs-target="#createTaskModal">
             <i class="fas fa-plus-circle me-1"></i> Schedule Weekly Task
@@ -38,10 +38,10 @@
         </div>
         <div class="d-flex align-items-center gap-2">
             <div class="small text-muted">
-                Submitted on {{ $submission->submitted_at ? \Carbon\Carbon::parse($submission->submitted_at)->format('M d, Y H:i') : '' }}
+                Submitted on {{ $submission->submitted_at ? format_ethiopian_datetime($submission->submitted_at) : '' }}
             </div>
-            <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" class="btn btn-sm btn-dark">
-                <i class="fas fa-file-invoice me-1"></i> View Weekly Voucher
+            <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" class="btn btn-sm btn-dark" target="_blank" title="Open Official Voucher in new tab">
+                <i class="fas fa-file-invoice me-1"></i> View Official Voucher
             </a>
         </div>
     </div>

@@ -114,8 +114,9 @@ class MonthlyPlanController extends Controller
         $opsCount = $plans->where('plan_type', 'OPERATIONAL')->count();
         $totalPlans = $plans->count();
 
-        // Check Monthly Deadline (default 5th of Ethiopian month at 17:00)
-        $deadlineDay = (int)kaldis_setting('monthly_deadline_day', 5);
+        // Check Monthly Deadline (default Day 26 of Ethiopian month at 17:00)
+        $deadlineDay = (int)kaldis_setting('monthly_plan_deadline_day', kaldis_setting('monthly_deadline_day', 26));
+        $deadlineTime = kaldis_setting('monthly_plan_deadline_time', '17:00');
         $currentEt = get_ethiopian_period();
         $isCurrentMonth = ($currentEt['month'] === $validated['month'] && $currentEt['year'] === $validated['year']);
         
@@ -124,7 +125,15 @@ class MonthlyPlanController extends Controller
             $status = 'LATE';
         }
 
-        $deadlineAt = now()->startOfMonth()->addDays($deadlineDay)->setTime(17, 0);
+        // Calculate exact Gregorian deadline timestamp for Day 26 of the Ethiopian Month
+        $monthsMap = array_flip(get_ethiopian_months());
+        $mNum = isset($monthsMap[$validated['month']]) ? ($monthsMap[$validated['month']] + 1) : 1;
+        $yNum = (int)preg_replace('/[^0-9]/', '', $validated['year']) ?: 2019;
+        $timeParts = explode(':', $deadlineTime);
+        $timeHour = (int)($timeParts[0] ?? 17);
+        $timeMin = (int)($timeParts[1] ?? 0);
+        [$gy, $gm, $gd] = ethiopian_to_gregorian_date($yNum, $mNum, $deadlineDay);
+        $deadlineAt = \Carbon\Carbon::create($gy, $gm, $gd, $timeHour, $timeMin, 0, 'Africa/Addis_Ababa');
 
         \App\Models\MonthlySubmission::updateOrCreate([
             'department_id' => $deptId,

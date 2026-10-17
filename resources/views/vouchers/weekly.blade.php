@@ -226,7 +226,7 @@
                     <span class="text-muted small fw-semibold d-block text-uppercase">Report Submission</span>
                     @php $subDate = $submission->submitted_at ?? ($report->submitted_at ?? null); @endphp
                     <strong class="text-dark fs-6">
-                        {{ $subDate ? $subDate->format('M d, Y h:i A') : 'Pending Submission' }}
+                        {{ $subDate ? format_ethiopian_datetime($subDate) : 'Pending Submission' }}
                     </strong>
                     <small class="text-muted d-block">Submitter: {{ $submission->submitter->full_name ?? ($report->submitter->full_name ?? 'Dept Head') }}</small>
                 </div>
@@ -507,7 +507,7 @@
             </div>
             
             <div class="text-center mt-3 text-muted" style="font-size: 0.72rem;">
-                Official Corporate Performance Voucher &bull; Kaldis Coffee PLC &bull; Generated: {{ date('Y-m-d H:i:s') }}
+                Official Corporate Performance Voucher &bull; Kaldis Coffee PLC &bull; Generated: {{ format_ethiopian_datetime() }}
             </div>
         </div>
     </div>

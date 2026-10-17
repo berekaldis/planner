@@ -42,10 +42,10 @@
         </div>
         <div class="d-flex align-items-center gap-2">
             <div class="small text-muted">
-                Submitted on {{ $submission->submitted_at ? \Carbon\Carbon::parse($submission->submitted_at)->format('M d, Y H:i') : '' }}
+                Submitted on {{ $submission->submitted_at ? format_ethiopian_datetime($submission->submitted_at) : '' }}
             </div>
-            <a href="{{ route('monthly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth]) }}" class="btn btn-sm btn-dark">
-                <i class="fas fa-file-invoice me-1"></i> View Voucher
+            <a href="{{ route('monthly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth]) }}" class="btn btn-sm btn-dark" target="_blank" title="Open Official Voucher in new tab">
+                <i class="fas fa-file-invoice me-1"></i> View Official Voucher
             </a>
             <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#submitPackageModal">
                 <i class="fas fa-redo me-1"></i> Re-Submit
@@ -56,7 +56,7 @@
         <div class="card border-primary mb-4 shadow-sm">
             <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
                 <span class="fw-bold small"><i class="fas fa-comment-dots me-1"></i> Executive Review Comments from General Manager</span>
-                <span class="small opacity-75">{{ $submission->gm_feedback_at ? \Carbon\Carbon::parse($submission->gm_feedback_at)->format('M d, Y H:i') : '' }}</span>
+                <span class="small opacity-75">{{ $submission->gm_feedback_at ? format_ethiopian_datetime($submission->gm_feedback_at) : '' }}</span>
             </div>
             <div class="card-body bg-light py-2 px-3 small">
                 <p class="mb-0 text-dark">{{ $submission->gm_feedback }}</p>
@@ -70,8 +70,8 @@
             <strong>Monthly Plan Package Pending Submission:</strong> These plans have not yet been officially transmitted to General Management.
         </div>
         <div class="d-flex gap-2">
-            <a href="{{ route('monthly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth]) }}" class="btn btn-sm btn-outline-dark">
-                <i class="fas fa-file-invoice me-1"></i> Preview Voucher
+            <a href="{{ route('monthly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth]) }}" class="btn btn-sm btn-outline-dark" target="_blank" title="Preview Official Voucher in new tab">
+                <i class="fas fa-file-invoice me-1"></i> Preview Official Voucher
             </a>
             <button type="button" class="btn btn-sm btn-kaldis" data-bs-toggle="modal" data-bs-target="#submitPackageModal">
                 <i class="fas fa-paper-plane me-1"></i> Submit Package to GM
@@ -369,7 +369,7 @@
                         </div>
                         <div class="d-flex justify-content-between small pt-1 border-top mt-1">
                             <span class="text-muted">Official Cutoff:</span>
-                            <span class="text-secondary fw-semibold">Day 5 of Planning Month</span>
+                            <span class="text-secondary fw-semibold">Day {{ kaldis_setting('monthly_plan_deadline_day', 26) }} of Ethiopian Month ({{ kaldis_setting('monthly_plan_deadline_time', '17:00') }})</span>
                         </div>
                     </div>
 

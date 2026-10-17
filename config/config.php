@@ -36,6 +36,11 @@ return [
     'weekly_deadline_day' => 'Monday',
     'weekly_deadline_time' => '12:00', // 24-hour format
 
+    // Monthly Plan Submission Deadlines (Ethiopian Calendar Day 26)
+    'monthly_plan_deadline_day' => 26,
+    'monthly_plan_deadline_time' => '17:00',
+    'monthly_deadline_day' => 26,
+
     // Escalation Thresholds (Consecutive missed weeks)
     'escalation_rules' => [
         1 => 'Department Head Reminder',

@@ -186,43 +186,256 @@ if (!function_exists('get_month_weeks')) {
     }
 }
 
+if (!function_exists('get_ethiopian_month_names')) {
+    function get_ethiopian_month_names(): array {
+        return [
+            1 => ['en' => 'Meskerem', 'am' => 'መስከረም'],
+            2 => ['en' => 'Tikimt', 'am' => 'ጥቅምት'],
+            3 => ['en' => 'Hidar', 'am' => 'ኅዳር'],
+            4 => ['en' => 'Tahsas', 'am' => 'ታኅሣሥ'],
+            5 => ['en' => 'Tir', 'am' => 'ጥር'],
+            6 => ['en' => 'Yakatit', 'am' => 'የካቲት'],
+            7 => ['en' => 'Megabit', 'am' => 'መጋቢት'],
+            8 => ['en' => 'Miazia', 'am' => 'ሚያዝያ'],
+            9 => ['en' => 'Ginbot', 'am' => 'ግንቦት'],
+            10 => ['en' => 'Sene', 'am' => 'ሰኔ'],
+            11 => ['en' => 'Hamle', 'am' => 'ሐምሌ'],
+            12 => ['en' => 'Nehase', 'am' => 'ነሐሴ'],
+            13 => ['en' => 'Pagume', 'am' => 'ጳጉሜን'],
+        ];
+    }
+}
+
+if (!function_exists('get_ethiopian_day_names')) {
+    function get_ethiopian_day_names(): array {
+        return [
+            0 => ['en' => 'Sunday', 'am' => 'እሑድ'],
+            1 => ['en' => 'Monday', 'am' => 'ሰኞ'],
+            2 => ['en' => 'Tuesday', 'am' => 'ማክሰኞ'],
+            3 => ['en' => 'Wednesday', 'am' => 'ረቡዕ'],
+            4 => ['en' => 'Thursday', 'am' => 'ሐሙስ'],
+            5 => ['en' => 'Friday', 'am' => 'ዓርብ'],
+            6 => ['en' => 'Saturday', 'am' => 'ቅዳሜ'],
+        ];
+    }
+}
+
+if (!function_exists('gregorian_to_ethiopian_date')) {
+    /**
+     * Exact Gregorian to Ethiopian date conversion
+     * Reference: https://www.metaappz.com/References/Time_and_Date_in_Ethiopia
+     */
+    function gregorian_to_ethiopian_date(int $gy, int $gm, int $gd): array {
+        if ($gm <= 2) {
+            $gy -= 1;
+            $gm += 12;
+        }
+        $a = (int)floor($gy / 100);
+        $b = 2 - $a + (int)floor($a / 4);
+        $jdn = (int)floor(365.25 * ($gy + 4716)) + (int)floor(30.6001 * ($gm + 1)) + $gd + $b - 1524;
+
+        $r = ($jdn - 1723856) % 1461;
+        if ($r < 0) {
+            $r += 1461;
+        }
+        $n = ($r % 365) + 365 * (int)floor($r / 1460);
+        $ey = 4 * (int)floor(($jdn - 1723856) / 1461) + (int)floor($r / 365) - (int)floor($r / 1460);
+        $em = (int)floor($n / 30) + 1;
+        $ed = ($n % 30) + 1;
+
+        return [$ey, $em, $ed];
+    }
+}
+
+if (!function_exists('ethiopian_to_gregorian_date')) {
+    /**
+     * Exact Ethiopian to Gregorian date conversion
+     */
+    function ethiopian_to_gregorian_date(int $ey, int $em, int $ed): array {
+        $jdn = (1723856 + 365) + 365 * ($ey - 1) + (int)floor($ey / 4) + 30 * ($em - 1) + $ed - 1;
+
+        $l = $jdn + 68569;
+        $n = (int)floor(4 * $l / 146097);
+        $l = $l - (int)floor((146097 * $n + 3) / 4);
+        $i = (int)floor(4000 * ($l + 1) / 1461001);
+        $l = $l - (int)floor(1461 * $i / 4) + 31;
+        $j = (int)floor(80 * $l / 2447);
+        $gd = $l - (int)floor(2447 * $j / 80);
+        $l = (int)floor($j / 11);
+        $gm = $j + 2 - 12 * $l;
+        $gy = 100 * ($n - 49) + $i + $l;
+
+        return [$gy, $gm, $gd];
+    }
+}
+
+if (!function_exists('western_to_ethiopian_time')) {
+    /**
+     * Exact Ethiopian Time conversion
+     * Starts at dawn (06:00 Western = 12:00 Dawn Ethiopian morning)
+     * Reference: https://www.metaappz.com/References/Time_and_Date_in_Ethiopia
+     */
+    function western_to_ethiopian_time(int $hour24, int $minute): array {
+        $ethHour = $hour24 - 6;
+        if ($ethHour < 0) {
+            $ethHour += 12;
+        } elseif ($ethHour >= 12) {
+            $ethHour -= 12;
+        }
+        $ethHour = ($ethHour % 12) ?: 12;
+
+        if ($hour24 >= 6 && $hour24 <= 11) {
+            $periodEn = 'Morning';
+            $periodAm = 'ጠዋት';
+        } elseif ($hour24 >= 12 && $hour24 <= 17) {
+            $periodEn = 'Afternoon';
+            $periodAm = 'ከሰዓት';
+        } elseif ($hour24 >= 18 && $hour24 <= 23) {
+            $periodEn = 'Evening';
+            $periodAm = 'ምሽት';
+        } else {
+            $periodEn = 'Night';
+            $periodAm = 'ሌሊት';
+        }
+
+        return [
+            'hour' => $ethHour,
+            'minute' => $minute,
+            'period_en' => $periodEn,
+            'period_am' => $periodAm,
+            'time_str' => sprintf('%02d:%02d %s', $ethHour, $minute, $periodAm)
+        ];
+    }
+}
+
 /**
  * Calculate current Ethiopian Year, Month, Week (1 to 5), and Day
- * 5 weeks per month mapping: Days 1-7 (Week 1), 8-14 (Week 2), 15-21 (Week 3), 22-28 (Week 4), 29-30 (Week 5)
  */
 if (!function_exists('get_ethiopian_period')) {
     function get_ethiopian_period(?string $gregorianDate = null): array {
         $timestamp = $gregorianDate ? strtotime($gregorianDate) : time();
-        $year = (int)date('Y', $timestamp);
-        $dayOfYear = (int)date('z', $timestamp);
+        $gy = (int)date('Y', $timestamp);
+        $gm = (int)date('n', $timestamp);
+        $gd = (int)date('j', $timestamp);
+        $dotw = (int)date('w', $timestamp);
 
-        $months = get_ethiopian_months();
-        $sept11DayOfYear = (int)date('z', strtotime("{$year}-09-11"));
-        
-        if ($dayOfYear >= $sept11DayOfYear) {
-            $ethYear = ($year - 7) . ' E.C.';
-            $daysSinceNewYear = $dayOfYear - $sept11DayOfYear;
-        } else {
-            $ethYear = ($year - 8) . ' E.C.';
-            $prevSept11 = (int)date('z', strtotime(($year - 1) . "-09-11"));
-            $daysInPrevYear = (int)date('z', strtotime(($year - 1) . "-12-31")) + 1;
-            $daysSinceNewYear = ($daysInPrevYear - $prevSept11) + $dayOfYear;
-        }
+        [$ey, $em, $ed] = gregorian_to_ethiopian_date($gy, $gm, $gd);
 
-        $monthIndex = (int)floor($daysSinceNewYear / 30);
-        if ($monthIndex >= 12) {
-            $monthIndex = 11;
-        }
-        $ethMonth = $months[$monthIndex] ?? 'Meskerem';
-        $dayInMonth = ($daysSinceNewYear % 30) + 1;
-        $week = (int)min(5, max(1, ceil($dayInMonth / 7)));
+        $monthNames = get_ethiopian_month_names();
+        $ethMonth = $monthNames[$em]['en'] ?? 'Meskerem';
+        $ethMonthAm = $monthNames[$em]['am'] ?? 'መስከረም';
+
+        $dayNames = get_ethiopian_day_names();
+        $dayNameEn = $dayNames[$dotw]['en'] ?? '';
+        $dayNameAm = $dayNames[$dotw]['am'] ?? '';
+
+        $week = (int)min(5, max(1, ceil($ed / 7)));
 
         return [
-            'year' => $ethYear,
+            'year' => "{$ey} E.C.",
+            'year_num' => $ey,
+            'year_am' => "{$ey} ዓ.ም.",
             'month' => $ethMonth,
+            'month_num' => $em,
+            'month_am' => $ethMonthAm,
             'week' => $week,
-            'day' => $dayInMonth
+            'day' => $ed,
+            'day_name' => $dayNameEn,
+            'day_am' => $dayNameAm,
+            'formatted' => "{$ethMonth} {$ed}, {$ey} E.C.",
+            'formatted_am' => "{$ethMonthAm} {$ed} ቀን {$ey} ዓ.ም."
         ];
+    }
+}
+
+if (!function_exists('format_ethiopian_date')) {
+    function format_ethiopian_date($datetime = null, bool $includeWeekday = false): string {
+        if ($datetime instanceof \DateTimeInterface) {
+            $ts = $datetime->getTimestamp();
+        } elseif (is_numeric($datetime)) {
+            $ts = (int)$datetime;
+        } elseif (is_string($datetime) && !empty($datetime)) {
+            $ts = strtotime($datetime);
+        } else {
+            $ts = time();
+        }
+
+        $period = get_ethiopian_period(date('Y-m-d', $ts));
+        if ($includeWeekday) {
+            return "{$period['day_name']}, {$period['formatted']}";
+        }
+        return $period['formatted'];
+    }
+}
+
+if (!function_exists('format_ethiopian_date_am')) {
+    function format_ethiopian_date_am($datetime = null, bool $includeWeekday = false): string {
+        if ($datetime instanceof \DateTimeInterface) {
+            $ts = $datetime->getTimestamp();
+        } elseif (is_numeric($datetime)) {
+            $ts = (int)$datetime;
+        } elseif (is_string($datetime) && !empty($datetime)) {
+            $ts = strtotime($datetime);
+        } else {
+            $ts = time();
+        }
+
+        $period = get_ethiopian_period(date('Y-m-d', $ts));
+        if ($includeWeekday) {
+            return "{$period['day_am']}፣ {$period['formatted_am']}";
+        }
+        return $period['formatted_am'];
+    }
+}
+
+if (!function_exists('format_ethiopian_time')) {
+    function format_ethiopian_time($datetime = null, bool $includeEnglish = false): string {
+        if ($datetime instanceof \DateTimeInterface) {
+            $h = (int)$datetime->format('G');
+            $m = (int)$datetime->format('i');
+        } elseif (is_numeric($datetime)) {
+            $h = (int)date('G', (int)$datetime);
+            $m = (int)date('i', (int)$datetime);
+        } elseif (is_string($datetime) && !empty($datetime)) {
+            $ts = strtotime($datetime);
+            $h = (int)date('G', $ts);
+            $m = (int)date('i', $ts);
+        } else {
+            $h = (int)date('G');
+            $m = (int)date('i');
+        }
+
+        $t = western_to_ethiopian_time($h, $m);
+        if ($includeEnglish) {
+            return sprintf('%02d:%02d %s (%s)', $t['hour'], $t['minute'], $t['period_am'], $t['period_en']);
+        }
+        return $t['time_str'];
+    }
+}
+
+if (!function_exists('format_ethiopian_datetime')) {
+    function format_ethiopian_datetime($datetime = null, bool $includeEat = true): string {
+        if ($datetime instanceof \DateTimeInterface) {
+            $ts = $datetime->getTimestamp();
+            $eatStr = $datetime->format('H:i');
+        } elseif (is_numeric($datetime)) {
+            $ts = (int)$datetime;
+            $eatStr = date('H:i', $ts);
+        } elseif (is_string($datetime) && !empty($datetime)) {
+            $ts = strtotime($datetime);
+            $eatStr = date('H:i', $ts);
+        } else {
+            $ts = time();
+            $eatStr = date('H:i');
+        }
+
+        $dateStr = format_ethiopian_date($ts);
+        $timeStr = format_ethiopian_time($ts);
+
+        if ($includeEat) {
+            return "{$dateStr} {$timeStr} ({$eatStr} EAT)";
+        }
+        return "{$dateStr} {$timeStr}";
     }
 }
 
@@ -533,9 +746,10 @@ if (!function_exists('notify_gm_submission')) {
                 $telegramMsg = "<b>" . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "</b>\n\n"
                              . htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
                 if ($voucherUrl) {
-                    $telegramMsg .= "\n\n📄 <a href=\"" . htmlspecialchars($voucherUrl, ENT_QUOTES, 'UTF-8') . "\"><b>View Official Voucher</b></a>";
+                    $cleanVoucherUrl = htmlspecialchars($voucherUrl, ENT_QUOTES, 'UTF-8');
+                    $telegramMsg .= "\n\n📄 <a href=\"{$cleanVoucherUrl}\"><b>View Official Voucher</b></a>\n🔗 {$cleanVoucherUrl}";
                 }
-                $telegramMsg .= "\n\n📅 <i>" . date('Y-m-d H:i') . "</i>";
+                $telegramMsg .= "\n\n📅 <i>" . (function_exists('format_ethiopian_datetime') ? format_ethiopian_datetime() : date('Y-m-d H:i')) . "</i>";
 
                 foreach ($chatIdsToNotify as $chatId) {
                     send_telegram_notification($chatId, $telegramMsg);
@@ -585,9 +799,10 @@ if (!function_exists('notify_department_head')) {
             if (!empty($head['telegram_chat_id'])) {
                 $telegramText = "<b>" . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "</b>\n\n" . $message;
                 if ($url) {
-                    $telegramText .= "\n\n🔗 <a href=\"" . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . "\"><b>View in Portal</b></a>";
+                    $cleanUrl = htmlspecialchars($url, ENT_QUOTES, 'UTF-8');
+                    $telegramText .= "\n\n📄 <a href=\"{$cleanUrl}\"><b>View Official Voucher / Portal</b></a>\n🔗 {$cleanUrl}";
                 }
-                $telegramText .= "\n\n📅 <i>" . date('Y-m-d H:i') . "</i>";
+                $telegramText .= "\n\n📅 <i>" . (function_exists('format_ethiopian_datetime') ? format_ethiopian_datetime() : date('Y-m-d H:i')) . "</i>";
                 send_telegram_notification(trim($head['telegram_chat_id']), $telegramText);
             }
         } catch (\Throwable $e) {
