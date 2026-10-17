@@ -494,6 +494,23 @@
             color: #FBBF24;
         }
 
+        /* High-Priority Modal Layering & Stacking Context Fix */
+        .modal {
+            z-index: 1060 !important;
+        }
+        .modal-dialog {
+            z-index: 1065 !important;
+            position: relative;
+        }
+        .modal-backdrop {
+            z-index: 1050 !important;
+        }
+        .modal-backdrop.show {
+            opacity: 0.5 !important;
+            backdrop-filter: blur(4px) !important;
+            -webkit-backdrop-filter: blur(4px) !important;
+        }
+
         /* React-Style Modal Scale Transition */
         .modal.fade .modal-dialog {
             transform: scale(0.96);
@@ -502,14 +519,11 @@
         .modal.show .modal-dialog {
             transform: scale(1);
         }
-        .modal-backdrop.show {
-            backdrop-filter: blur(6px);
-        }
 
-        /* Page Entrance Animation */
+        /* Page Entrance Animation (Opacity only to prevent stacking-context isolation) */
         @keyframes fadeInContent {
-            from { opacity: 0; transform: translateY(8px); }
-            to   { opacity: 1; transform: translateY(0); }
+            from { opacity: 0; }
+            to   { opacity: 1; }
         }
     </style>
 
@@ -854,7 +868,7 @@
         <!-- Content Wrapper (Main Content Area + Footer) -->
         <div class="content-wrapper" style="flex:1; display:flex; flex-direction:column; min-width:0;">
             <!-- Main Content Area -->
-            <main class="main-content" style="animation: fadeInContent 0.35s cubic-bezier(0.34,1.56,0.64,1) both;">
+            <main class="main-content">
                 <!-- Flash Notifications -->
                 @if(session('success'))
                     <div class="alert alert-success alert-dismissible fade show shadow-sm mb-4" role="alert">
@@ -970,12 +984,25 @@
         @endif
     </script>
     
-    <!-- Global Searchable Selects (TomSelect) Delegator -->
+    <!-- Modal Relocation & Global Searchable Selects (TomSelect) Delegator -->
     <script>
+        function relocateModalsToBody() {
+            document.querySelectorAll('.modal').forEach(function(modal) {
+                if (modal.parentElement !== document.body) {
+                    document.body.appendChild(modal);
+                }
+            });
+        }
         document.addEventListener('DOMContentLoaded', function() {
+            relocateModalsToBody();
             if (typeof window.initSearchableSelects === 'function') {
                 window.initSearchableSelects();
             }
+            document.addEventListener('show.bs.modal', function(e) {
+                if (e.target && e.target.parentElement !== document.body) {
+                    document.body.appendChild(e.target);
+                }
+            });
             document.addEventListener('shown.bs.modal', function(e) {
                 if (typeof window.initSearchableSelects === 'function') {
                     window.initSearchableSelects(e.target);

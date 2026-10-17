@@ -8,6 +8,7 @@
 'use strict';
 
 document.addEventListener('DOMContentLoaded', function () {
+    relocateModalsToBody();
     initTheme();
     initSidebar();
     initLiveSearch();
@@ -16,6 +17,12 @@ document.addEventListener('DOMContentLoaded', function () {
     initAlertAutoDismiss();
     initNavbarScroll();
     initSearchableSelects();
+
+    document.addEventListener('show.bs.modal', function (e) {
+        if (e.target && e.target.parentElement !== document.body) {
+            document.body.appendChild(e.target);
+        }
+    });
 
     document.addEventListener('shown.bs.modal', function (e) {
         initSearchableSelects(e.target);
@@ -457,6 +464,14 @@ function escapeHtml(str) {
     const d = document.createElement('div');
     d.textContent = str;
     return d.innerHTML;
+}
+
+function relocateModalsToBody() {
+    document.querySelectorAll('.modal').forEach(function (modal) {
+        if (modal.parentElement !== document.body) {
+            document.body.appendChild(modal);
+        }
+    });
 }
 
 
