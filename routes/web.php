@@ -24,7 +24,8 @@ Route::middleware('guest')->group(function () {
 // Authenticated Routes
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/', [DashboardController::class, 'overview'])->name('dashboard');
+    Route::get('/overview', [DashboardController::class, 'overview'])->name('overview');
 
     // Dashboards & Executive Views
     Route::get('/management/dashboard', [DashboardController::class, 'gm'])->name('dashboard.gm');

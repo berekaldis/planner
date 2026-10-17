@@ -3,10 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\AnnualGoal;
+use App\Models\AuditLog;
 use App\Models\Department;
 use App\Models\MonthlyPlan;
 use App\Models\MonthlyStrategyActivation;
+use App\Models\MonthlySubmission;
 use App\Models\Submission;
+use App\Models\WeeklyReport;
 use App\Models\WeeklyTask;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,21 +17,125 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-    public function index()
+    public function index(Request $request)
+    {
+        return $this->overview($request);
+    }
+
+    public function overview(Request $request)
     {
         $user = Auth::user();
+        $period = get_ethiopian_period();
+        $selectedYear = $request->query('year', kaldis_setting('current_planning_year', config('kaldis.current_planning_year', $period['year'] . ' E.C.')));
+        $selectedMonth = $request->query('month', kaldis_setting('current_planning_month', config('kaldis.current_planning_month', $period['month'])));
+        $selectedWeek = (int)$request->query('week', $period['week'] ?? 1);
 
-        if ($user->isGM()) {
-            return redirect()->route('dashboard.gm');
-        } elseif ($user->isSuperAdmin()) {
-            return redirect()->route('admin.dashboard');
-        } elseif ($user->isDeptHead()) {
-            return redirect()->route('dashboard.department');
-        } elseif ($user->isHROfficer()) {
-            return redirect()->route('performance.weekly');
+        $ethToday = function_exists('gregorian_to_ethiopian_date')
+            ? gregorian_to_ethiopian_date((int)date('Y'), (int)date('n'), (int)date('j'))
+            : ['year' => 2019, 'month' => 2, 'month_name' => 'Tikimt', 'day' => (int)date('d')];
+        $currentEthDay = (int)($ethToday['day'] ?? 1);
+
+        $monthlyDeadlineDay = (int)kaldis_setting('monthly_plan_deadline_day', 26);
+        $monthlyDeadlineTime = kaldis_setting('monthly_plan_deadline_time', '17:00');
+        $weeklyDeadlineDay = kaldis_setting('weekly_deadline_day', 'Monday');
+        $weeklyDeadlineTime = kaldis_setting('weekly_deadline_time', '12:00');
+
+        $monthlyDaysLeft = max(0, $monthlyDeadlineDay - $currentEthDay);
+
+        $totalDepartments = Department::where('active', 1)->count();
+        $totalGoals = AnnualGoal::where('year', $selectedYear)->where('status', 'ACTIVE')->count();
+
+        // Department-specific statistics
+        $userDeptId = $user->department_id;
+        $userDept = $user->department;
+        $deptTasksCount = 0;
+        $deptDoneCount = 0;
+        $deptNotDoneCount = 0;
+        $deptMonthlyPlansCount = 0;
+        $submissionStatus = 'DRAFT';
+        $weeklyReport = null;
+        $monthlySubmission = null;
+
+        if ($userDeptId) {
+            $deptTasksCount = WeeklyTask::where('department_id', $userDeptId)
+                ->where('year', $selectedYear)
+                ->where('month', $selectedMonth)
+                ->where('week_number', $selectedWeek)
+                ->count();
+
+            $deptDoneCount = DB::table('weekly_tasks as wt')
+                ->join('weekly_task_results as wtr', 'wt.id', '=', 'wtr.weekly_task_id')
+                ->where('wt.department_id', $userDeptId)
+                ->where('wt.year', $selectedYear)
+                ->where('wt.month', $selectedMonth)
+                ->where('wt.week_number', $selectedWeek)
+                ->where('wtr.result', 'DONE')
+                ->count();
+
+            $deptNotDoneCount = max(0, $deptTasksCount - $deptDoneCount);
+
+            $deptMonthlyPlansCount = MonthlyPlan::where('department_id', $userDeptId)
+                ->where('year', $selectedYear)
+                ->where('month', $selectedMonth)
+                ->count();
+
+            $weeklyReport = WeeklyReport::where('department_id', $userDeptId)
+                ->where('year', $selectedYear)
+                ->where('month', $selectedMonth)
+                ->where('week_number', $selectedWeek)
+                ->first();
+
+            if ($weeklyReport && $weeklyReport->status === 'SUBMITTED') {
+                $submissionStatus = $weeklyReport->submission_status ?? 'ON_TIME';
+            }
+
+            $monthlySubmission = MonthlySubmission::where('department_id', $userDeptId)
+                ->where('year', $selectedYear)
+                ->where('month', $selectedMonth)
+                ->first();
         }
 
-        return redirect()->route('dashboard.gm');
+        $completionPct = $deptTasksCount > 0 ? round(($deptDoneCount / $deptTasksCount) * 100) : 0;
+
+        // Enterprise-wide metrics
+        $allMonthlyPlansCount = MonthlyPlan::where('year', $selectedYear)->where('month', $selectedMonth)->count();
+        $submittedMonthlyPackagesCount = MonthlySubmission::where('year', $selectedYear)->where('month', $selectedMonth)->where('status', 'SUBMITTED')->count();
+        $submittedWeeklyReportsCount = WeeklyReport::where('year', $selectedYear)->where('month', $selectedMonth)->where('week_number', $selectedWeek)->where('status', 'SUBMITTED')->count();
+
+        $recentActivities = AuditLog::with('user')
+            ->orderByDesc('id')
+            ->limit(6)
+            ->get();
+
+        return view('overview', compact(
+            'user',
+            'period',
+            'selectedYear',
+            'selectedMonth',
+            'selectedWeek',
+            'currentEthDay',
+            'monthlyDeadlineDay',
+            'monthlyDeadlineTime',
+            'weeklyDeadlineDay',
+            'weeklyDeadlineTime',
+            'monthlyDaysLeft',
+            'totalDepartments',
+            'totalGoals',
+            'userDeptId',
+            'userDept',
+            'deptTasksCount',
+            'deptDoneCount',
+            'deptNotDoneCount',
+            'completionPct',
+            'deptMonthlyPlansCount',
+            'submissionStatus',
+            'weeklyReport',
+            'monthlySubmission',
+            'allMonthlyPlansCount',
+            'submittedMonthlyPackagesCount',
+            'submittedWeeklyReportsCount',
+            'recentActivities'
+        ));
     }
 
     public function gm(Request $request)

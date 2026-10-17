@@ -537,10 +537,6 @@
             
             <!-- Left: Brand Logo & Title -->
             <div class="d-flex align-items-center">
-                <button id="sidebarToggle" class="btn btn-outline-secondary btn-sm rounded-circle me-2 d-flex align-items-center justify-content-center shadow-xs sidebar-toggle-btn" 
-                        style="width: 36px; height: 36px;" type="button" aria-label="Toggle Sidebar" title="Toggle Sidebar (Alt+S)">
-                    <i class="fas fa-bars text-secondary"></i>
-                </button>
                 <a class="navbar-brand d-flex align-items-center m-0 text-decoration-none" href="{{ route('dashboard') }}">
                     <img src="{{ asset('assets/images/logo.png') }}" alt="Kaldis Coffee" class="kaldis-brand-img me-2" onerror="this.src='{{ asset('images/logo.png') }}'">
                     <div class="lh-sm">
@@ -652,8 +648,8 @@
                     <div class="sidebar-heading">Dashboards</div>
                     <ul class="nav flex-column mb-3">
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}" 
-                               data-bs-toggle="tooltip" data-bs-placement="right" title="Overview">
+                            <a class="nav-link {{ (request()->routeIs('dashboard') || request()->routeIs('overview')) ? 'active' : '' }}" href="{{ route('overview') }}" 
+                                data-bs-toggle="tooltip" data-bs-placement="right" title="Overview">
                                 <span class="nav-icon-wrap icon-dashboard"><i class="fas fa-house"></i></span>
                                 <span class="nav-text">Overview</span>
                                 <i class="fas fa-chevron-right sidebar-chevron"></i>

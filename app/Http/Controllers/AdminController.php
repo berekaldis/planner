@@ -204,7 +204,114 @@ class AdminController extends Controller
     public function settings()
     {
         $settings = SystemSetting::all()->keyBy('setting_key');
-        return view('admin.settings', compact('settings'));
+        $roles = Role::withCount('users')->get();
+
+        $permissionMatrix = [
+            'Strategy & Executive Governance' => [
+                'View Corporate Annual Goals' => [
+                    'desc' => 'View high-level corporate strategic objectives and department assignments',
+                    'super_admin' => true, 'gm_management' => true, 'hr' => true, 'dept_head' => true, 'it_admin' => true,
+                ],
+                'Create & Edit Annual Goals' => [
+                    'desc' => 'Define annual strategic goals, targets and departmental weightings',
+                    'super_admin' => true, 'gm_management' => true, 'hr' => false, 'dept_head' => false, 'it_admin' => false,
+                ],
+                'Monthly Strategic Activation' => [
+                    'desc' => 'Activate and prioritize specific annual goals for current Ethiopian month',
+                    'super_admin' => true, 'gm_management' => true, 'hr' => false, 'dept_head' => false, 'it_admin' => false,
+                ],
+                'Access GM Executive Dashboard' => [
+                    'desc' => 'Executive KPI tracking, cross-department submission heatmaps & scorecards',
+                    'super_admin' => true, 'gm_management' => true, 'hr' => true, 'dept_head' => false, 'it_admin' => false,
+                ],
+                'Send Executive Telegram Reminders' => [
+                    'desc' => 'Dispatch direct executive alerts and nudges to missing department heads',
+                    'super_admin' => true, 'gm_management' => true, 'hr' => false, 'dept_head' => false, 'it_admin' => true,
+                ],
+            ],
+            'Department Operations & Planning' => [
+                'Formulate Monthly Plans' => [
+                    'desc' => 'Create and draft departmental operational initiatives linked to active goals',
+                    'super_admin' => true, 'gm_management' => false, 'hr' => false, 'dept_head' => true, 'it_admin' => false,
+                ],
+                'Submit Monthly Package (Day 26)' => [
+                    'desc' => 'Transmit final monthly plan package before Day 26 (17:00) cutoff in Ethiopian Calendar',
+                    'super_admin' => true, 'gm_management' => false, 'hr' => false, 'dept_head' => true, 'it_admin' => false,
+                ],
+                'Schedule Weekly Tasks' => [
+                    'desc' => 'Breakdown monthly initiatives into actionable weekly deliverables for staff',
+                    'super_admin' => true, 'gm_management' => false, 'hr' => false, 'dept_head' => true, 'it_admin' => false,
+                ],
+                'Evaluate Weekly Execution' => [
+                    'desc' => 'Grade task results (DONE / NOT DONE) and assign root cause failure categories',
+                    'super_admin' => true, 'gm_management' => false, 'hr' => false, 'dept_head' => true, 'it_admin' => false,
+                ],
+            ],
+            'Reporting, Compliance & Official Vouchers' => [
+                'Submit Weekly Performance Report' => [
+                    'desc' => 'Transmit weekly execution scorecard before Monday 12:00 PM deadline',
+                    'super_admin' => true, 'gm_management' => false, 'hr' => false, 'dept_head' => true, 'it_admin' => false,
+                ],
+                'Generate Official Monthly Voucher' => [
+                    'desc' => 'Access and print cryptographically-verified official monthly plan voucher with security token',
+                    'super_admin' => true, 'gm_management' => true, 'hr' => true, 'dept_head' => true, 'it_admin' => true,
+                ],
+                'Generate Official Weekly Voucher' => [
+                    'desc' => 'Access and print signed official weekly execution confirmation voucher',
+                    'super_admin' => true, 'gm_management' => true, 'hr' => true, 'dept_head' => true, 'it_admin' => true,
+                ],
+                'Organization Scorecard Analytics' => [
+                    'desc' => 'View 13-department compliance, timely submission rates and historical trends',
+                    'super_admin' => true, 'gm_management' => true, 'hr' => true, 'dept_head' => false, 'it_admin' => false,
+                ],
+                'Why Not Done Root Cause Analysis' => [
+                    'desc' => 'Access organizational failure categorization and recovery action plans',
+                    'super_admin' => true, 'gm_management' => true, 'hr' => true, 'dept_head' => true, 'it_admin' => false,
+                ],
+                'Deadline Escalation Tracking' => [
+                    'desc' => 'Review multi-tier escalation triggers for consecutive missed submissions',
+                    'super_admin' => true, 'gm_management' => true, 'hr' => true, 'dept_head' => false, 'it_admin' => false,
+                ],
+            ],
+            'System Administration & Security' => [
+                'Master Administration Access' => [
+                    'desc' => 'Access core administrative panels, configuration and database parameters',
+                    'super_admin' => true, 'gm_management' => false, 'hr' => false, 'dept_head' => false, 'it_admin' => true,
+                ],
+                'Manage User Accounts & Roles' => [
+                    'desc' => 'Create, edit, reset passwords, and assign system roles and departments',
+                    'super_admin' => true, 'gm_management' => false, 'hr' => false, 'dept_head' => false, 'it_admin' => false,
+                ],
+                'Manage Departments' => [
+                    'desc' => 'Create, edit, and configure corporate operational departments',
+                    'super_admin' => true, 'gm_management' => false, 'hr' => false, 'dept_head' => false, 'it_admin' => false,
+                ],
+                'Configure Deadlines & Parameters' => [
+                    'desc' => 'Update Ethiopian calendar cycles, Day 26 cutoff, and Monday reporting rules',
+                    'super_admin' => true, 'gm_management' => false, 'hr' => false, 'dept_head' => false, 'it_admin' => true,
+                ],
+                'Telegram Bot & Webhook Setup' => [
+                    'desc' => 'Configure Bot Father token, webhook URL, diagnostic tester, and polling',
+                    'super_admin' => true, 'gm_management' => false, 'hr' => false, 'dept_head' => false, 'it_admin' => true,
+                ],
+                'Immutable Audit Trail' => [
+                    'desc' => 'Inspect comprehensive security audit logs and system trail',
+                    'super_admin' => true, 'gm_management' => false, 'hr' => false, 'dept_head' => false, 'it_admin' => true,
+                ],
+            ],
+            'Data Scoping & Boundary Rules' => [
+                'Enterprise-Wide Data Scope' => [
+                    'desc' => 'Unrestricted access to data across all 13 company operational units',
+                    'super_admin' => true, 'gm_management' => true, 'hr' => true, 'dept_head' => false, 'it_admin' => true,
+                ],
+                'Department-Scoped Isolation' => [
+                    'desc' => 'Access is strictly limited to user assigned department only',
+                    'super_admin' => false, 'gm_management' => false, 'hr' => false, 'dept_head' => true, 'it_admin' => false,
+                ],
+            ],
+        ];
+
+        return view('admin.settings', compact('settings', 'roles', 'permissionMatrix'));
     }
 
     public function updateSettings(Request $request)
