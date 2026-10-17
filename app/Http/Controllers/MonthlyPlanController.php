@@ -43,16 +43,22 @@ class MonthlyPlanController extends Controller
 
         $monthlyPlans = $query->orderBy('plan_type', 'desc')->orderBy('id')->get();
 
-        // Fetch GM-Activated Annual Goals available for THIS department
+        // Fetch GM-Activated Annual Goals available for THIS department (or company-wide)
         $activatedGoals = AnnualGoal::where('year', $selectedYear)
             ->where('status', 'ACTIVE')
-            ->whereHas('departments', function ($q) use ($deptId) {
-                $q->where('departments.id', $deptId);
+            ->where(function ($query) use ($deptId) {
+                $query->whereDoesntHave('departments')
+                      ->orWhereHas('departments', function ($q) use ($deptId) {
+                          $q->where('departments.id', $deptId);
+                      });
             })
             ->whereHas('monthlyActivations', function ($q) use ($selectedYear, $selectedMonth, $deptId) {
                 $q->where('year', $selectedYear)
                   ->where('month', $selectedMonth)
-                  ->where('department_id', $deptId)
+                  ->where(function ($sub) use ($deptId) {
+                      $sub->where('department_id', $deptId)
+                          ->orWhereNull('department_id');
+                  })
                   ->where('active', 'YES');
             })
             ->orderBy('goal_code')
@@ -151,7 +157,7 @@ class MonthlyPlanController extends Controller
             'month' => $validated['month'],
         ]);
 
-        notify_gm_submission($notifTitle, $notifMessage, $deptId, $voucherUrl);
+        notify_both_gm_and_head($deptId, $notifTitle, $notifMessage, $voucherUrl);
 
         return back()->with('success', "Monthly Plan package submitted successfully to General Management! Timing Status: {$status}.");
     }
@@ -183,7 +189,23 @@ class MonthlyPlanController extends Controller
 
         AuditLog::log('GM_FEEDBACK_MONTHLY', 'monthly_plans', "GM evaluated Monthly Plans for Dept {$validated['department_id']}: {$validated['approval_status']}");
 
-        return back()->with('success', 'General Manager feedback & approval status saved successfully.');
+        // Automated Telegram Notification to Department Head
+        $dept = Department::find($validated['department_id']);
+        $statusEmoji = $validated['approval_status'] === 'APPROVED' ? '✅' : ($validated['approval_status'] === 'REVISION_REQUESTED' ? '⚠️' : 'ℹ️');
+        $notifTitle = "{$statusEmoji} GM Monthly Plan Review: " . ($dept->department_code ?? "Dept #{$validated['department_id']}");
+        $notifMessage = "The General Manager has evaluated the Monthly Plan Package for <b>" . ($dept->department_name ?? 'Department') . "</b> ({$validated['month']} {$validated['year']}):\n\n"
+            . "• <b>Decision:</b> <b>{$validated['approval_status']}</b>\n";
+        if (!empty($validated['gm_feedback'])) {
+            $notifMessage .= "• <b>GM Comments:</b> " . htmlspecialchars($validated['gm_feedback'], ENT_QUOTES, 'UTF-8') . "\n";
+        }
+        $voucherUrl = route('monthly.voucher', [
+            'department_id' => $validated['department_id'],
+            'year' => $validated['year'],
+            'month' => $validated['month'],
+        ]);
+        notify_department_head((int)$validated['department_id'], $notifTitle, $notifMessage, $voucherUrl);
+
+        return back()->with('success', 'General Manager feedback & approval status saved and notified on Telegram.');
     }
 
     public function store(Request $request)
@@ -215,11 +237,14 @@ class MonthlyPlanController extends Controller
                 return back()->withErrors(['annual_goal_id' => 'Strategy plans must be linked to a GM-activated Annual Strategy Goal.'])->withInput();
             }
 
-            // Verify GM Activation for this department and month
+            // Verify GM Activation for this department (or company-wide) and month
             $isActivated = MonthlyStrategyActivation::where('annual_goal_id', $validated['annual_goal_id'])
-                ->where('department_id', $validated['department_id'])
                 ->where('year', $validated['year'])
                 ->where('month', $validated['month'])
+                ->where(function ($q) use ($validated) {
+                    $q->where('department_id', $validated['department_id'])
+                      ->orWhereNull('department_id');
+                })
                 ->where('active', 'YES')
                 ->exists();
 
@@ -237,7 +262,25 @@ class MonthlyPlanController extends Controller
 
         AuditLog::log('CREATE_MONTHLY_PLAN', 'monthly_plans', "Created {$plan->plan_type} monthly plan: {$plan->title}", $plan->id);
 
-        return back()->with('success', 'Monthly plan created successfully.');
+        // Automated Telegram Notification to GM and Department Head
+        $dept = Department::find($validated['department_id']);
+        $notifTitle = "📋 New Monthly Plan: " . ($dept->department_code ?? "Dept #{$validated['department_id']}");
+        $notifMessage = "A new monthly plan has been created for <b>" . ($dept->department_name ?? 'Department') . "</b> ({$plan->month} {$plan->year}):\n\n"
+            . "• <b>Title:</b> " . htmlspecialchars($plan->title, ENT_QUOTES, 'UTF-8') . "\n"
+            . "• <b>Type:</b> {$plan->plan_type}\n"
+            . "• <b>Target:</b> " . htmlspecialchars($plan->monthly_target, ENT_QUOTES, 'UTF-8') . "\n"
+            . "• <b>Definition of Done:</b> " . htmlspecialchars($plan->definition_of_done, ENT_QUOTES, 'UTF-8') . "\n"
+            . "• <b>Priority:</b> {$plan->priority}";
+
+        $monthlyUrl = route('monthly.plans', [
+            'department_id' => $validated['department_id'],
+            'year' => $validated['year'],
+            'month' => $validated['month'],
+        ]);
+
+        notify_both_gm_and_head((int)$validated['department_id'], $notifTitle, $notifMessage, $monthlyUrl);
+
+        return back()->with('success', 'Monthly plan created successfully and notified on Telegram.');
     }
 
     public function destroy($id)

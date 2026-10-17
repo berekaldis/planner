@@ -265,7 +265,7 @@
                                 @endif
                             </div>
                         @else
-                            <select name="annual_goal_id" id="annualGoalSelect" class="form-select" onchange="autoFillStrategyGoal()">
+                            <select name="annual_goal_id" id="annualGoalSelect" class="form-select" data-no-search="true" onchange="autoFillStrategyGoal()">
                                 <option value="">-- Choose Activated Annual Goal --</option>
                                 @foreach($activatedGoals as $ag)
                                     <option value="{{ $ag->id }}" 
@@ -296,7 +296,7 @@
                         </div>
                         <div class="col-md-3">
                             <label class="form-label small fw-semibold text-secondary">Priority <span class="text-danger">*</span></label>
-                            <select name="priority" class="form-select">
+                            <select name="priority" class="form-select" data-no-search="true">
                                 <option value="HIGH">HIGH</option>
                                 <option value="MEDIUM" selected>MEDIUM</option>
                                 <option value="LOW">LOW</option>
@@ -435,5 +435,22 @@
             targetInput.value = target;
         }
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        togglePlanType();
+        const createModal = document.getElementById('createMonthlyPlanModal');
+        if (createModal) {
+            createModal.addEventListener('shown.bs.modal', function () {
+                togglePlanType();
+            });
+            createModal.addEventListener('hidden.bs.modal', function () {
+                const form = createModal.querySelector('form');
+                if (form) {
+                    form.reset();
+                    togglePlanType();
+                }
+            });
+        }
+    });
 </script>
 @endsection

@@ -547,4 +547,60 @@ if (!function_exists('notify_gm_submission')) {
     }
 }
 
+if (!function_exists('notify_department_head')) {
+    function notify_department_head(int $deptId, string $title, string $message, ?string $url = null): void {
+        try {
+            if (!class_exists('Database')) {
+                require_once __DIR__ . '/../config/database.php';
+            }
+            $db = Database::getConnection();
+
+            // Fetch department head
+            $stmt = $db->prepare("
+                SELECT u.id, u.telegram_chat_id, u.full_name
+                FROM departments d
+                JOIN users u ON d.head_user_id = u.id
+                WHERE d.id = ?
+            ");
+            $stmt->execute([$deptId]);
+            $head = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$head) {
+                return;
+            }
+
+            // 1. In-app notification
+            $ins = $db->prepare("
+                INSERT INTO notifications (user_id, department_id, title, message, notification_type, created_at)
+                VALUES (?, ?, ?, ?, 'DEPARTMENT_NOTICE', NOW())
+            ");
+            $ins->execute([
+                $head['id'],
+                $deptId,
+                $title,
+                strip_tags($message) . ($url ? "\n\nLink: " . $url : '')
+            ]);
+
+            // 2. Telegram alert
+            if (!empty($head['telegram_chat_id'])) {
+                $telegramText = "<b>" . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "</b>\n\n" . $message;
+                if ($url) {
+                    $telegramText .= "\n\n🔗 <a href=\"" . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . "\"><b>View in Portal</b></a>";
+                }
+                $telegramText .= "\n\n📅 <i>" . date('Y-m-d H:i') . "</i>";
+                send_telegram_notification(trim($head['telegram_chat_id']), $telegramText);
+            }
+        } catch (\Throwable $e) {
+            error_log("notify_department_head error: " . $e->getMessage());
+        }
+    }
+}
+
+if (!function_exists('notify_both_gm_and_head')) {
+    function notify_both_gm_and_head(int $deptId, string $title, string $message, ?string $url = null): void {
+        notify_gm_submission($title, $message, $deptId, $url);
+        notify_department_head($deptId, $title, $message, $url);
+    }
+}
+
 

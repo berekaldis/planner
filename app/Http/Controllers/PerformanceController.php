@@ -374,7 +374,7 @@ class PerformanceController extends Controller
             'week' => $validated['week_number'],
         ]);
 
-        notify_gm_submission($notifTitle, $notifMessage, $deptId, $voucherUrl);
+        notify_both_gm_and_head($deptId, $notifTitle, $notifMessage, $voucherUrl);
 
         return back()->with('success', "Weekly report submitted successfully! Status: {$compliance} ({$completionRate}% Completion).");
     }
@@ -571,6 +571,23 @@ class PerformanceController extends Controller
         ]);
 
         AuditLog::log('GM_FEEDBACK_WEEKLY', 'performance', "GM evaluated Weekly Report Week {$validated['week_number']} for Dept {$validated['department_id']}: {$validated['approval_status']}");
+
+        $statusLabel = match($validated['approval_status']) {
+            'APPROVED' => '✅ APPROVED',
+            'REVISION_REQUESTED' => '⚠️ REVISION REQUESTED',
+            default => '⏳ PENDING'
+        };
+        $dept = Department::find($validated['department_id']);
+        $deptName = $dept ? $dept->name : 'Department';
+
+        $feedbackText = !empty($validated['gm_feedback']) ? "\n\n<b>Executive Feedback:</b>\n" . htmlspecialchars($validated['gm_feedback'], ENT_QUOTES, 'UTF-8') : '';
+
+        notify_department_head(
+            (int) $validated['department_id'],
+            "Weekly Report {$statusLabel}: Week {$validated['week_number']}",
+            "Executive management has reviewed the Week {$validated['week_number']} ({$validated['month']} {$validated['year']}) performance report for {$deptName}.\nStatus: <b>{$statusLabel}</b>{$feedbackText}",
+            url('/weekly/plans?year=' . urlencode($validated['year']) . '&month=' . urlencode($validated['month']) . '&week=' . $validated['week_number'])
+        );
 
         return back()->with('success', 'General Manager feedback & approval status saved successfully.');
     }

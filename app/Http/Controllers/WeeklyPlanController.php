@@ -70,6 +70,18 @@ class WeeklyPlanController extends Controller
             ->where('week_number', $selectedWeek)
             ->first();
 
+        // Sync GM feedback from WeeklyReport if present
+        $weeklyReport = \App\Models\WeeklyReport::where('department_id', $deptId)
+            ->where('year', $selectedYear)
+            ->where('month', $selectedMonth)
+            ->where('week_number', $selectedWeek)
+            ->first();
+
+        if ($submission && $weeklyReport && empty($submission->gm_feedback) && !empty($weeklyReport->gm_feedback)) {
+            $submission->gm_feedback = $weeklyReport->gm_feedback;
+            $submission->gm_feedback_at = $weeklyReport->gm_feedback_at;
+        }
+
         return view('weekly.plans', compact(
             'department',
             'weeklyPlan',
@@ -135,13 +147,32 @@ class WeeklyPlanController extends Controller
             'expected_result' => $validated['expected_result'] ?? ($validated['task_target'] ?? 'Completed'),
             'priority' => $validated['priority'],
             'responsible_person' => $validated['responsible_person'] ?? ($validated['assigned_to'] ?? ($user->full_name ?: ($user->username ?: 'Unassigned'))),
-            'due_date' => $validated['due_date'] ?? ($validated['deadline_date'] ?? null),
+            'due_date' => !empty($validated['due_date']) ? $validated['due_date'] : (!empty($validated['deadline_date']) ? $validated['deadline_date'] : null),
             'created_by' => $user->id,
         ]);
 
         AuditLog::log('CREATE_WEEKLY_TASK', 'weekly_plans', "Created weekly task: {$task->task_title} (Week {$task->week_number})", $task->id);
 
-        return back()->with('success', 'Weekly task scheduled successfully.');
+        // Automated Telegram Notification to GM and Department Head
+        $dept = Department::find($validated['department_id']);
+        $notifTitle = "📝 Weekly Task Scheduled: " . ($dept->department_code ?? "Dept #{$validated['department_id']}");
+        $notifMessage = "A new weekly task has been scheduled for <b>" . ($dept->department_name ?? 'Department') . "</b> (Week {$validated['week_number']}, {$validated['month']} {$validated['year']}):\n\n"
+            . "• <b>Task:</b> " . htmlspecialchars($task->task_title, ENT_QUOTES, 'UTF-8') . "\n"
+            . "• <b>Target:</b> " . htmlspecialchars($task->expected_result, ENT_QUOTES, 'UTF-8') . "\n"
+            . "• <b>Priority:</b> {$task->priority}\n"
+            . "• <b>Responsible:</b> " . htmlspecialchars($task->responsible_person, ENT_QUOTES, 'UTF-8') . "\n"
+            . "• <b>Monthly Plan:</b> " . htmlspecialchars($monthlyPlan->title, ENT_QUOTES, 'UTF-8') . " [{$monthlyPlan->plan_type}]";
+
+        $weeklyUrl = route('weekly.plans', [
+            'department_id' => $validated['department_id'],
+            'year' => $validated['year'],
+            'month' => $validated['month'],
+            'week' => $validated['week_number'],
+        ]);
+
+        notify_both_gm_and_head((int)$validated['department_id'], $notifTitle, $notifMessage, $weeklyUrl);
+
+        return back()->with('success', 'Weekly task scheduled successfully and notified on Telegram.');
     }
 
     public function destroyTask($id)

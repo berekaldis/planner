@@ -207,6 +207,60 @@ class TelegramController extends Controller
     }
 
     /**
+     * Trigger automated scheduled checks or execute on-demand reminders
+     */
+    public function runAutomation(Request $request)
+    {
+        $task = $request->query('task', 'all');
+        $output = [];
+
+        try {
+            switch ($task) {
+                case 'weekly_reminder':
+                    \Illuminate\Support\Facades\Artisan::call('kaldis:weekly-reminder');
+                    $output['weekly_reminder'] = trim(\Illuminate\Support\Facades\Artisan::output());
+                    break;
+
+                case 'deadline_check':
+                    \Illuminate\Support\Facades\Artisan::call('kaldis:deadline-check');
+                    $output['deadline_check'] = trim(\Illuminate\Support\Facades\Artisan::output());
+                    break;
+
+                case 'monthly_reminder':
+                    \Illuminate\Support\Facades\Artisan::call('kaldis:monthly-reminder', ['--type' => 'reminder']);
+                    $output['monthly_reminder'] = trim(\Illuminate\Support\Facades\Artisan::output());
+                    break;
+
+                case 'monthly_cutoff':
+                    \Illuminate\Support\Facades\Artisan::call('kaldis:monthly-reminder', ['--type' => 'cutoff']);
+                    $output['monthly_cutoff'] = trim(\Illuminate\Support\Facades\Artisan::output());
+                    break;
+
+                case 'poll':
+                    return $this->poll($request);
+
+                case 'all':
+                default:
+                    \Illuminate\Support\Facades\Artisan::call('schedule:run');
+                    $output['schedule_run'] = trim(\Illuminate\Support\Facades\Artisan::output());
+                    break;
+            }
+
+            return response()->json([
+                'ok' => true,
+                'task' => $task,
+                'timestamp' => now()->toIso8601String(),
+                'output' => $output,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'ok' => false,
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Public Webhook Receiver for Telegram
      */
     public function webhook(Request $request)

@@ -230,7 +230,7 @@
                         <!-- Step 1: Select Monthly Plan -->
                         <div class="mb-3">
                             <label class="form-label small fw-bold text-secondary text-uppercase">Parent Monthly Plan <span class="text-danger">*</span></label>
-                            <select name="monthly_plan_id" class="form-select" required>
+                            <select name="monthly_plan_id" class="form-select" data-no-search="true" required>
                                 <option value="">-- Choose Monthly Plan --</option>
                                 @foreach($monthlyPlans as $mp)
                                     <option value="{{ $mp->id }}">
@@ -254,7 +254,7 @@
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label small fw-semibold text-secondary">Priority <span class="text-danger">*</span></label>
-                                <select name="priority" class="form-select">
+                                <select name="priority" class="form-select" data-no-search="true">
                                     <option value="HIGH">HIGH</option>
                                     <option value="MEDIUM" selected>MEDIUM</option>
                                     <option value="LOW">LOW</option>

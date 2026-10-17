@@ -412,7 +412,7 @@ $weeklySubmission = $subStmt->fetch();
                 <div class="modal-body p-4">
                     <div class="mb-3">
                         <label class="form-label small fw-bold">LINK TO MONTHLY PLAN <span class="badge bg-light text-muted border ms-1">OPTIONAL</span></label>
-                        <select name="monthly_plan_id" id="monthlyPlanSelect" class="form-select" onchange="autoFillTaskFromMonthlyPlan(this)">
+                        <select name="monthly_plan_id" id="monthlyPlanSelect" class="form-select" data-no-search="true" onchange="autoFillTaskFromMonthlyPlan(this)">
                             <option value="">-- Direct Weekly Task (No Monthly Plan Required) --</option>
                             <?php if (!empty($availableMonthlyPlans)): ?>
                                 <?php foreach ($availableMonthlyPlans as $mp): ?>
@@ -447,7 +447,7 @@ $weeklySubmission = $subStmt->fetch();
 
                         <div class="col-md-4">
                             <label class="form-label small fw-bold">PRIORITY</label>
-                            <select name="priority" class="form-select">
+                            <select name="priority" class="form-select" data-no-search="true">
                                 <option value="HIGH">HIGH</option>
                                 <option value="MEDIUM" selected>MEDIUM</option>
                                 <option value="LOW">LOW</option>

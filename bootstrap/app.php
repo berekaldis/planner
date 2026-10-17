@@ -13,11 +13,16 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->web(append: [
+            \App\Http\Middleware\AutoScheduleRunner::class,
+        ]);
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
         ]);
         $middleware->validateCsrfTokens(except: [
             'telegram/webhook',
+            'telegram/run-automation',
+            'api/cron/run',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

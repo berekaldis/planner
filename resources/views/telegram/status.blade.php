@@ -36,6 +36,9 @@
         </div>
 
         <div class="d-flex align-items-center gap-2">
+            <button type="button" id="btnRunAutomation" class="btn btn-sm btn-success d-inline-flex align-items-center gap-2" title="Trigger Automated Schedule & Reminders Immediately">
+                <i class="fas fa-play"></i> Run Automation
+            </button>
             <button type="button" id="btnPingBot" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-2">
                 <i class="fas fa-rotate"></i> Ping Connection
             </button>
@@ -534,8 +537,42 @@ document.addEventListener('DOMContentLoaded', function () {
     const pingBtn = document.getElementById('btnPingBot');
     const pollBtn = document.getElementById('btnPollNow');
     const testForm = document.getElementById('testMessageForm');
+    const autoBtn = document.getElementById('btnRunAutomation');
     const testAlert = document.getElementById('testMessageAlert');
     const submitBtn = document.getElementById('btnSubmitTestMessage');
+
+    // Run Automation Now
+    if (autoBtn) {
+        autoBtn.addEventListener('click', function () {
+            autoBtn.disabled = true;
+            autoBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running...';
+
+            fetch('{{ route('telegram.run_automation') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                autoBtn.disabled = false;
+                autoBtn.innerHTML = '<i class="fas fa-play"></i> Run Automation';
+                if (data.ok) {
+                    alert('✅ Automation Triggered Successfully!\n\nExecuted at: ' + data.timestamp + '\nOutput: ' + JSON.stringify(data.output, null, 2));
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    alert('❌ Automation Error: ' + (data.error || 'Execution failed'));
+                }
+            })
+            .catch(err => {
+                autoBtn.disabled = false;
+                autoBtn.innerHTML = '<i class="fas fa-play"></i> Run Automation';
+                alert('❌ Automation Error: ' + err.message);
+            });
+        });
+    }
 
     // Ping Bot Connection
     if (pingBtn) {

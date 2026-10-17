@@ -230,3 +230,52 @@ if (!function_exists('notify_gm_submission')) {
     }
 }
 
+if (!function_exists('notify_department_head')) {
+    function notify_department_head(int $deptId, string $title, string $message, ?string $url = null): void
+    {
+        try {
+            $dept = \App\Models\Department::with('head')->find($deptId);
+            if (!$dept || !$dept->head) {
+                return;
+            }
+
+            $head = $dept->head;
+
+            // 1. In-app notification
+            \Illuminate\Support\Facades\DB::table('notifications')->insert([
+                'user_id' => $head->id,
+                'department_id' => $deptId,
+                'title' => $title,
+                'message' => strip_tags($message) . ($url ? "\n\nLink: " . $url : ''),
+                'notification_type' => 'DEPARTMENT_NOTICE',
+                'created_at' => now(),
+            ]);
+
+            // 2. Telegram notification
+            $telegram = app(\App\Services\TelegramService::class);
+            if ($telegram && $telegram->isConfigured() && !empty($head->telegram_chat_id)) {
+                $telegramText = "<b>" . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "</b>\n\n"
+                    . $message;
+
+                if ($url) {
+                    $telegramText .= "\n\n🔗 <a href=\"" . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . "\"><b>Open in Portal</b></a>";
+                }
+                $telegramText .= "\n\n📅 <i>" . now()->format('Y-m-d H:i') . "</i>";
+
+                $telegram->sendMessage($head->telegram_chat_id, $telegramText);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("notify_department_head error: " . $e->getMessage());
+        }
+    }
+}
+
+if (!function_exists('notify_both_gm_and_head')) {
+    function notify_both_gm_and_head(int $deptId, string $title, string $message, ?string $url = null): void
+    {
+        notify_gm_submission($title, $message, $deptId, $url);
+        notify_department_head($deptId, $title, $message, $url);
+    }
+}
+
+

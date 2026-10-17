@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Route;
 
 // Public Telegram Webhook Endpoint
 Route::post('/telegram/webhook', [TelegramController::class, 'webhook'])->name('telegram.webhook');
+Route::any('/api/cron/run', [TelegramController::class, 'runAutomation'])->name('cron.run');
 
 // Guest Authentication Routes
 Route::middleware('guest')->group(function () {
@@ -82,6 +83,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/webhook/set', [TelegramController::class, 'setWebhook'])->name('webhook.set');
         Route::post('/webhook/delete', [TelegramController::class, 'deleteWebhook'])->name('webhook.delete');
         Route::post('/poll', [TelegramController::class, 'poll'])->name('poll');
+        Route::any('/run-automation', [TelegramController::class, 'runAutomation'])->name('run_automation');
     });
 
     // Super Admin Area

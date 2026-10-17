@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Verify this annual goal is ACTIVE for this month by GM
             $checkActStmt = $db->prepare("
                 SELECT active FROM monthly_strategy_activations
-                WHERE annual_goal_id = ? AND department_id = ? AND year = ? AND month = ?
+                WHERE annual_goal_id = ? AND (department_id = ? OR department_id IS NULL) AND year = ? AND month = ?
             ");
             $checkActStmt->execute([$annualGoalId, $planDeptId, $year, $month]);
             $actStatus = $checkActStmt->fetchColumn();
@@ -203,19 +203,23 @@ $activeGoalsStmt = $db->prepare("
     SELECT DISTINCT ag.id, ag.goal_code, ag.title, ag.definition_of_done, ag.annual_target,
            d.department_name as lead_dept_name, d.department_code as lead_dept_code
     FROM annual_goals ag
-    JOIN departments d ON ag.responsible_department_id = d.id
+    LEFT JOIN departments d ON ag.responsible_department_id = d.id
     JOIN monthly_strategy_activations msa 
       ON ag.id = msa.annual_goal_id 
-     AND msa.department_id = :dept_id 
+     AND (msa.department_id = :dept_id OR msa.department_id IS NULL)
      AND msa.year = :year 
      AND msa.month = :month 
      AND msa.active = 'YES'
     WHERE ag.year = :year
       AND (
         ag.responsible_department_id = :dept_id
+        OR ag.responsible_department_id IS NULL
         OR EXISTS (
             SELECT 1 FROM annual_goal_departments agd 
             WHERE agd.annual_goal_id = ag.id AND agd.department_id = :dept_id
+        )
+        OR NOT EXISTS (
+            SELECT 1 FROM annual_goal_departments agd WHERE agd.annual_goal_id = ag.id
         )
       )
     ORDER BY ag.goal_code ASC
@@ -581,7 +585,7 @@ foreach ($monthlyPlans as $p) {
                                 </div>
                             </div>
                         <?php else: ?>
-                            <select name="annual_goal_id" id="annualGoalSelect" class="form-select mb-3" onchange="handleGoalSelected(this)">
+                            <select name="annual_goal_id" id="annualGoalSelect" class="form-select mb-3" data-no-search="true" onchange="handleGoalSelected(this)">
                                 <option value="">-- Choose an Activated Annual Strategy --</option>
                                 <?php foreach ($activeAnnualGoals as $ag): ?>
                                     <option value="<?= (int)$ag['id'] ?>" 
@@ -637,7 +641,7 @@ foreach ($monthlyPlans as $p) {
 
                         <div class="col-md-4">
                             <label class="form-label small fw-bold">PRIORITY</label>
-                            <select name="priority" class="form-select">
+                            <select name="priority" class="form-select" data-no-search="true">
                                 <option value="HIGH">HIGH</option>
                                 <option value="MEDIUM" selected>MEDIUM</option>
                                 <option value="LOW">LOW</option>
