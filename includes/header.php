@@ -82,8 +82,8 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             
             <!-- Left: Brand Logo & Mobile Toggle -->
             <div class="d-flex align-items-center">
-                <button id="mobileSidebarToggle" class="btn btn-outline-secondary btn-sm rounded-circle d-lg-none me-2 d-flex align-items-center justify-content-center shadow-xs" 
-                        style="width: 36px; height: 36px;" type="button" aria-label="Toggle Navigation">
+                <button id="sidebarToggle" class="btn btn-outline-secondary btn-sm rounded-circle me-2 d-flex align-items-center justify-content-center shadow-xs sidebar-toggle-btn" 
+                        style="width: 36px; height: 36px;" type="button" aria-label="Toggle Sidebar" title="Toggle Sidebar (Alt+S)">
                     <i class="fas fa-bars text-secondary"></i>
                 </button>
                 <a class="navbar-brand me-3 d-flex align-items-center text-decoration-none" href="<?= url('/overview.php') ?>">

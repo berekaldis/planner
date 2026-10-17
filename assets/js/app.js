@@ -93,23 +93,34 @@ function initNavbarScroll() {
    SIDEBAR CONTROLLER
    ═══════════════════════════════ */
 function initSidebar() {
+    const isDesktop = window.innerWidth >= 992;
     const collapsed = localStorage.getItem('sidebar_collapsed') === 'true';
-    if (collapsed && window.innerWidth >= 992) {
+
+    if (collapsed && isDesktop) {
         document.documentElement.classList.add('sidebar-collapsed');
+        document.body.classList.add('sidebar-collapsed');
+    } else {
+        document.documentElement.classList.remove('sidebar-collapsed');
+        document.body.classList.remove('sidebar-collapsed');
     }
 
-    // Wire toggle & close buttons
-    document.querySelectorAll('#sidebarToggle, #sidebarCollapseBtn, #sidebarEdgeToggle, #mobileSidebarToggle, #desktopSidebarToggle')
-        .forEach(btn => btn.addEventListener('click', toggleSidebar));
+    // Wire all toggle buttons
+    document.querySelectorAll('#sidebarToggle, #sidebarCollapseBtn, #sidebarEdgeToggle, #mobileSidebarToggle, #desktopSidebarToggle, .sidebar-toggle-btn')
+        .forEach(btn => {
+            btn.removeEventListener('click', toggleSidebar);
+            btn.addEventListener('click', toggleSidebar);
+        });
 
     const closeBtn = document.getElementById('sidebarCloseBtn') || document.getElementById('sidebarMobileClose');
     if (closeBtn) {
+        closeBtn.removeEventListener('click', closeMobileSidebar);
         closeBtn.addEventListener('click', closeMobileSidebar);
     }
 
     // Backdrop close
     const backdrop = document.getElementById('sidebarBackdrop');
     if (backdrop) {
+        backdrop.removeEventListener('click', closeMobileSidebar);
         backdrop.addEventListener('click', closeMobileSidebar);
     }
 
@@ -123,6 +134,18 @@ function initSidebar() {
         .forEach(link => link.addEventListener('click', () => {
             if (window.innerWidth < 992) closeMobileSidebar();
         }));
+
+    // Responsive screen resize listener
+    window.addEventListener('resize', () => {
+        if (window.innerWidth >= 992) {
+            document.documentElement.classList.remove('mobile-sidebar-open');
+            document.body.classList.remove('mobile-sidebar-open');
+            const savedCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
+            document.documentElement.classList.toggle('sidebar-collapsed', savedCollapsed);
+            document.body.classList.toggle('sidebar-collapsed', savedCollapsed);
+        }
+        syncHamburger();
+    });
 
     // Sidebar search filter
     const searchInput = document.getElementById('sidebarMenuSearch');
@@ -138,13 +161,22 @@ function initSidebar() {
     syncHamburger();
 }
 
-function toggleSidebar() {
+function toggleSidebar(e) {
+    if (e && typeof e.preventDefault === 'function') {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
     if (window.innerWidth < 992) {
-        document.documentElement.classList.toggle('mobile-sidebar-open');
+        const isOpen = document.documentElement.classList.toggle('mobile-sidebar-open');
+        document.body.classList.toggle('mobile-sidebar-open', isOpen);
         syncHamburger();
     } else {
         const nowCollapsed = document.documentElement.classList.toggle('sidebar-collapsed');
-        localStorage.setItem('sidebar_collapsed', nowCollapsed);
+        document.body.classList.toggle('sidebar-collapsed', nowCollapsed);
+        try {
+            localStorage.setItem('sidebar_collapsed', nowCollapsed);
+        } catch (err) {}
         updateCollapseIcon();
         syncHamburger();
     }
@@ -152,23 +184,28 @@ function toggleSidebar() {
 
 function closeMobileSidebar() {
     document.documentElement.classList.remove('mobile-sidebar-open');
+    document.body.classList.remove('mobile-sidebar-open');
     syncHamburger();
 }
 
 /* Keep aria-expanded and edge toggle rotation state in sync */
 function syncHamburger() {
-    const btn = document.getElementById('sidebarToggle') || document.getElementById('mobileSidebarToggle');
+    const isMobile = window.innerWidth < 992;
     const open = document.documentElement.classList.contains('mobile-sidebar-open');
     const collapsed = document.documentElement.classList.contains('sidebar-collapsed');
-    
-    if (btn) {
-        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-        btn.classList.toggle('is-collapsed', collapsed);
-    }
+
+    document.querySelectorAll('#sidebarToggle, #mobileSidebarToggle, #desktopSidebarToggle, .sidebar-toggle-btn')
+        .forEach(btn => {
+            btn.setAttribute('aria-expanded', isMobile ? (open ? 'true' : 'false') : (!collapsed ? 'true' : 'false'));
+            btn.classList.toggle('is-collapsed', collapsed);
+            btn.setAttribute('title', isMobile ? (open ? 'Close Menu' : 'Open Menu') : (collapsed ? 'Expand Sidebar (Alt+S)' : 'Collapse Sidebar (Alt+S)'));
+        });
 
     const edgeToggle = document.getElementById('sidebarEdgeToggle');
     if (edgeToggle) {
         edgeToggle.classList.toggle('is-collapsed', collapsed);
+        edgeToggle.setAttribute('title', collapsed ? 'Expand Sidebar (Alt+S)' : 'Collapse Sidebar (Alt+S)');
+        edgeToggle.setAttribute('aria-label', collapsed ? 'Expand Sidebar' : 'Collapse Sidebar');
     }
 }
 
