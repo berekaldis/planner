@@ -1,14 +1,11 @@
 <?php
 /**
- * Corporate Overview & Organizational Structure
- * Kaldis Coffee PLC
+ * Legacy Overview Redirect
+ * Forward to Laravel modern overview
  */
+header('Location: /overview');
+exit;
 
-require_once __DIR__ . '/includes/functions.php';
-require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/permissions.php';
-
-Auth::requireLogin();
 
 $currentUser = Auth::user();
 $pageTitle   = 'Corporate Overview';

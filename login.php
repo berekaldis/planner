@@ -1,16 +1,11 @@
 <?php
 /**
- * Login Controller & View
- * Kaldis Coffee PLC
+ * Legacy Login Redirect
+ * Forward to Laravel modern login
  */
+header('Location: /login');
+exit;
 
-require_once __DIR__ . '/includes/functions.php';
-require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/csrf.php';
-
-if (Auth::check()) {
-    redirect('/index.php');
-}
 
 $error = '';
 

@@ -1,19 +1,25 @@
 <IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
     RewriteEngine On
 
     # Prevent direct access to hidden files and internal folders
     RewriteRule ^(\.env|\.git|app|bootstrap|config|database|resources|routes|storage|tests|vendor) - [F,L,NC]
 
-    # Serve real files and directories directly
-    RewriteCond "%{REQUEST_FILENAME}" -f [OR]
-    RewriteCond "%{REQUEST_FILENAME}" -d
+    # Handle Authorization Header
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Serve static assets and non-PHP files directly
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteCond %{REQUEST_URI} !^.*\.php$ [OR]
+    RewriteCond %{REQUEST_URI} ^/install\.php$
     RewriteRule ^ - [L]
 
-    # Support extensionless .php requests (e.g. /overview -> overview.php)
-    RewriteCond %{REQUEST_FILENAME}.php -f
-    RewriteRule ^(.+?)/?$ $1.php [L]
-
-    # Direct non-file/directory requests to public directory
-    RewriteCond %{REQUEST_URI} !^.*public/
-    RewriteRule ^(.*)$ public/$1 [L]
+    # Send all application requests to Laravel's Front Controller
+    RewriteRule ^ index.php [L]
 </IfModule>
+
