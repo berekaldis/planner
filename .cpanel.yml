@@ -1,21 +1,22 @@
 ---
 deployment:
   tasks:
-    # Copy files to the public directory
+    # 1. Copy files to target destination
     - export DEPLOYPATH=/home/$USER/public_html/planner.kaldisbunnaet.com
     - /bin/cp -R . $DEPLOYPATH
 
-    # Install PHP dependencies (without dev)
-    - cd $DEPLOYPATH && /usr/local/bin/composer install --no-dev --optimize-autoloader
+    # 2. Install PHP Composer dependencies
+    - cd $DEPLOYPATH && (composer install --no-dev --optimize-autoloader || /usr/local/bin/composer install --no-dev --optimize-autoloader || true)
 
-    # Install and build frontend assets
-    - cd $DEPLOYPATH && /usr/local/bin/npm ci --prefix $DEPLOYPATH
-    - cd $DEPLOYPATH && /usr/local/bin/npm run build --prefix $DEPLOYPATH
+    # 3. Optional frontend build if node/npm are present (assets already pre-built in repo)
+    - cd $DEPLOYPATH && (npm run build || /usr/local/bin/npm run build || true)
 
-    # Laravel optimization
-    - cd $DEPLOYPATH && php artisan config:cache
-    - cd $DEPLOYPATH && php artisan route:cache
-    - cd $DEPLOYPATH && php artisan view:cache
+    # 4. Laravel optimizations
+    - cd $DEPLOYPATH && (php artisan storage:link || true)
+    - cd $DEPLOYPATH && (php artisan view:clear || true)
+    - cd $DEPLOYPATH && (php artisan config:cache || true)
+    - cd $DEPLOYPATH && (php artisan route:cache || true)
 
-    # Run migrations
-    - cd $DEPLOYPATH && php artisan migrate --force
+    # 5. Database migrations
+    - cd $DEPLOYPATH && (php artisan migrate --force || true)
+
