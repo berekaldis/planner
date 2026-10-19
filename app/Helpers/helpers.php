@@ -523,4 +523,19 @@ if (!function_exists('notify_both_gm_and_head')) {
     }
 }
 
+if (!function_exists('get_greeting')) {
+    function get_greeting(): string
+    {
+        $hour = (int)date('G');
+        if ($hour >= 5 && $hour < 12) {
+            return 'Good Morning';
+        } elseif ($hour >= 12 && $hour < 18) {
+            return 'Good Afternoon';
+        } else {
+            return 'Good Evening';
+        }
+    }
+}
+
+
 
