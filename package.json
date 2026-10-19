@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "php -S 127.0.0.1:8000 -t . router.php",
     "start": "php -S 127.0.0.1:8000 -t . router.php",
+    "build": "node build.js",
     "watch:css": "npx chokidar-cli \"assets/css/**/*.css\" -c \"echo CSS updated\"",
     "minify:css": "npx clean-css-cli -o assets/css/style.min.css assets/css/style.css",
     "minify:js": "npx terser assets/js/app.js -o assets/js/app.min.js --compress --mangle"
