@@ -261,7 +261,7 @@
                             @endif
                         </div>
                         <div class="font-monospace small text-break text-dark fw-bold mb-1" id="webhookDisplayUrl">
-                            {{ $webhookInfo['result']['url'] ?: 'No active webhook registered (Polling mode)' }}
+                            {{ ($webhookInfo['result']['url'] ?? '') ?: 'No active webhook registered (Polling mode)' }}
                         </div>
                         <div class="d-flex flex-wrap gap-2 text-muted small mt-2" style="font-size: 0.75rem;" id="webhookMetrics">
                             <span>Pending Updates: <strong class="text-dark">{{ $webhookInfo['result']['pending_update_count'] ?? 0 }}</strong></span>
@@ -296,7 +296,7 @@
                                     </button>
                                 </div>
                             </div>
-                            <input type="url" name="url" id="webhookUrlInput" class="form-control form-control-sm font-monospace" placeholder="https://cold-ducks-grab.loca.lt/telegram/webhook" value="{{ $webhookInfo['result']['url'] ?: 'https://cold-ducks-grab.loca.lt/telegram/webhook' }}" required>
+                            <input type="url" name="url" id="webhookUrlInput" class="form-control form-control-sm font-monospace" placeholder="{{ url('/telegram/webhook') }}" value="{{ ($webhookInfo['result']['url'] ?? '') ?: url('/telegram/webhook') }}" required>
 
                         <div class="row g-2 mb-2">
                             <div class="col-sm-7">

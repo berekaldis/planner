@@ -27,6 +27,28 @@ class TelegramController extends Controller
         $botInfo = $isConfigured ? $this->telegram->getMe() : ['ok' => false];
         $webhookInfo = $isConfigured ? $this->telegram->getWebhookInfo() : ['ok' => false];
 
+        if (!is_array($botInfo) || empty($botInfo['result']) || !is_array($botInfo['result'])) {
+            $botInfo = [
+                'ok' => false,
+                'result' => [
+                    'id' => null,
+                    'first_name' => 'Kaldis Bot',
+                    'username' => kaldis_setting('telegram_bot_username', 'KaldisPlannerBot'),
+                ],
+            ];
+        }
+
+        if (!is_array($webhookInfo) || empty($webhookInfo['result']) || !is_array($webhookInfo['result'])) {
+            $webhookInfo = [
+                'ok' => false,
+                'result' => [
+                    'url' => '',
+                    'pending_update_count' => 0,
+                    'has_custom_certificate' => false,
+                ],
+            ];
+        }
+
         $users = User::with(['department', 'role'])->orderBy('role_id')->orderBy('username')->get();
 
         $recentMessages = DB::table('telegram_messages')
