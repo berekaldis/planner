@@ -49,16 +49,24 @@ $action = $_POST['action'] ?? ($argc ?? 0 > 1 ? 'install' : '');
 
 if ($action === 'install' && $canInstall) {
     try {
-        // Connect to server (without DB)
-        $dsn = sprintf('mysql:host=%s;port=%d;charset=%s', $config['db_host'], $config['db_port'], $config['db_charset']);
-        $pdo = new PDO($dsn, $config['db_user'], $config['db_pass'], [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-        ]);
-
-        // Create Database if not exists
         $dbName = $config['db_name'];
-        $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-        $pdo->exec("USE `{$dbName}`");
+        $pdo = null;
+
+        // 1. Try connecting directly to existing database
+        try {
+            $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=%s', $config['db_host'], $config['db_port'], $dbName, $config['db_charset']);
+            $pdo = new PDO($dsn, $config['db_user'], $config['db_pass'], [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+            ]);
+        } catch (PDOException $directEx) {
+            // 2. Fallback: connect without database and attempt CREATE DATABASE
+            $dsn = sprintf('mysql:host=%s;port=%d;charset=%s', $config['db_host'], $config['db_port'], $config['db_charset']);
+            $pdo = new PDO($dsn, $config['db_user'], $config['db_pass'], [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+            ]);
+            $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+            $pdo->exec("USE `{$dbName}`");
+        }
 
         // Schema Definitions
         $tablesSql = "
