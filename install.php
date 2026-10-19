@@ -126,6 +126,7 @@ if ($action === 'install' && $canInstall) {
             `username` VARCHAR(50) NOT NULL UNIQUE,
             `email` VARCHAR(100) NOT NULL UNIQUE,
             `password_hash` VARCHAR(255) NOT NULL,
+            `remember_token` VARCHAR(100) NULL,
             `full_name` VARCHAR(150) NOT NULL,
             `role_id` INT NOT NULL,
             `department_id` INT NULL,
@@ -371,6 +372,28 @@ if ($action === 'install' && $canInstall) {
             FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`),
             FOREIGN KEY (`submitted_by`) REFERENCES `users`(`id`) ON DELETE SET NULL,
             UNIQUE KEY `uk_submission_period` (`department_id`, `year`, `month`, `week_number`)
+        ) ENGINE=InnoDB;
+
+        -- 14b. Monthly Submissions Tracker
+        CREATE TABLE IF NOT EXISTS `monthly_submissions` (
+            `id` INT AUTO_INCREMENT PRIMARY KEY,
+            `department_id` INT NOT NULL,
+            `year` VARCHAR(50) NOT NULL,
+            `month` VARCHAR(50) NOT NULL,
+            `deadline_at` DATETIME NULL,
+            `submitted_at` DATETIME NULL,
+            `status` ENUM('DRAFT', 'SUBMITTED', 'LATE') DEFAULT 'DRAFT',
+            `submission_channel` ENUM('WEB', 'TELEGRAM') DEFAULT 'WEB',
+            `submitted_by` INT NULL,
+            `approval_status` ENUM('PENDING', 'APPROVED', 'NEEDS_REVISION') DEFAULT 'PENDING',
+            `gm_feedback` TEXT NULL,
+            `gm_feedback_at` DATETIME NULL,
+            `remarks` TEXT NULL,
+            `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+            `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`) ON DELETE CASCADE,
+            FOREIGN KEY (`submitted_by`) REFERENCES `users`(`id`) ON DELETE SET NULL,
+            UNIQUE KEY `uk_dept_monthly_period` (`department_id`, `year`, `month`)
         ) ENGINE=InnoDB;
 
         -- 15. Submission Status Change Logs
