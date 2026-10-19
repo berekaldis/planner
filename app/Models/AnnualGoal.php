@@ -18,6 +18,8 @@ class AnnualGoal extends Model
         'notes',
         'status',
         'year',
+        'perspective',
+        'weight',
         'created_by',
     ];
 

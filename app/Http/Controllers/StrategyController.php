@@ -8,6 +8,7 @@ use App\Models\Department;
 use App\Models\MonthlyStrategyActivation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 
 class StrategyController extends Controller
 {
@@ -21,7 +22,9 @@ class StrategyController extends Controller
         $query = AnnualGoal::with('departments')
             ->where('year', $selectedYear);
 
-        if ($perspective) {
+        $hasPerspectiveCol = Schema::hasColumn('annual_goals', 'perspective');
+
+        if ($perspective && $hasPerspectiveCol) {
             $query->where('perspective', $perspective);
         }
 
@@ -44,10 +47,12 @@ class StrategyController extends Controller
 
         $goals = $query->orderBy('goal_code')->get();
 
-        $perspectives = AnnualGoal::where('year', $selectedYear)
-            ->distinct()
-            ->pluck('perspective')
-            ->filter();
+        $perspectives = $hasPerspectiveCol
+            ? AnnualGoal::where('year', $selectedYear)
+                ->distinct()
+                ->pluck('perspective')
+                ->filter()
+            : collect([]);
 
         return view('strategy.annual', compact('goals', 'departments', 'perspectives', 'selectedYear', 'perspective', 'departmentId'));
     }

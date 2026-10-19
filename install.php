@@ -151,6 +151,8 @@ if ($action === 'install' && $canInstall) {
             `notes` TEXT NULL,
             `status` ENUM('ACTIVE', 'INACTIVE', 'COMPLETED', 'ARCHIVED') DEFAULT 'ACTIVE',
             `year` VARCHAR(50) NOT NULL,
+            `perspective` VARCHAR(100) NULL,
+            `weight` DECIMAL(5,2) DEFAULT 0.00,
             `created_by` INT NULL,
             `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
             `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -346,6 +348,9 @@ if ($action === 'install' && $canInstall) {
             `submitted_at` DATETIME NULL,
             `submission_status` ENUM('WAITING', 'ON_TIME', 'LATE', 'MISSING') DEFAULT 'WAITING',
             `notes` TEXT NULL,
+            `gm_feedback` TEXT NULL,
+            `gm_feedback_at` DATETIME NULL,
+            `approval_status` ENUM('PENDING', 'APPROVED', 'REVISION_REQUESTED') DEFAULT 'PENDING',
             `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
             `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`),
@@ -366,6 +371,7 @@ if ($action === 'install' && $canInstall) {
             `submission_channel` ENUM('WEB', 'TELEGRAM') DEFAULT 'WEB',
             `submitted_by` INT NULL,
             `consecutive_missed_count` INT DEFAULT 0,
+            `approval_status` ENUM('PENDING', 'APPROVED', 'REVISION_REQUESTED') DEFAULT 'PENDING',
             `remarks` TEXT NULL,
             `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
             `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -556,6 +562,24 @@ if ($action === 'install' && $canInstall) {
             $pdo->exec("ALTER TABLE `departments` ADD CONSTRAINT `fk_dept_head` FOREIGN KEY (`head_user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL");
         } catch (PDOException $ex) {
             // Already added or not supported, safe to ignore
+        }
+
+        // Auto-patch missing governance columns on existing databases
+        $columnPatches = [
+            "ALTER TABLE `annual_goals` ADD COLUMN `perspective` VARCHAR(100) NULL AFTER `year`",
+            "ALTER TABLE `annual_goals` ADD COLUMN `weight` DECIMAL(5,2) DEFAULT 0.00 AFTER `perspective`",
+            "ALTER TABLE `submissions` ADD COLUMN `approval_status` ENUM('PENDING','APPROVED','REVISION_REQUESTED') DEFAULT 'PENDING' AFTER `consecutive_missed_count`",
+            "ALTER TABLE `weekly_reports` ADD COLUMN `gm_feedback` TEXT NULL AFTER `notes`",
+            "ALTER TABLE `weekly_reports` ADD COLUMN `gm_feedback_at` DATETIME NULL AFTER `gm_feedback`",
+            "ALTER TABLE `weekly_reports` ADD COLUMN `approval_status` ENUM('PENDING','APPROVED','REVISION_REQUESTED') DEFAULT 'PENDING' AFTER `gm_feedback_at`",
+            "ALTER TABLE `users` ADD COLUMN `remember_token` VARCHAR(100) NULL AFTER `password_hash`"
+        ];
+        foreach ($columnPatches as $patch) {
+            try {
+                $pdo->exec($patch);
+            } catch (PDOException $ex) {
+                // Column already exists or duplicate, safe to ignore
+            }
         }
 
         // 3. Seed Roles
