@@ -1,0 +1,21 @@
+---
+deployment:
+  tasks:
+    # Copy files to the public directory
+    - export DEPLOYPATH=/home/$USER/public_html/planner.kaldisbunnaet.com
+    - /bin/cp -R . $DEPLOYPATH
+
+    # Install PHP dependencies (without dev)
+    - cd $DEPLOYPATH && /usr/local/bin/composer install --no-dev --optimize-autoloader
+
+    # Install and build frontend assets
+    - cd $DEPLOYPATH && /usr/local/bin/npm ci --prefix $DEPLOYPATH
+    - cd $DEPLOYPATH && /usr/local/bin/npm run build --prefix $DEPLOYPATH
+
+    # Laravel optimization
+    - cd $DEPLOYPATH && php artisan config:cache
+    - cd $DEPLOYPATH && php artisan route:cache
+    - cd $DEPLOYPATH && php artisan view:cache
+
+    # Run migrations
+    - cd $DEPLOYPATH && php artisan migrate --force
