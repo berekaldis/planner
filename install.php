@@ -138,10 +138,6 @@ if ($action === 'install' && $canInstall) {
             FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`) ON DELETE SET NULL
         ) ENGINE=InnoDB;
 
-        -- Update departments foreign key for head_user_id
-        ALTER TABLE `departments` ADD CONSTRAINT `fk_dept_head` 
-            FOREIGN KEY (`head_user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL;
-
         -- 4. Annual Goals (Master Strategy)
         CREATE TABLE IF NOT EXISTS `annual_goals` (
             `id` INT AUTO_INCREMENT PRIMARY KEY,
@@ -520,12 +516,23 @@ if ($action === 'install' && $canInstall) {
                 try {
                     $pdo->exec($stmt);
                 } catch (PDOException $ex) {
-                    // Ignore duplicate constraint if re-run
-                    if (!str_contains($ex->getMessage(), 'already exists') && !str_contains($ex->getMessage(), 'Duplicate foreign key')) {
+                    $msg = $ex->getMessage();
+                    // Ignore duplicate constraint, duplicate table, or errno 121 if re-running installer
+                    if (!str_contains($msg, 'already exists') && 
+                        !str_contains($msg, 'Duplicate foreign key') &&
+                        !str_contains($msg, 'errno: 121') &&
+                        !str_contains($msg, 'Duplicate key on write or update')) {
                         throw $ex;
                     }
                 }
             }
+        }
+
+        // Add foreign key for departments.head_user_id gracefully
+        try {
+            $pdo->exec("ALTER TABLE `departments` ADD CONSTRAINT `fk_dept_head` FOREIGN KEY (`head_user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL");
+        } catch (PDOException $ex) {
+            // Already added or not supported, safe to ignore
         }
 
         // 3. Seed Roles
@@ -766,6 +773,10 @@ if ($action === 'install' && $canInstall) {
 
         $installedSuccessfully = true;
     } catch (Exception $e) {
+        if (php_sapi_name() === 'cli') {
+            echo "Installation failed: " . $e->getMessage() . "\n";
+            exit(1);
+        }
         $errors[] = "Installation failed: " . $e->getMessage();
     }
 }
