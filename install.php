@@ -9,7 +9,38 @@ if (file_exists($lockFile)) {
     die('System is already installed. To re-install, delete install.lock first.');
 }
 
+// 0. Auto-load .env file if present
+if (file_exists(__DIR__ . '/.env')) {
+    $envLines = file(__DIR__ . '/.env', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($envLines as $line) {
+        $line = trim($line);
+        if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) continue;
+        [$k, $v] = explode('=', $line, 2);
+        $k = trim($k);
+        $v = trim($v, " \t\n\r\0\x0B\"'");
+        $_ENV[$k] = $v;
+        putenv("{$k}={$v}");
+    }
+}
+
 $config = require __DIR__ . '/config/config.php';
+
+// Override config from .env
+if (!empty($_ENV['DB_HOST'])) $config['db_host'] = $_ENV['DB_HOST'];
+if (!empty($_ENV['DB_PORT'])) $config['db_port'] = (int)$_ENV['DB_PORT'];
+if (!empty($_ENV['DB_DATABASE'])) $config['db_name'] = $_ENV['DB_DATABASE'];
+if (!empty($_ENV['DB_USERNAME'])) $config['db_user'] = $_ENV['DB_USERNAME'];
+if (isset($_ENV['DB_PASSWORD'])) $config['db_pass'] = $_ENV['DB_PASSWORD'];
+
+// Allow POST override from web form
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!empty($_POST['db_host'])) $config['db_host'] = trim($_POST['db_host']);
+    if (!empty($_POST['db_port'])) $config['db_port'] = (int)$_POST['db_port'];
+    if (!empty($_POST['db_name'])) $config['db_name'] = trim($_POST['db_name']);
+    if (!empty($_POST['db_user'])) $config['db_user'] = trim($_POST['db_user']);
+    if (isset($_POST['db_pass'])) $config['db_pass'] = trim($_POST['db_pass']);
+}
+
 $errors = [];
 $successMessages = [];
 $canInstall = true;
@@ -703,6 +734,27 @@ if ($action === 'install' && $canInstall) {
             $insertSettingStmt->execute([$s[0], $s[1], $s[2], $s[3]]);
         }
 
+        // Auto-update .env if it exists
+        $envPath = __DIR__ . '/.env';
+        if (file_exists($envPath)) {
+            $currentEnv = file_get_contents($envPath);
+            $replacements = [
+                'DB_HOST' => $config['db_host'],
+                'DB_PORT' => $config['db_port'],
+                'DB_DATABASE' => $config['db_name'],
+                'DB_USERNAME' => $config['db_user'],
+                'DB_PASSWORD' => '"' . addcslashes($config['db_pass'], '"\\$') . '"',
+            ];
+            foreach ($replacements as $rk => $rv) {
+                if (preg_match("/^{$rk}=.*/m", $currentEnv)) {
+                    $currentEnv = preg_replace("/^{$rk}=.*/m", "{$rk}={$rv}", $currentEnv);
+                } else {
+                    $currentEnv .= "\n{$rk}={$rv}";
+                }
+            }
+            file_put_contents($envPath, $currentEnv);
+        }
+
         // Create installation lock file
         file_put_contents($lockFile, "Installed on " . date('Y-m-d H:i:s') . "\n");
 
@@ -787,20 +839,39 @@ if (php_sapi_name() === 'cli' && empty($installedSuccessfully) && empty($errors)
                     <?php endforeach; ?>
                 </ul>
 
-                <div class="card mb-4 bg-light">
-                    <div class="card-body">
-                        <h6 class="card-title fw-bold"><i class="fas fa-database me-2"></i> Target Database Configuration</h6>
-                        <div class="small">
-                            <div><strong>Host:</strong> <?= htmlspecialchars($config['db_host']) ?>:<?= htmlspecialchars((string)$config['db_port']) ?></div>
-                            <div><strong>Database:</strong> <?= htmlspecialchars($config['db_name']) ?></div>
-                            <div><strong>User:</strong> <?= htmlspecialchars($config['db_user']) ?></div>
-                        </div>
-                    </div>
-                </div>
-
                 <?php if ($canInstall): ?>
                     <form method="POST">
                         <input type="hidden" name="action" value="install">
+
+                        <div class="card mb-4 bg-light border-0 shadow-sm" style="border-radius: 10px;">
+                            <div class="card-body p-3">
+                                <h6 class="card-title fw-bold text-dark mb-3"><i class="fas fa-database text-warning me-2"></i> Database Connection Settings</h6>
+                                <div class="row g-2">
+                                    <div class="col-8">
+                                        <label class="form-label small fw-semibold text-secondary mb-1">Host</label>
+                                        <input type="text" name="db_host" class="form-control form-control-sm" value="<?= htmlspecialchars($config['db_host']) ?>" required>
+                                    </div>
+                                    <div class="col-4">
+                                        <label class="form-label small fw-semibold text-secondary mb-1">Port</label>
+                                        <input type="number" name="db_port" class="form-control form-control-sm" value="<?= htmlspecialchars((string)$config['db_port']) ?>" required>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small fw-semibold text-secondary mb-1">Database Name</label>
+                                        <input type="text" name="db_name" class="form-control form-control-sm" value="<?= htmlspecialchars($config['db_name']) ?>" required>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small fw-semibold text-secondary mb-1">Database User</label>
+                                        <input type="text" name="db_user" class="form-control form-control-sm" value="<?= htmlspecialchars($config['db_user']) ?>" required>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label small fw-semibold text-secondary mb-1">Database Password</label>
+                                        <input type="password" name="db_pass" class="form-control form-control-sm" value="<?= htmlspecialchars($config['db_pass']) ?>" placeholder="Enter database password" required>
+                                    </div>
+                                </div>
+                                <small class="text-muted d-block mt-2">Values auto-loaded from <code>.env</code>. You can adjust them directly above before installing.</small>
+                            </div>
+                        </div>
+
                         <button type="submit" class="btn btn-install w-100 py-3 fs-5">
                             <i class="fas fa-play-circle me-2"></i> Run Automated Installation & Seeder
                         </button>
