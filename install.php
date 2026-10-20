@@ -572,7 +572,10 @@ if ($action === 'install' && $canInstall) {
             "ALTER TABLE `weekly_reports` ADD COLUMN `gm_feedback` TEXT NULL AFTER `notes`",
             "ALTER TABLE `weekly_reports` ADD COLUMN `gm_feedback_at` DATETIME NULL AFTER `gm_feedback`",
             "ALTER TABLE `weekly_reports` ADD COLUMN `approval_status` ENUM('PENDING','APPROVED','REVISION_REQUESTED') DEFAULT 'PENDING' AFTER `gm_feedback_at`",
-            "ALTER TABLE `users` ADD COLUMN `remember_token` VARCHAR(100) NULL AFTER `password_hash`"
+            "ALTER TABLE `users` ADD COLUMN `remember_token` VARCHAR(100) NULL AFTER `password_hash`",
+            "ALTER TABLE `monthly_submissions` MODIFY COLUMN `status` VARCHAR(50) NOT NULL DEFAULT 'DRAFT'",
+            "ALTER TABLE `monthly_submissions` MODIFY COLUMN `approval_status` VARCHAR(50) NOT NULL DEFAULT 'PENDING'",
+            "ALTER TABLE `monthly_submissions` MODIFY COLUMN `submission_channel` VARCHAR(50) NOT NULL DEFAULT 'WEB'"
         ];
         foreach ($columnPatches as $patch) {
             try {
