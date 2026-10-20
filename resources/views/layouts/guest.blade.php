@@ -69,8 +69,8 @@
             border-radius: 50%;
             object-fit: cover;
             border: 3px solid var(--gold);
-            padding: 2px;
-            background: #FFFFFF;
+            padding: 0;
+            background: transparent !important;
             box-shadow: 0 6px 16px rgba(217, 119, 6, 0.2);
             margin-bottom: 1rem;
         }

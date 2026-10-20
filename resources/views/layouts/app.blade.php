@@ -35,7 +35,7 @@
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
 
     <!-- Kaldis Design System Core Stylesheet with Cache Busting -->
-    <link href="{{ asset('assets/css/style.css') }}?v={{ time() }}" rel="stylesheet">
+    <link href="{{ asset('assets/css/style.css') }}?v=2.2.0" rel="stylesheet">
 
     <style>
         /* ══════════════════════════════════════════════════════════
@@ -538,7 +538,7 @@
             <!-- Left: Brand Logo & Title -->
             <div class="d-flex align-items-center">
                 <a class="navbar-brand d-flex align-items-center m-0 text-decoration-none" href="{{ route('dashboard') }}">
-                    <img src="{{ asset('assets/images/logo.png') }}" alt="Kaldis Coffee" class="kaldis-brand-img me-2" onerror="this.src='{{ asset('images/logo.png') }}'">
+                    <img src="{{ asset('assets/images/logo.png') }}" alt="Kaldis Coffee" class="kaldis-brand-img me-2 rounded-circle" style="background: transparent !important;" onerror="this.src='{{ asset('images/logo.png') }}'">
                     <div class="lh-sm">
                         <div class="brand-title">KALDIS COFFEE PLC</div>
                         <div class="brand-subtitle">PLANNING &amp; PERFORMANCE</div>
@@ -923,7 +923,7 @@
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
 
     <!-- Kaldis Core JS with Cache Busting -->
-    <script src="{{ asset('assets/js/app.js') }}?v={{ time() }}"></script>
+    <script src="{{ asset('assets/js/app.js') }}?v=2.2.0"></script>
 
     <!-- React-Style Toast Notification System -->
     <script>

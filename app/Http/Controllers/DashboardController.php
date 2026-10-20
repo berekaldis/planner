@@ -218,32 +218,28 @@ class DashboardController extends Controller
             ->orderByDesc('count')
             ->get();
 
-        // Department performance breakdown
+        // Department performance breakdown - optimized single aggregate query
         $departments = Department::where('active', 1)->orderBy('department_name')->get();
+        $deptAggregates = DB::table('weekly_tasks as wt')
+            ->leftJoin('weekly_task_results as wtr', 'wt.id', '=', 'wtr.weekly_task_id')
+            ->where('wt.year', $selectedYear)
+            ->where('wt.month', $selectedMonth)
+            ->select(
+                'wt.department_id',
+                DB::raw('COUNT(wt.id) as total'),
+                DB::raw("SUM(CASE WHEN wtr.result = 'DONE' THEN 1 ELSE 0 END) as done"),
+                DB::raw("SUM(CASE WHEN wtr.result = 'NOT_DONE' THEN 1 ELSE 0 END) as not_done")
+            )
+            ->groupBy('wt.department_id')
+            ->get()
+            ->keyBy('department_id');
+
         $departmentPerformances = [];
-
         foreach ($departments as $dept) {
-            $dTotal = WeeklyTask::where('department_id', $dept->id)
-                ->where('year', $selectedYear)
-                ->where('month', $selectedMonth)
-                ->count();
-
-            $dDone = DB::table('weekly_tasks as wt')
-                ->join('weekly_task_results as wtr', 'wt.id', '=', 'wtr.weekly_task_id')
-                ->where('wt.department_id', $dept->id)
-                ->where('wt.year', $selectedYear)
-                ->where('wt.month', $selectedMonth)
-                ->where('wtr.result', 'DONE')
-                ->count();
-
-            $dNotDone = DB::table('weekly_tasks as wt')
-                ->join('weekly_task_results as wtr', 'wt.id', '=', 'wtr.weekly_task_id')
-                ->where('wt.department_id', $dept->id)
-                ->where('wt.year', $selectedYear)
-                ->where('wt.month', $selectedMonth)
-                ->where('wtr.result', 'NOT_DONE')
-                ->count();
-
+            $agg = $deptAggregates->get($dept->id);
+            $dTotal = (int)($agg->total ?? 0);
+            $dDone = (int)($agg->done ?? 0);
+            $dNotDone = (int)($agg->not_done ?? 0);
             $rate = $dTotal > 0 ? round(($dDone / $dTotal) * 100, 1) : 0;
 
             $departmentPerformances[] = [

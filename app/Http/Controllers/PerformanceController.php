@@ -389,26 +389,31 @@ class PerformanceController extends Controller
         $departments = $user->isDeptHead()
             ? Department::where('id', $user->department_id)->get()
             : Department::where('active', 1)->orderBy('department_name')->get();
+
+        $deptIds = $departments->pluck('id')->toArray();
+        $tasksByDept = WeeklyTask::with('result')
+            ->whereIn('department_id', $deptIds)
+            ->where('year', $selectedYear)
+            ->where('month', $selectedMonth)
+            ->where('week_number', $selectedWeek)
+            ->get()
+            ->groupBy('department_id');
+
+        $submissionsByDept = Submission::whereIn('department_id', $deptIds)
+            ->where('year', $selectedYear)
+            ->where('month', $selectedMonth)
+            ->where('week_number', $selectedWeek)
+            ->get()
+            ->keyBy('department_id');
+
         $matrix = [];
-
         foreach ($departments as $dept) {
-            $tasks = WeeklyTask::with('result')
-                ->where('department_id', $dept->id)
-                ->where('year', $selectedYear)
-                ->where('month', $selectedMonth)
-                ->where('week_number', $selectedWeek)
-                ->get();
-
+            $tasks = $tasksByDept->get($dept->id, collect());
             $total = $tasks->count();
             $done = $tasks->filter(fn($t) => $t->result && $t->result->result === 'DONE')->count();
             $notDone = $tasks->filter(fn($t) => $t->result && $t->result->result === 'NOT_DONE')->count();
             $rate = $total > 0 ? round(($done / $total) * 100, 1) : 0;
-
-            $submission = Submission::where('department_id', $dept->id)
-                ->where('year', $selectedYear)
-                ->where('month', $selectedMonth)
-                ->where('week_number', $selectedWeek)
-                ->first();
+            $submission = $submissionsByDept->get($dept->id);
 
             $matrix[] = [
                 'department' => $dept,

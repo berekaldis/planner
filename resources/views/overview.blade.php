@@ -24,9 +24,9 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 14px;
+        padding: 10px;
         border-radius: 50%;
-        background: #ffffff;
+        background: transparent !important;
         border: 3.5px solid rgba(217, 119, 6, 0.35);
         animation: kaldisLogoFloat 4.2s ease-in-out infinite;
         transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.3s ease, box-shadow 0.3s ease;

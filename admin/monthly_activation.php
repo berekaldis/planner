@@ -279,7 +279,7 @@ foreach ($rawStrategies as $strat) {
                 <i class="fas fa-list-check me-2 text-warning"></i> Strategic Plans for <?= e($selectedMonth) ?> <?= e($selectedYear) ?>
             </span>
             <span class="badge bg-warning text-dark font-monospace">
-                Showing: <?= count($strategies) ?> of <?= $totalGoals ?>
+                Showing: <?= $firstItem ?>-<?= $lastItem ?> of <?= $totalFiltered ?> (Page <?= $page ?> of <?= $totalPages ?>)
             </span>
         </div>
         <div class="d-flex align-items-center gap-2">
@@ -355,7 +355,7 @@ foreach ($rawStrategies as $strat) {
                         </td>
                     </tr>
                 <?php else: ?>
-                    <?php foreach ($strategies as $strat): ?>
+                    <?php foreach ($paginatedStrategies as $strat): ?>
                         <?php 
                             $goalId = (int)$strat['id'];
                             $isTrue = $strat['status_bool'];

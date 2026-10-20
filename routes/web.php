@@ -38,6 +38,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/strategy/annual', [StrategyController::class, 'annualGoals'])->name('strategy.annual');
     Route::get('/strategy/activation', [StrategyController::class, 'monthlyActivation'])->name('strategy.activation');
     Route::post('/strategy/activation/toggle', [StrategyController::class, 'toggleActivation'])->name('strategy.activation.toggle');
+    Route::post('/strategy/activation/bulk', [StrategyController::class, 'bulkActivation'])->name('strategy.activation.bulk');
 
     // Monthly Planning
     Route::get('/monthly/plans', [MonthlyPlanController::class, 'index'])->name('monthly.plans');
