@@ -81,13 +81,8 @@
                 </span>
             @endif
         </div>
-        <div class="d-flex align-items-center gap-2">
-            <div class="small text-muted">
-                Submitted by {{ $submission->submitter->full_name ?? 'Department Head' }} on {{ $submission->submitted_at ? format_ethiopian_datetime($submission->submitted_at) : '' }}
-            </div>
-            <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" class="btn btn-sm btn-dark" target="_blank" title="Open Official Voucher in new tab">
-                <i class="fas fa-file-invoice me-1"></i> View Official Voucher
-            </a>
+        <div class="small text-muted">
+            Submitted by {{ $submission->submitter->full_name ?? 'Department Head' }} on {{ $submission->submitted_at ? format_ethiopian_datetime($submission->submitted_at) : '' }}
         </div>
     </div>
     @if(!empty($submission->gm_feedback))

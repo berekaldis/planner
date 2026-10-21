@@ -45,6 +45,17 @@ class AppServiceProvider extends ServiceProvider
                 Cache::forever('schema_monthly_submissions_status_v2', true);
             }
 
+            // Auto-heal schema for escalations to guarantee default values
+            if (!Cache::has('schema_escalations_defaults_v2')) {
+                if (Schema::hasTable('escalations')) {
+                    DB::statement("ALTER TABLE `escalations` MODIFY COLUMN `missed_weeks_count` INT NOT NULL DEFAULT 1");
+                    DB::statement("ALTER TABLE `escalations` MODIFY COLUMN `escalation_level` INT NOT NULL DEFAULT 1");
+                    DB::statement("ALTER TABLE `escalations` MODIFY COLUMN `channel` VARCHAR(50) NULL DEFAULT 'TELEGRAM'");
+                    DB::statement("ALTER TABLE `escalations` MODIFY COLUMN `status` VARCHAR(50) NULL DEFAULT 'OPEN'");
+                }
+                Cache::forever('schema_escalations_defaults_v2', true);
+            }
+
             // Auto-heal active Telegram credentials & GM chat IDs
             if (!Cache::has('auto_heal_telegram_gm_v1')) {
                 $revoked = ['8370988256:AAE8aG5s2vzEy6PfSH2b-Fiufr_num0A_rY', 'YOUR_BOT_TOKEN_HERE'];

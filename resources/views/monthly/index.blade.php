@@ -10,11 +10,11 @@
         <p class="text-muted small mb-0">{{ $department->department_name }} &bull; {{ $selectedMonth }} {{ $selectedYear }}</p>
     </div>
     <div class="d-flex gap-2">
-        <a href="{{ route('monthly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth]) }}" class="btn btn-outline-dark btn-sm">
-            <i class="fas fa-file-invoice me-1"></i> View Voucher
+        <a href="{{ route('monthly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth]) }}" class="btn btn-outline-dark btn-sm" target="_blank" title="Open Official Monthly Plan Voucher">
+            <i class="fas fa-file-invoice me-1"></i> View Official Voucher
         </a>
-        <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#submitPackageModal">
-            <i class="fas fa-paper-plane me-1"></i> Submit to GM
+        <button type="button" class="btn {{ $submission ? 'btn-outline-success' : 'btn-success' }} btn-sm" data-bs-toggle="modal" data-bs-target="#submitPackageModal">
+            <i class="fas {{ $submission ? 'fa-redo' : 'fa-paper-plane' }} me-1"></i> {{ $submission ? 'Re-Submit to GM' : 'Submit to GM' }}
         </button>
         <button type="button" class="btn btn-kaldis btn-sm" data-bs-toggle="modal" data-bs-target="#createMonthlyPlanModal">
             <i class="fas fa-plus-circle me-1"></i> Add Monthly Plan
@@ -40,16 +40,8 @@
                 </span>
             @endif
         </div>
-        <div class="d-flex align-items-center gap-2">
-            <div class="small text-muted">
-                Submitted on {{ $submission->submitted_at ? format_ethiopian_datetime($submission->submitted_at) : '' }}
-            </div>
-            <a href="{{ route('monthly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth]) }}" class="btn btn-sm btn-dark" target="_blank" title="Open Official Voucher in new tab">
-                <i class="fas fa-file-invoice me-1"></i> View Official Voucher
-            </a>
-            <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#submitPackageModal">
-                <i class="fas fa-redo me-1"></i> Re-Submit
-            </button>
+        <div class="small text-muted">
+            Submitted on {{ $submission->submitted_at ? format_ethiopian_datetime($submission->submitted_at) : '' }}
         </div>
     </div>
     @if(!empty($submission->gm_feedback))
@@ -67,15 +59,10 @@
     <div class="alert alert-warning border-0 shadow-sm d-flex justify-content-between align-items-center mb-3">
         <div>
             <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
-            <strong>Monthly Plan Package Pending Submission:</strong> These plans have not yet been officially transmitted to General Management.
+            <strong>Monthly Plan Package Pending Submission:</strong> These plans have not yet been officially transmitted to General Management. Click <strong>Submit to GM</strong> above when ready.
         </div>
-        <div class="d-flex gap-2">
-            <a href="{{ route('monthly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth]) }}" class="btn btn-sm btn-outline-dark" target="_blank" title="Preview Official Voucher in new tab">
-                <i class="fas fa-file-invoice me-1"></i> Preview Official Voucher
-            </a>
-            <button type="button" class="btn btn-sm btn-kaldis" data-bs-toggle="modal" data-bs-target="#submitPackageModal">
-                <i class="fas fa-paper-plane me-1"></i> Submit Package to GM
-            </button>
+        <div class="small text-muted">
+            Cutoff: Day {{ kaldis_setting('monthly_plan_deadline_day', 26) }} of Ethiopian Month
         </div>
     </div>
 @endif

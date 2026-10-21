@@ -9,17 +9,24 @@ class Escalation extends Model
     protected $table = 'escalations';
     public $timestamps = false;
 
+    protected $guarded = ['id'];
+
     protected $fillable = [
         'department_id',
         'year',
         'month',
         'week_number',
+        'missed_weeks_count',
         'escalation_level',
         'recipient_role_id',
         'recipient_user_id',
+        'recipients_snapshot',
+        'channel',
         'status',
         'triggered_at',
         'resolved_at',
+        'resolved_by',
+        'resolution_notes',
     ];
 
     protected function casts(): array
