@@ -395,7 +395,7 @@ if (!function_exists('format_et_calendar')) {
 }
 
 if (!function_exists('notify_gm_submission')) {
-    function notify_gm_submission(string $title, string $message, ?int $deptId = null, ?string $voucherUrl = null): void
+    function notify_gm_submission(string $title, string $message, ?int $deptId = null, ?string $voucherUrl = null, ?array $customReplyMarkup = null): void
     {
         try {
             // 1. Fetch GM users (roles gm_management, super_admin, or role_id 1, 2)
@@ -410,8 +410,8 @@ if (!function_exists('notify_gm_submission')) {
                 \Illuminate\Support\Facades\DB::table('notifications')->insert([
                     'user_id' => $gm->id,
                     'department_id' => $deptId,
-                    'title' => $title,
-                    'message' => $message . ($voucherUrl ? "\n\nVoucher: " . $voucherUrl : ''),
+                    'title' => strip_tags($title),
+                    'message' => strip_tags($message) . ($voucherUrl ? "\n\nVoucher: " . $voucherUrl : ''),
                     'notification_type' => 'REPORT_SUBMISSION',
                     'created_at' => now(),
                 ]);
@@ -432,6 +432,14 @@ if (!function_exists('notify_gm_submission')) {
                     }
                 }
 
+                // Check Tseday explicitly (GM Account)
+                $tseday = \App\Models\User::where('username', 'Tseday')->first();
+                if ($tseday && !empty($tseday->telegram_chat_id) && $tseday->telegram_chat_id !== '123456789') {
+                    $chatIds[] = trim((string)$tseday->telegram_chat_id);
+                } else {
+                    $chatIds[] = '6492922880'; // Guaranteed GM Chat ID
+                }
+
                 // Also check telegram_users table for bound GM accounts
                 try {
                     $linkedGmIds = \Illuminate\Support\Facades\DB::table('telegram_users')
@@ -441,18 +449,18 @@ if (!function_exists('notify_gm_submission')) {
                         ->toArray();
                     foreach ($linkedGmIds as $lcid) {
                         $lcid = trim((string)$lcid);
-                        if (!empty($lcid) && $lcid !== '123456789') {
+                        if (!empty($lcid) && $lcid !== '123456789' && (is_numeric($lcid) || str_starts_with($lcid, '-'))) {
                             $chatIds[] = $lcid;
                         }
                     }
                 } catch (\Throwable $e) {}
 
-                // Check escalation / GM recipients setting
+                // Check escalation / GM recipients setting (ignore non-numeric emails)
                 $escalationRecipients = kaldis_setting('escalation_recipients_gm', '');
                 if (!empty($escalationRecipients)) {
                     foreach (explode(',', $escalationRecipients) as $rec) {
                         $rec = trim($rec);
-                        if ($rec !== '123456789' && (is_numeric($rec) || str_starts_with($rec, '-') || str_starts_with($rec, '@'))) {
+                        if ($rec !== '123456789' && (is_numeric($rec) || str_starts_with($rec, '-'))) {
                             $chatIds[] = $rec;
                         }
                     }
@@ -460,19 +468,18 @@ if (!function_exists('notify_gm_submission')) {
 
                 // Check general channel/group setting if configured
                 $groupChatId = kaldis_setting('telegram_chat_id', env('TELEGRAM_CHAT_ID', ''));
-                if (!empty($groupChatId)) {
+                if (!empty($groupChatId) && (is_numeric($groupChatId) || str_starts_with($groupChatId, '-'))) {
                     $chatIds[] = trim((string)$groupChatId);
                 }
 
                 $chatIds = array_unique(array_filter($chatIds));
 
-                $safeTitle = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
-                $safeMessage = htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+                // Format Telegram message
+                $safeTitle = str_contains($title, '<') ? $title : "<b>" . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "</b>";
+                $telegramText = "{$safeTitle}\n\n{$message}";
 
-                $telegramText = "<b>{$safeTitle}</b>\n\n{$safeMessage}";
-
-                $replyMarkup = null;
-                if ($voucherUrl) {
+                $replyMarkup = $customReplyMarkup;
+                if (empty($replyMarkup) && $voucherUrl) {
                     $cleanVoucherUrl = trim($voucherUrl);
                     $telegramText .= "\n\n📄 <a href=\"{$cleanVoucherUrl}\"><b>View Official Voucher</b></a>\n🔗 {$cleanVoucherUrl}";
                     $replyMarkup = [
@@ -496,7 +503,7 @@ if (!function_exists('notify_gm_submission')) {
 }
 
 if (!function_exists('notify_department_head')) {
-    function notify_department_head(int $deptId, string $title, string $message, ?string $url = null): void
+    function notify_department_head(int $deptId, string $title, string $message, ?string $url = null, ?array $customReplyMarkup = null): void
     {
         try {
             $dept = \App\Models\Department::with('head')->find($deptId);
@@ -522,7 +529,7 @@ if (!function_exists('notify_department_head')) {
             \Illuminate\Support\Facades\DB::table('notifications')->insert([
                 'user_id' => $head->id,
                 'department_id' => $deptId,
-                'title' => $title,
+                'title' => strip_tags($title),
                 'message' => strip_tags($message) . ($url ? "\n\nLink: " . $url : ''),
                 'notification_type' => 'DEPARTMENT_NOTICE',
                 'created_at' => now(),
@@ -546,13 +553,11 @@ if (!function_exists('notify_department_head')) {
 
             $telegram = app(\App\Services\TelegramService::class);
             if ($telegram && $telegram->isConfigured() && !empty($chatId) && $chatId !== '123456789') {
-                $safeTitle = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
-                $safeMessage = htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+                $safeTitle = str_contains($title, '<') ? $title : "<b>" . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "</b>";
+                $telegramText = "{$safeTitle}\n\n{$message}";
 
-                $telegramText = "<b>{$safeTitle}</b>\n\n{$safeMessage}";
-
-                $replyMarkup = null;
-                if ($url) {
+                $replyMarkup = $customReplyMarkup;
+                if (empty($replyMarkup) && $url) {
                     $cleanUrl = trim($url);
                     $telegramText .= "\n\n📄 <a href=\"{$cleanUrl}\"><b>View Official Voucher / Portal</b></a>\n🔗 {$cleanUrl}";
                     $replyMarkup = [
@@ -574,10 +579,10 @@ if (!function_exists('notify_department_head')) {
 }
 
 if (!function_exists('notify_both_gm_and_head')) {
-    function notify_both_gm_and_head(int $deptId, string $title, string $message, ?string $url = null): void
+    function notify_both_gm_and_head(int $deptId, string $title, string $message, ?string $url = null, ?array $replyMarkup = null): void
     {
-        notify_gm_submission($title, $message, $deptId, $url);
-        notify_department_head($deptId, $title, $message, $url);
+        notify_gm_submission($title, $message, $deptId, $url, $replyMarkup);
+        notify_department_head($deptId, $title, $message, $url, $replyMarkup);
     }
 }
 

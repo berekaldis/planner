@@ -10,14 +10,14 @@
         <p class="text-muted small mb-0">{{ $department->department_name }} &bull; Week {{ $selectedWeek }} ({{ $selectedMonth }} {{ $selectedYear }})</p>
     </div>
     <div class="d-flex gap-2">
-        <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" class="btn btn-outline-dark btn-sm" target="_blank" title="Open Official Voucher in new tab">
-            <i class="fas fa-file-invoice me-1"></i> View Official Voucher
+        <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek, 'type' => 'plan']) }}" class="btn btn-outline-dark btn-sm" target="_blank" title="Open Official Plan Voucher in new tab">
+            <i class="fas fa-file-invoice me-1"></i> View Plan Voucher
         </a>
         <button type="button" class="btn btn-kaldis btn-sm" data-bs-toggle="modal" data-bs-target="#createTaskModal">
             <i class="fas fa-plus-circle me-1"></i> Schedule Weekly Task
         </button>
-        <a href="{{ route('weekly.performance', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" class="btn btn-outline-secondary btn-sm">
-            <i class="fas fa-clipboard-check me-1"></i> Go to Execution Sheet
+        <a href="{{ route('weekly.performance', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" class="btn btn-outline-success btn-sm" title="Go to Performance & Submit Weekly Cycle to GM">
+            <i class="fas fa-paper-plane me-1"></i> Performance &amp; Submit to GM
         </a>
     </div>
 </div>

@@ -156,7 +156,7 @@
                 <i class="fas fa-arrow-left me-1"></i> Back
             </a>
             <span class="text-muted small">|</span>
-            <span class="badge bg-dark">Official Performance Voucher</span>
+            <span class="badge bg-dark">{{ ($voucherType ?? 'performance') === 'plan' ? 'Official Weekly Plan Voucher' : 'Official Performance Voucher' }}</span>
         </div>
         <div class="d-flex gap-2">
             <button onclick="window.print()" class="btn btn-kaldis btn-sm shadow-sm">
@@ -177,13 +177,13 @@
                             <h4 class="mb-0 fw-bold tracking-wide text-warning" style="letter-spacing: 0.06em;">KALDIS COFFEE PLC</h4>
                         </div>
                         <h6 class="mb-0 text-white-50 text-uppercase small" style="letter-spacing: 0.08em;">Corporate Strategy &amp; Performance Evaluation System</h6>
-                        <div class="fs-5 fw-bold text-white mt-1">WEEKLY EXECUTION &amp; PERFORMANCE REPORT VOUCHER</div>
+                        <div class="fs-5 fw-bold text-white mt-1">{{ ($voucherType ?? 'performance') === 'plan' ? 'WEEKLY OPERATIONAL TASK PLAN VOUCHER' : 'WEEKLY EXECUTION & PERFORMANCE REPORT VOUCHER' }}</div>
                     </div>
                 </div>
 
                 <div class="text-md-end">
                     <div class="voucher-ref-badge mb-2">
-                        VCH-WPR-{{ substr($selectedYear, 0, 4) }}-{{ strtoupper(substr($selectedMonth, 0, 3)) }}-W0{{ $selectedWeek }}-{{ $department->department_code }}
+                        VCH-{{ ($voucherType ?? 'performance') === 'plan' ? 'WPL' : 'WPR' }}-{{ substr($selectedYear, 0, 4) }}-{{ strtoupper(substr($selectedMonth, 0, 3)) }}-W0{{ $selectedWeek }}-{{ $department->department_code }}
                     </div>
                     <div>
                         @if($timingStatus === 'ON_TIME')

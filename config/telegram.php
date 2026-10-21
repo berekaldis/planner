@@ -11,7 +11,7 @@ return [
     |
     */
 
-    'bot_token' => env('TELEGRAM_BOT_TOKEN', ''),
+    'bot_token' => env('TELEGRAM_BOT_TOKEN', '8370988256:AAHrC_z825ZgqvWzK1PrtEoKs0-CzSDN0mo'),
     
     'bot_username' => env('TELEGRAM_BOT_USERNAME', 'KaldisPlannerbot'),
 

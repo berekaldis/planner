@@ -149,16 +149,11 @@ class MonthlyPlanController extends Controller
 
         AuditLog::log('SUBMIT_MONTHLY_PLANS', 'monthly_plans', "Submitted monthly plan package for {$validated['month']} {$validated['year']} ({$status})");
 
-        // Notify GM
+        // Notify GM with Official Monthly Plan Voucher
         $dept = Department::find($deptId);
         $statusEmoji = ($status === 'ON_TIME') ? '🟢 [ON-TIME]' : '🟡 [LATE]';
-        $notifTitle = "{$statusEmoji} Monthly Plan Package: " . ($dept->department_code ?? "Dept #{$deptId}");
-        $notifMessage = ($dept->department_name ?? 'Department') . " has submitted their Monthly Plan Package for {$validated['month']} {$validated['year']}.\n"
-                      . "• Submission Timing: " . ($status === 'ON_TIME' ? 'ON-TIME SUBMISSION' : 'LATE SUBMISSION') . "\n"
-                      . "• Total Plans: {$totalPlans} ({$stratCount} Strategy, {$opsCount} Operational)";
-        if (!empty($validated['notes'])) {
-            $notifMessage .= "\n• Department Remarks: {$validated['notes']}";
-        }
+        $deptCode = $dept->department_code ?? "Dept #{$deptId}";
+        $deptName = $dept->department_name ?? 'Department';
 
         $voucherUrl = route('monthly.voucher', [
             'department_id' => $deptId,
@@ -166,7 +161,29 @@ class MonthlyPlanController extends Controller
             'month' => $validated['month'],
         ]);
 
-        notify_both_gm_and_head($deptId, $notifTitle, $notifMessage, $voucherUrl);
+        $notifTitle = "{$statusEmoji} Official Monthly Plan Voucher: {$deptCode}";
+        $notifMessage = "<b>{$deptName}</b> has officially submitted their <b>Monthly Plan Package</b> for <b>{$validated['month']} {$validated['year']}</b>.\n\n"
+                      . "📋 <b>Package Overview:</b>\n"
+                      . "• Submission Timing: " . ($status === 'ON_TIME' ? '🟢 ON-TIME SUBMISSION' : '🟡 LATE SUBMISSION') . "\n"
+                      . "• Total Monthly Plans: <b>{$totalPlans}</b>\n"
+                      . "• Strategic Priority Plans: <b>{$stratCount}</b>\n"
+                      . "• Department Operational Plans: <b>{$opsCount}</b>\n\n"
+                      . "📄 <a href=\"{$voucherUrl}\"><b>Open Official Monthly Plan Voucher</b></a>\n"
+                      . "🔗 {$voucherUrl}";
+
+        if (!empty($validated['notes'])) {
+            $notifMessage .= "\n\n💬 <b>Department Head Remarks:</b>\n" . htmlspecialchars($validated['notes'], ENT_QUOTES, 'UTF-8');
+        }
+
+        $replyMarkup = [
+            'inline_keyboard' => [
+                [
+                    ['text' => '📄 View Official Monthly Plan Voucher', 'url' => $voucherUrl]
+                ]
+            ]
+        ];
+
+        notify_both_gm_and_head($deptId, $notifTitle, $notifMessage, $voucherUrl, $replyMarkup);
 
         return back()->with('success', "Monthly Plan package submitted successfully to General Management! Timing Status: {$status}.");
     }

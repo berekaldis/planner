@@ -92,6 +92,7 @@ class VoucherController extends Controller
         $selectedYear = $request->query('year', kaldis_setting('current_planning_year', config('kaldis.current_planning_year')));
         $selectedMonth = $request->query('month', kaldis_setting('current_planning_month', config('kaldis.current_planning_month')));
         $selectedWeek = (int)$request->query('week', 1);
+        $voucherType = strtolower($request->query('type', 'performance')) === 'plan' ? 'plan' : 'performance';
 
         // Fetch Weekly Report and Submission
         $report = WeeklyReport::with('submitter')
@@ -162,7 +163,8 @@ class VoucherController extends Controller
             'allDepartments',
             'selectedYear',
             'selectedMonth',
-            'selectedWeek'
+            'selectedWeek',
+            'voucherType'
         ));
     }
 }

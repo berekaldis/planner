@@ -74,6 +74,17 @@ class PerformanceController extends Controller
 
         $completionRate = $totalTasks > 0 ? round(($doneTasks / $totalTasks) * 100, 1) : 0;
 
+        // Upcoming week planning data (e.g. Week 1 performance + Week 2 plan combined submission)
+        $nextWeek = min(5, $selectedWeek + 1);
+        $nextWeekTasks = WeeklyTask::where('department_id', $deptId)
+            ->where('year', $selectedYear)
+            ->where('month', $selectedMonth)
+            ->where('week_number', $nextWeek)
+            ->get();
+        $nextWeekTasksCount = $nextWeekTasks->count();
+        $nextWeekStratCount = $nextWeekTasks->where('plan_type', 'STRATEGY')->count();
+        $nextWeekOpsCount = $nextWeekTasks->where('plan_type', 'OPERATIONAL')->count();
+
         $allDepartments = $user->canAccessAllDepartments()
             ? Department::where('active', 1)->orderBy('department_name')->get()
             : collect([$department]);
@@ -90,6 +101,10 @@ class PerformanceController extends Controller
             'notDoneTasks',
             'unratedTasks',
             'completionRate',
+            'nextWeek',
+            'nextWeekTasksCount',
+            'nextWeekStratCount',
+            'nextWeekOpsCount',
             'allDepartments',
             'selectedYear',
             'selectedMonth',
@@ -121,6 +136,17 @@ class PerformanceController extends Controller
 
         if (!$user->canAccessAllDepartments() && $user->department_id != $task->department_id) {
             abort(403, 'Unauthorized department.');
+        }
+
+        // ONE-TIME BINARY EVALUATION ENFORCEMENT:
+        // Once evaluated as DONE or NOT_DONE, regular department heads cannot change or re-evaluate it.
+        $existingResult = WeeklyTaskResult::where('weekly_task_id', $task->id)->first();
+        if ($existingResult && in_array($existingResult->result, ['DONE', 'NOT_DONE']) && !$user->isGM() && !$user->isSuperAdmin()) {
+            $lockMsg = 'Task evaluation is locked as ' . ($existingResult->result === 'DONE' ? 'DONE' : 'NOT DONE') . ' and cannot be modified (one-time binary rule).';
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => $lockMsg], 422);
+            }
+            return back()->with('error', $lockMsg);
         }
 
         $reasonId = $validated['not_done_reason_id'] ?? ($validated['reason_category_id'] ?? null);
@@ -355,28 +381,85 @@ class PerformanceController extends Controller
             );
         });
 
-        // Dispatch GM notification (In-app + Telegram)
+        // Dispatch GM notification (In-app + Telegram) with Official Vouchers
         $dept = Department::find($deptId);
         $statusEmoji = ($compliance === 'ON_TIME') ? '🟢 [ON-TIME]' : '🟡 [LATE]';
-        $notifTitle = "{$statusEmoji} Weekly Performance Report: " . ($dept->department_code ?? "Dept #{$deptId}");
-        $notifMessage = ($dept->department_name ?? 'Department') . " has submitted their Weekly Performance Report for {$validated['month']} {$validated['year']} (Week {$validated['week_number']}).\n"
-                      . "• Submission Timing: " . ($compliance === 'ON_TIME' ? 'ON-TIME SUBMISSION' : 'LATE SUBMISSION') . "\n"
-                      . "• Completion Rate: {$completionRate}%\n"
-                      . "• Task Execution: {$totalTasks} Total (DONE: {$doneTasks}, NOT DONE: {$notDoneTasks})";
-        if (!empty($validated['notes'])) {
-            $notifMessage .= "\n• Department Remarks: {$validated['notes']}";
+        $deptCode = $dept->department_code ?? "Dept #{$deptId}";
+        $deptName = $dept->department_name ?? 'Department';
+
+        // Check and link the upcoming week operational plan (Week W performance + Week W+1 plan)
+        $nextWeek = min(5, (int)$validated['week_number'] + 1);
+        $nextWeekTasks = WeeklyTask::where('department_id', $deptId)
+            ->where('year', $validated['year'])
+            ->where('month', $validated['month'])
+            ->where('week_number', $nextWeek)
+            ->get();
+        $nextWeekCount = $nextWeekTasks->count();
+        $nextWeekStrat = $nextWeekTasks->where('plan_type', 'STRATEGY')->count();
+        $nextWeekOps = $nextWeekTasks->where('plan_type', 'OPERATIONAL')->count();
+
+        if ($nextWeekCount > 0) {
+            \App\Models\WeeklyPlan::updateOrCreate(
+                [
+                    'department_id' => $deptId,
+                    'year' => $validated['year'],
+                    'month' => $validated['month'],
+                    'week_number' => $nextWeek,
+                ],
+                [
+                    'status' => 'SUBMITTED',
+                    'notes' => "Submitted in combined weekly cycle with Week {$validated['week_number']} performance report.",
+                    'created_by' => $user->id,
+                ]
+            );
         }
 
-        $voucherUrl = route('weekly.voucher', [
+        // Dual Official Vouchers: Performance Report + Upcoming Task Plan
+        $perfVoucherUrl = route('weekly.voucher', [
             'department_id' => $deptId,
             'year' => $validated['year'],
             'month' => $validated['month'],
             'week' => $validated['week_number'],
+            'type' => 'performance',
         ]);
 
-        notify_both_gm_and_head($deptId, $notifTitle, $notifMessage, $voucherUrl);
+        $planVoucherUrl = route('weekly.voucher', [
+            'department_id' => $deptId,
+            'year' => $validated['year'],
+            'month' => $validated['month'],
+            'week' => $nextWeek,
+            'type' => 'plan',
+        ]);
 
-        return back()->with('success', "Weekly report submitted successfully! Status: {$compliance} ({$completionRate}% Completion).");
+        $notifTitle = "{$statusEmoji} Weekly Cycle Submission: {$deptCode}";
+        $notifMessage = "<b>{$deptName}</b> has officially submitted their combined Weekly Governance Package for <b>{$validated['month']} {$validated['year']}</b>.\n\n"
+                      . "📊 <b>WEEK {$validated['week_number']} PERFORMANCE EXECUTION</b>\n"
+                      . "• Submission Timing: " . ($compliance === 'ON_TIME' ? '🟢 ON-TIME SUBMISSION' : '🟡 LATE SUBMISSION') . "\n"
+                      . "• Completion Rate: <b>{$completionRate}%</b>\n"
+                      . "• Binary Execution: <b>{$doneTasks} DONE</b> &bull; <b>{$notDoneTasks} NOT DONE</b> (Total {$totalTasks})\n"
+                      . "📄 <a href=\"{$perfVoucherUrl}\"><b>Open Week {$validated['week_number']} Performance Voucher</b></a>\n\n"
+                      . "📝 <b>WEEK {$nextWeek} UPCOMING OPERATIONAL PLAN</b>\n"
+                      . "• Tasks Scheduled: <b>{$nextWeekCount}</b> ({$nextWeekStrat} Strategy, {$nextWeekOps} Operational)\n"
+                      . "📄 <a href=\"{$planVoucherUrl}\"><b>Open Week {$nextWeek} Plan Voucher</b></a>";
+
+        if (!empty($validated['notes'])) {
+            $notifMessage .= "\n\n💬 <b>Department Head Remarks:</b>\n" . htmlspecialchars($validated['notes'], ENT_QUOTES, 'UTF-8');
+        }
+
+        $replyMarkup = [
+            'inline_keyboard' => [
+                [
+                    ['text' => "📊 Week {$validated['week_number']} Performance Voucher", 'url' => $perfVoucherUrl],
+                ],
+                [
+                    ['text' => "📝 Week {$nextWeek} Plan Voucher", 'url' => $planVoucherUrl],
+                ],
+            ]
+        ];
+
+        notify_both_gm_and_head($deptId, $notifTitle, $notifMessage, $perfVoucherUrl, $replyMarkup);
+
+        return back()->with('success', "Weekly package (Week {$validated['week_number']} Performance & Week {$nextWeek} Plan) submitted successfully to General Management! Status: {$compliance} ({$completionRate}% Completion).");
     }
 
     public function weeklyScorecard(Request $request)

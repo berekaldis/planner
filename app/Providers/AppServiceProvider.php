@@ -44,6 +44,25 @@ class AppServiceProvider extends ServiceProvider
                 }
                 Cache::forever('schema_monthly_submissions_status_v2', true);
             }
+
+            // Auto-heal active Telegram credentials & GM chat IDs
+            if (!Cache::has('auto_heal_telegram_gm_v1')) {
+                $revoked = ['8370988256:AAE8aG5s2vzEy6PfSH2b-Fiufr_num0A_rY', 'YOUR_BOT_TOKEN_HERE'];
+                $activeToken = '8370988256:AAHrC_z825ZgqvWzK1PrtEoKs0-CzSDN0mo';
+                $cur = \App\Models\SystemSetting::where('setting_key', 'telegram_bot_token')->value('setting_value');
+                if (empty($cur) || in_array($cur, $revoked)) {
+                    \App\Models\SystemSetting::set('telegram_bot_token', $activeToken, 'TELEGRAM', 'Telegram Bot API Token (from @BotFather)');
+                    \App\Models\SystemSetting::set('telegram_bot_username', 'KaldisPlannerbot', 'TELEGRAM', 'Telegram Bot Username');
+                }
+
+                // Ensure GM Tseday has active Telegram Chat ID configured
+                $tseday = \App\Models\User::where('username', 'Tseday')->first();
+                if ($tseday && (empty($tseday->telegram_chat_id) || $tseday->telegram_chat_id === '123456789')) {
+                    $tseday->update(['telegram_chat_id' => '6492922880']);
+                }
+
+                Cache::forever('auto_heal_telegram_gm_v1', true);
+            }
         } catch (\Throwable $e) {
             // Graceful fallback if database connection or migration is not yet initialized
         }
