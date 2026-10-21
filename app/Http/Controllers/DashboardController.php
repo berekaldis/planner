@@ -403,7 +403,13 @@ class DashboardController extends Controller
 
         \App\Models\AuditLog::log('GM_TRIGGERED_CRON', 'management', "GM manually triggered automated Telegram compliance check for {$month} {$year} (Week {$week})");
 
-        return back()->with('success', "Automated Telegram notifications & Executive Summary reports successfully dispatched to General Management and Department Heads for {$month} {$year} (Week {$week})!");
+        $previousUrl = url()->previous();
+        if ($previousUrl && !str_contains($previousUrl, 'run-telegram-check')) {
+            return redirect()->to($previousUrl)->with('success', "Automated Telegram notifications & Executive Summary reports successfully dispatched to General Management and Department Heads for {$month} {$year} (Week {$week})!");
+        }
+
+        return redirect()->route('dashboard.gm', ['year' => $year, 'month' => $month, 'week' => $week])
+            ->with('success', "Automated Telegram notifications & Executive Summary reports successfully dispatched to General Management and Department Heads for {$month} {$year} (Week {$week})!");
     }
 
     public function department(Request $request)

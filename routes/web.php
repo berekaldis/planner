@@ -31,7 +31,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/management/dashboard', [DashboardController::class, 'gm'])->name('dashboard.gm');
     Route::get('/management/plans', [DashboardController::class, 'gm'])->name('management.plans');
     Route::post('/management/remind', [DashboardController::class, 'remind'])->name('management.remind');
-    Route::post('/management/run-telegram-check', [DashboardController::class, 'runTelegramCheck'])->name('management.run_telegram_check');
+    Route::get('/management/remind', fn() => redirect()->route('dashboard.gm'));
+    Route::match(['GET', 'POST'], '/management/run-telegram-check', [DashboardController::class, 'runTelegramCheck'])->name('management.run_telegram_check');
     Route::get('/department/dashboard', [DashboardController::class, 'department'])->name('dashboard.department');
 
     // Strategy & Monthly Activation
