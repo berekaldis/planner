@@ -388,7 +388,15 @@ class DashboardController extends Controller
         $month = $request->input('month', kaldis_setting('current_planning_month', config('kaldis.current_planning_month')));
         $week = (int)$request->input('week', (function_exists('get_current_planning_week') ? get_current_planning_week() : 1) ?: 1);
 
-        // Run both weekly cutoff check & monthly plan check
+        // 1. Weekly reminders to pending department heads
+        \Illuminate\Support\Facades\Artisan::call('kaldis:weekly-reminder', [
+            '--type' => 'all',
+            '--year' => $year,
+            '--month' => $month,
+            '--week' => $week,
+        ]);
+
+        // 2. Weekly cutoff check & GM summary
         \Illuminate\Support\Facades\Artisan::call('kaldis:deadline-check', [
             '--year' => $year,
             '--month' => $month,

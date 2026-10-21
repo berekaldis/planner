@@ -84,15 +84,21 @@ class WeeklyReminderCommand extends Command
                         $perfUrl = url("/weekly/performance?year=" . urlencode($year) . "&month=" . urlencode($month) . "&week=" . $week);
                         $msg = "⏰ <b>Kaldis Coffee PLC — Weekly Performance Reminder</b>\n\n"
                              . "Dear <b>{$safeHeadName}</b> ({$safeDeptName}),\n\n"
-                             . "This is a reminder to evaluate and submit your department's <b>Weekly Performance Execution Report</b> for <b>{$month} {$year}, Week {$week}</b>.\n\n"
-                             . "📅 <b>Submission Deadline:</b> Monday 12:00 PM\n"
-                             . "🎯 Please verify all binary task statuses (DONE / NOT DONE) with reasons.\n\n"
-                             . "🌐 <a href=\"{$perfUrl}\"><b>Open Weekly Performance in Portal</b></a>\n"
-                             . "🔗 {$perfUrl}\n\n"
+                             . "This is an advance reminder to finalize and submit your department's <b>Weekly Performance Execution Report</b> for <b>{$month} {$year}, Week {$week}</b>.\n\n"
+                             . "📅 <b>Submission Deadline:</b> Monday 12:00 PM (Noon)\n"
+                             . "🎯 Please verify all binary task statuses (DONE / NOT DONE) with root-cause reasons.\n\n"
                              . "☕ <i>Kaldis Coffee PLC — Planning & Operational Governance</i>\n"
                              . "📅 <i>" . format_ethiopian_datetime() . "</i>";
 
-                        $res = $telegram->sendMessage($chatId, $msg);
+                        $replyMarkup = [
+                            'inline_keyboard' => [
+                                [
+                                    ['text' => '🌐 Open Weekly Performance in Portal', 'url' => $perfUrl]
+                                ]
+                            ]
+                        ];
+
+                        $res = $telegram->sendMessage($chatId, $msg, $replyMarkup);
                         if (!empty($res['ok'])) {
                             $performanceReminded++;
                         }
@@ -118,12 +124,18 @@ class WeeklyReminderCommand extends Command
                              . "Dear <b>{$safeHeadName}</b> ({$safeDeptName}),\n\n"
                              . "This is a reminder to schedule your department's <b>Weekly Operational Tasks</b> for <b>{$month} {$year}, Week {$week}</b>.\n\n"
                              . "🎯 Align your weekly deliverables with the active monthly targets and strategic goals.\n\n"
-                             . "🌐 <a href=\"{$planUrl}\"><b>Schedule Tasks in Portal</b></a>\n"
-                             . "🔗 {$planUrl}\n\n"
                              . "☕ <i>Kaldis Coffee PLC — Planning & Operational Governance</i>\n"
                              . "📅 <i>" . format_ethiopian_datetime() . "</i>";
 
-                        $res = $telegram->sendMessage($chatId, $msg);
+                        $replyMarkup = [
+                            'inline_keyboard' => [
+                                [
+                                    ['text' => '📝 Schedule Tasks in Portal', 'url' => $planUrl]
+                                ]
+                            ]
+                        ];
+
+                        $res = $telegram->sendMessage($chatId, $msg, $replyMarkup);
                         if (!empty($res['ok'])) {
                             $planReminded++;
                         }
@@ -171,11 +183,18 @@ class WeeklyReminderCommand extends Command
                 }
 
                 $dashboardUrl = url("/management/dashboard?year=" . urlencode($year) . "&month=" . urlencode($month) . "&week=" . $week);
-                $gmMsg .= "\n🌐 <a href=\"{$dashboardUrl}\"><b>Open Executive Dashboard</b></a>\n"
-                       . "☕ <i>Kaldis Coffee PLC — Executive Operations</i>";
+                $gmMsg .= "☕ <i>Kaldis Coffee PLC — Executive Operations</i>";
+
+                $replyMarkup = [
+                    'inline_keyboard' => [
+                        [
+                            ['text' => '🌐 Open Executive Dashboard', 'url' => $dashboardUrl]
+                        ]
+                    ]
+                ];
 
                 foreach ($gmChatIds as $cid) {
-                    $res = $telegram->sendMessage($cid, $gmMsg);
+                    $res = $telegram->sendMessage($cid, $gmMsg, $replyMarkup);
                     if (!empty($res['ok'])) {
                         $gmSentCount++;
                     }

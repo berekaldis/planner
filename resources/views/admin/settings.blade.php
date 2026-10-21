@@ -124,6 +124,9 @@
                                         <label class="form-label small fw-semibold text-secondary">MONTHLY CUTOFF DAY</label>
                                         @php
                                             $savedMonthlyDay = (int)($settings['monthly_plan_deadline_day']->setting_value ?? $settings['monthly_deadline_day']->setting_value ?? 26);
+                                            if ($savedMonthlyDay < 20 || $savedMonthlyDay > 30) {
+                                                $savedMonthlyDay = 26;
+                                            }
                                         @endphp
                                         <select name="monthly_plan_deadline_day" class="form-select">
                                             @for($d = 1; $d <= 30; $d++)

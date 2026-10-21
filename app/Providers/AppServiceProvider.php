@@ -86,6 +86,14 @@ class AppServiceProvider extends ServiceProvider
                     $admin->update(['telegram_chat_id' => '814523272']);
                 }
 
+                // Ensure monthly plan deadline day is strictly Day 26 in system_settings
+                \App\Models\SystemSetting::whereIn('setting_key', ['monthly_plan_deadline_day', 'monthly_deadline_day'])
+                    ->where(function ($q) {
+                        $q->where('setting_value', '<', 20)
+                          ->orWhereNull('setting_value');
+                    })
+                    ->update(['setting_value' => '26']);
+
                 Cache::forever('auto_heal_telegram_gm_v2', true);
             }
         } catch (\Throwable $e) {

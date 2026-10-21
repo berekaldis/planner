@@ -429,7 +429,10 @@ if (!function_exists('get_monthly_plan_deadline_info')) {
         $deadlineMonthName = $months[$deadlineMonthNum];
         $deadlineYearStr = "{$deadlineYearNum} E.C.";
 
-        $deadlineDay = (int)kaldis_setting('monthly_plan_deadline_day', kaldis_setting('monthly_deadline_day', 26));
+        $rawDay = (int)kaldis_setting('monthly_plan_deadline_day', kaldis_setting('monthly_deadline_day', 26));
+        // Strict Governance Rule: Monthly plan deadline is always Day 26 in the Ethiopian calendar.
+        // Guard against any misconfigured/corrupted values (< 20) in system_settings.
+        $deadlineDay = ($rawDay >= 20 && $rawDay <= 30) ? $rawDay : 26;
         $deadlineTime = kaldis_setting('monthly_plan_deadline_time', '17:00');
 
         $timeParts = explode(':', $deadlineTime);
@@ -457,8 +460,9 @@ if (!function_exists('get_monthly_plan_deadline_info')) {
 }
 
 if (!function_exists('notify_gm_submission')) {
-    function notify_gm_submission(string $title, string $message, ?int $deptId = null, ?string $voucherUrl = null, ?array $customReplyMarkup = null): void
+    function notify_gm_submission(string $title, string $message, ?int $deptId = null, ?string $voucherUrl = null, ?array $customReplyMarkup = null): array
     {
+        $deliveredChatIds = [];
         try {
             // 1. Fetch GM & Super Admin users
             $gmUsers = \App\Models\User::where(function ($query) {
@@ -571,16 +575,19 @@ if (!function_exists('notify_gm_submission')) {
 
                 foreach ($chatIds as $cid) {
                     $telegram->sendMessage($cid, $telegramText, $replyMarkup);
+                    $deliveredChatIds[] = (string)$cid;
                 }
             }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error("notify_gm_submission error: " . $e->getMessage());
         }
+
+        return $deliveredChatIds;
     }
 }
 
 if (!function_exists('notify_department_head')) {
-    function notify_department_head(int $deptId, string $title, string $message, ?string $url = null, ?array $customReplyMarkup = null): void
+    function notify_department_head(int $deptId, string $title, string $message, ?string $url = null, ?array $customReplyMarkup = null, array $skipChatIds = []): void
     {
         try {
             $dept = \App\Models\Department::with('head')->find($deptId);
@@ -632,6 +639,11 @@ if (!function_exists('notify_department_head')) {
                 } catch (\Throwable $e) {}
             }
 
+            // Deduplication Guard: If recipient already received this notification, skip sending a 2nd time
+            if (!empty($chatId) && in_array((string)$chatId, array_map('strval', $skipChatIds), true)) {
+                return;
+            }
+
             $telegram = app(\App\Services\TelegramService::class);
             if ($telegram && $telegram->isConfigured() && !empty($chatId) && $chatId !== '123456789') {
                 $safeTitle = str_contains($title, '<') ? $title : "<b>" . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "</b>";
@@ -660,8 +672,9 @@ if (!function_exists('notify_department_head')) {
 if (!function_exists('notify_both_gm_and_head')) {
     function notify_both_gm_and_head(int $deptId, string $title, string $message, ?string $url = null, ?array $replyMarkup = null): void
     {
-        notify_gm_submission($title, $message, $deptId, $url, $replyMarkup);
-        notify_department_head($deptId, $title, $message, $url, $replyMarkup);
+        // Deliver to GM recipients first, then pass delivered chat IDs to prevent duplicate delivery to head
+        $sentChatIds = notify_gm_submission($title, $message, $deptId, $url, $replyMarkup);
+        notify_department_head($deptId, $title, $message, $url, $replyMarkup, $sentChatIds);
     }
 }
 
