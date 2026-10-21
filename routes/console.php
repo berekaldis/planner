@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Schedule;
 
 // 1. Weekly Performance Reports: Monday 09:00 AM reminder before deadline
-Schedule::command('kaldis:weekly-reminder')
+Schedule::command('kaldis:weekly-reminder --type=performance')
     ->weeklyOn(1, '09:00')
     ->timezone('Africa/Addis_Ababa')
     ->description('Weekly Performance Report Reminder to Department Heads (Monday 09:00)');
@@ -14,7 +14,13 @@ Schedule::command('kaldis:deadline-check')
     ->timezone('Africa/Addis_Ababa')
     ->description('Weekly Cutoff Compliance Check & GM Executive Telegram Summary (Monday 12:05)');
 
-// 3. Monthly Strategic & Operational Plans: Daily morning reminder on Days 20-25 of each Ethiopian month before Day 26
+// 3. Weekly Task Planning: Friday 15:30 reminder to schedule tasks for the upcoming week
+Schedule::command('kaldis:weekly-reminder --type=plan')
+    ->weeklyOn(5, '15:30')
+    ->timezone('Africa/Addis_Ababa')
+    ->description('Weekly Task Planning Reminder to Department Heads (Friday 15:30)');
+
+// 4. Monthly Strategic & Operational Plans: Daily morning reminder on Days 20-25 of each Ethiopian month before Day 26
 Schedule::command('kaldis:monthly-reminder --type=reminder')
     ->dailyAt('09:00')
     ->timezone('Africa/Addis_Ababa')
@@ -26,7 +32,7 @@ Schedule::command('kaldis:monthly-reminder --type=reminder')
     })
     ->description('Monthly Plan Submission Reminder to Department Heads (Days before Day 26)');
 
-// 4. Monthly Strategic & Operational Plans: Cutoff on Day 26 at 17:05 & GM Executive Summary
+// 5. Monthly Strategic & Operational Plans: Cutoff on Day 26 at 17:05 & GM Executive Summary
 Schedule::command('kaldis:monthly-reminder --type=cutoff')
     ->dailyAt('17:05')
     ->timezone('Africa/Addis_Ababa')

@@ -93,6 +93,84 @@ class TelegramController extends Controller
     }
 
     /**
+     * Update, verify, and persist the Telegram Bot API Token
+     */
+    public function updateToken(Request $request)
+    {
+        $validated = $request->validate([
+            'token' => ['required', 'string', 'regex:/^\d+:[A-Za-z0-9_-]{20,}$/'],
+        ], [
+            'token.regex' => 'Invalid Telegram bot token format. Tokens are formatted as 123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ.',
+        ]);
+
+        $token = trim($validated['token']);
+
+        // Verify with Telegram Bot API
+        $service = new TelegramService($token);
+        $me = $service->getMe();
+
+        if (empty($me['ok'])) {
+            $desc = $me['description'] ?? 'Unauthorized or connection error. Please verify the token with @BotFather.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'ok' => false,
+                    'description' => "Telegram verification failed: {$desc}",
+                ], 422);
+            }
+            return back()->with('error', "Telegram verification failed: {$desc}");
+        }
+
+        $botUsername = $me['result']['username'] ?? 'KaldisPlannerBot';
+        $botName = $me['result']['first_name'] ?? 'Kaldis Bot';
+
+        // 1. Persist to system_settings table
+        SystemSetting::set('telegram_bot_token', $token, 'TELEGRAM', 'Telegram Bot API Token (from @BotFather)');
+        SystemSetting::set('telegram_bot_username', $botUsername, 'TELEGRAM', 'Telegram Bot Username');
+
+        // 2. Persist to .env if writable
+        $this->updateEnvFile('TELEGRAM_BOT_TOKEN', $token);
+        $this->updateEnvFile('TELEGRAM_BOT_USERNAME', $botUsername);
+
+        // 3. Clear configuration cache
+        try {
+            \Illuminate\Support\Facades\Artisan::call('config:clear');
+        } catch (\Throwable $e) {}
+
+        AuditLog::log('UPDATE_TELEGRAM_TOKEN', 'telegram', "Updated Telegram Bot Token to @{$botUsername} ({$botName})");
+
+        $msg = "Telegram Bot Token updated successfully! Connected to @{$botUsername} ({$botName}).";
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'ok' => true,
+                'message' => $msg,
+                'bot' => $me['result'],
+            ]);
+        }
+
+        return back()->with('success', $msg);
+    }
+
+    private function updateEnvFile(string $key, string $value): void
+    {
+        $envPath = base_path('.env');
+        if (!file_exists($envPath) || !is_writable($envPath)) {
+            return;
+        }
+
+        $content = file_get_contents($envPath);
+        $escapedValue = '"' . addcslashes($value, '"\\$') . '"';
+
+        if (preg_match("/^{$key}=/m", $content)) {
+            $content = preg_replace("/^{$key}=.*/m", "{$key}={$escapedValue}", $content);
+        } else {
+            $content .= "\n{$key}={$escapedValue}\n";
+        }
+
+        file_put_contents($envPath, $content);
+    }
+
+    /**
      * AJAX / POST endpoint to send a test message
      */
     public function sendTestMessage(Request $request)

@@ -71,13 +71,34 @@ class MonthlyPlanReminderCommand extends Command
                 ];
 
                 $head = $dept->head;
+                if (!$head && $dept->head_user_id) {
+                    $head = User::find($dept->head_user_id);
+                }
+                if (!$head) {
+                    $head = User::where('department_id', $dept->id)
+                        ->whereHas('role', fn($q) => $q->whereIn('name', ['dept_head', 'department_head']))
+                        ->first();
+                }
+
+                $chatId = null;
+                if ($head && !empty($head->telegram_chat_id) && $head->telegram_chat_id !== '123456789') {
+                    $chatId = trim((string)$head->telegram_chat_id);
+                } elseif ($head) {
+                    $tu = \Illuminate\Support\Facades\DB::table('telegram_users')->where('user_id', $head->id)->where('is_active', 1)->first();
+                    if ($tu && !empty($tu->telegram_user_id) && $tu->telegram_user_id !== '123456789') {
+                        $chatId = trim((string)$tu->telegram_user_id);
+                    }
+                }
+
+                $safeDeptName = htmlspecialchars($dept->department_name, ENT_QUOTES, 'UTF-8');
+                $safeHeadName = htmlspecialchars($head ? $head->full_name : 'Department Head', ENT_QUOTES, 'UTF-8');
 
                 if ($type === 'reminder') {
                     // Send routine reminder to Department Head
-                    if ($telegram->isConfigured() && $head && !empty($head->telegram_chat_id)) {
-                        $portalUrl = url('/monthly/plans');
+                    if ($telegram->isConfigured() && !empty($chatId)) {
+                        $portalUrl = url('/monthly/plans?year=' . urlencode($year) . '&month=' . urlencode($month));
                         $msg = "⏰ <b>Kaldis Coffee PLC — Monthly Plan Reminder</b>\n\n"
-                             . "Dear <b>{$head->full_name}</b> ({$dept->department_name}),\n\n"
+                             . "Dear <b>{$safeHeadName}</b> ({$safeDeptName}),\n\n"
                              . "This is a reminder to prepare and submit your department's Monthly Plan Package for <b>{$month} {$year}</b>.\n\n"
                              . "📅 <b>Submission Cutoff:</b> Day {$deadlineDay} of Ethiopian Month at {$deadlineTime}\n"
                              . "🎯 Please align your departmental operational tasks with the active Annual Strategic Goals.\n\n"
@@ -86,7 +107,7 @@ class MonthlyPlanReminderCommand extends Command
                              . "☕ <i>Kaldis Coffee PLC — Planning & Performance</i>\n"
                              . "📅 <i>" . format_ethiopian_datetime() . "</i>";
 
-                        $res = $telegram->sendMessage($head->telegram_chat_id, $msg);
+                        $res = $telegram->sendMessage($chatId, $msg);
                         if (!empty($res['ok'])) {
                             $remindedCount++;
                         }
@@ -117,10 +138,10 @@ class MonthlyPlanReminderCommand extends Command
                         'triggered_at' => Carbon::now(),
                     ]);
 
-                    if ($telegram->isConfigured() && $head && !empty($head->telegram_chat_id)) {
-                        $portalUrl = url('/monthly/plans');
+                    if ($telegram->isConfigured() && !empty($chatId)) {
+                        $portalUrl = url('/monthly/plans?year=' . urlencode($year) . '&month=' . urlencode($month));
                         $msg = "🚨 <b>Kaldis Monthly Plan Cutoff Escalation</b>\n\n"
-                             . "Attention: <b>{$head->full_name}</b> ({$dept->department_name})\n\n"
+                             . "Attention: <b>{$safeHeadName}</b> ({$safeDeptName})\n\n"
                              . "The official deadline for submitting your department's Monthly Plan Package for <b>{$month} {$year}</b> (Cutoff: Day {$deadlineDay} at {$deadlineTime}) has expired.\n\n"
                              . "⚠️ A <b>Level 1 Escalation</b> has been registered in the system.\n"
                              . "Please contact General Management and submit your package immediately.\n\n"
@@ -129,7 +150,7 @@ class MonthlyPlanReminderCommand extends Command
                              . "☕ <i>Kaldis Coffee PLC — Office of the General Manager</i>\n"
                              . "📅 <i>" . format_ethiopian_datetime() . "</i>";
 
-                        $res = $telegram->sendMessage($head->telegram_chat_id, $msg);
+                        $res = $telegram->sendMessage($chatId, $msg);
                         if (!empty($res['ok'])) {
                             $escalatedCount++;
                         }
@@ -158,20 +179,40 @@ class MonthlyPlanReminderCommand extends Command
             })->where('is_active', 1)->get();
 
             foreach ($gmUsers as $gm) {
-                if (!empty($gm->telegram_chat_id)) {
-                    $gmChatIds[] = trim($gm->telegram_chat_id);
+                if (!empty($gm->telegram_chat_id) && $gm->telegram_chat_id !== '123456789') {
+                    $gmChatIds[] = trim((string)$gm->telegram_chat_id);
                 }
             }
+
+            // Also check telegram_users table for linked GM accounts
+            try {
+                $linkedGmIds = \Illuminate\Support\Facades\DB::table('telegram_users')
+                    ->whereIn('user_id', $gmUsers->pluck('id'))
+                    ->where('is_active', 1)
+                    ->pluck('telegram_user_id')
+                    ->toArray();
+                foreach ($linkedGmIds as $lcid) {
+                    $lcid = trim((string)$lcid);
+                    if (!empty($lcid) && $lcid !== '123456789') {
+                        $gmChatIds[] = $lcid;
+                    }
+                }
+            } catch (\Throwable $e) {}
 
             // Also check escalation_recipients_gm
             $recipients = kaldis_setting('escalation_recipients_gm', '');
             if (!empty($recipients)) {
                 foreach (explode(',', $recipients) as $r) {
                     $r = trim($r);
-                    if (is_numeric($r) || str_starts_with($r, '@')) {
+                    if ($r !== '123456789' && (is_numeric($r) || str_starts_with($r, '-') || str_starts_with($r, '@'))) {
                         $gmChatIds[] = $r;
                     }
                 }
+            }
+
+            $groupChatId = kaldis_setting('telegram_chat_id', env('TELEGRAM_CHAT_ID', ''));
+            if (!empty($groupChatId)) {
+                $gmChatIds[] = trim((string)$groupChatId);
             }
 
             $gmChatIds = array_unique(array_filter($gmChatIds));
@@ -198,8 +239,9 @@ class MonthlyPlanReminderCommand extends Command
                 if (!empty($submittedDepts)) {
                     $gmReport .= "🟢 <b>Submitted Departments:</b>\n";
                     foreach ($submittedDepts as $item) {
+                        $safeDept = htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8');
                         $badge = $item['status'] === 'LATE' ? '🟡 (Late)' : '🟢 (On-Time)';
-                        $gmReport .= "• {$item['dept']->department_name} {$badge} — <i>{$item['plans_count']} plans</i>\n";
+                        $gmReport .= "• {$safeDept} {$badge} — <i>{$item['plans_count']} plans</i>\n";
                     }
                     $gmReport .= "\n";
                 }
@@ -207,8 +249,10 @@ class MonthlyPlanReminderCommand extends Command
                 if (!empty($unsubmittedDepts)) {
                     $gmReport .= "🔴 <b>Delinquent Departments (NOT SUBMITTED):</b>\n";
                     foreach ($unsubmittedDepts as $item) {
+                        $safeDept = htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8');
                         $headName = $item['dept']->head ? $item['dept']->head->full_name : 'No Head Assigned';
-                        $gmReport .= "• <b>{$item['dept']->department_name}</b> ({$headName})\n";
+                        $safeHead = htmlspecialchars($headName, ENT_QUOTES, 'UTF-8');
+                        $gmReport .= "• <b>{$safeDept}</b> ({$safeHead})\n";
                     }
                     $gmReport .= "\n";
                 }

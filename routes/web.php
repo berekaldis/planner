@@ -80,6 +80,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('telegram')->name('telegram.')->group(function () {
         Route::get('/status', [TelegramController::class, 'status'])->name('status');
         Route::post('/test-connection', [TelegramController::class, 'testConnection'])->name('test');
+        Route::post('/update-token', [TelegramController::class, 'updateToken'])->name('update_token');
         Route::post('/send-test', [TelegramController::class, 'sendTestMessage'])->name('send_test');
         Route::get('/webhook/info', [TelegramController::class, 'webhookInfo'])->name('webhook.info');
         Route::post('/webhook/set', [TelegramController::class, 'setWebhook'])->name('webhook.set');

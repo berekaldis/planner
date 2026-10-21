@@ -22,14 +22,34 @@ class TelegramService
     public function __construct(?string $token = null)
     {
         if ($token !== null) {
-            $this->botToken = $token;
+            $this->botToken = trim($token);
         } else {
+            $envToken = trim((string)env('TELEGRAM_BOT_TOKEN', config('telegram.bot_token', '')));
             $dbToken = null;
             try {
                 $dbToken = SystemSetting::where('setting_key', 'telegram_bot_token')->value('setting_value');
+                $dbToken = !empty($dbToken) ? trim((string)$dbToken) : null;
             } catch (\Throwable $e) {}
 
-            $this->botToken = !empty($dbToken) ? trim($dbToken) : config('telegram.bot_token', '');
+            $revokedTokens = [
+                '8370988256:AAE8aG5s2vzEy6PfSH2b-Fiufr_num0A_rY',
+                'YOUR_BOT_TOKEN_HERE',
+                'YOUR_TELEGRAM_BOT_TOKEN',
+            ];
+
+            // If .env has a real configured token not in revoked list, prioritize it
+            if (!empty($envToken) && !in_array($envToken, $revokedTokens)) {
+                $this->botToken = $envToken;
+                if ($dbToken !== $envToken) {
+                    try {
+                        SystemSetting::set('telegram_bot_token', $envToken, 'TELEGRAM', 'Telegram Bot API Token (from @BotFather)');
+                    } catch (\Throwable $e) {}
+                }
+            } elseif (!empty($dbToken) && !in_array($dbToken, $revokedTokens)) {
+                $this->botToken = $dbToken;
+            } else {
+                $this->botToken = !empty($envToken) ? $envToken : ($dbToken ?? '');
+            }
         }
 
         $this->apiUrl = "https://api.telegram.org/bot{$this->botToken}/";
@@ -190,6 +210,15 @@ class TelegramService
         }
 
         $res = $this->request('sendMessage', $params);
+
+        // Fallback: If Telegram API rejects message due to unescaped HTML entities (e.g. unescaped & in department names), retry sending without parse_mode
+        if (empty($res['ok']) && !empty($res['description']) && str_contains(strtolower($res['description']), "can't parse entities")) {
+            Log::warning("Telegram HTML parse error: {$res['description']}. Retrying with plain text delivery to {$chatId}.");
+            $plainParams = $params;
+            $plainParams['text'] = strip_tags($text);
+            unset($plainParams['parse_mode']);
+            $res = $this->request('sendMessage', $plainParams);
+        }
 
         // Audit log in telegram_messages table
         try {

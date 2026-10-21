@@ -421,26 +421,55 @@ if (!function_exists('notify_gm_submission')) {
             $telegram = app(\App\Services\TelegramService::class);
             if ($telegram && $telegram->isConfigured()) {
                 $chatIds = [];
+
+                // Valid chat IDs from GM users
                 foreach ($gmUsers as $gm) {
                     if (!empty($gm->telegram_chat_id)) {
-                        $chatIds[] = trim($gm->telegram_chat_id);
+                        $cid = trim((string)$gm->telegram_chat_id);
+                        if ($cid !== '123456789' && (is_numeric($cid) || str_starts_with($cid, '-'))) {
+                            $chatIds[] = $cid;
+                        }
                     }
                 }
 
+                // Also check telegram_users table for bound GM accounts
+                try {
+                    $linkedGmIds = \Illuminate\Support\Facades\DB::table('telegram_users')
+                        ->whereIn('user_id', $gmUsers->pluck('id'))
+                        ->where('is_active', 1)
+                        ->pluck('telegram_user_id')
+                        ->toArray();
+                    foreach ($linkedGmIds as $lcid) {
+                        $lcid = trim((string)$lcid);
+                        if (!empty($lcid) && $lcid !== '123456789') {
+                            $chatIds[] = $lcid;
+                        }
+                    }
+                } catch (\Throwable $e) {}
+
+                // Check escalation / GM recipients setting
                 $escalationRecipients = kaldis_setting('escalation_recipients_gm', '');
                 if (!empty($escalationRecipients)) {
                     foreach (explode(',', $escalationRecipients) as $rec) {
                         $rec = trim($rec);
-                        if (is_numeric($rec) || str_starts_with($rec, '@')) {
+                        if ($rec !== '123456789' && (is_numeric($rec) || str_starts_with($rec, '-') || str_starts_with($rec, '@'))) {
                             $chatIds[] = $rec;
                         }
                     }
                 }
 
+                // Check general channel/group setting if configured
+                $groupChatId = kaldis_setting('telegram_chat_id', env('TELEGRAM_CHAT_ID', ''));
+                if (!empty($groupChatId)) {
+                    $chatIds[] = trim((string)$groupChatId);
+                }
+
                 $chatIds = array_unique(array_filter($chatIds));
 
-                $telegramText = "<b>" . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "</b>\n\n"
-                    . htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+                $safeTitle = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
+                $safeMessage = htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+
+                $telegramText = "<b>{$safeTitle}</b>\n\n{$safeMessage}";
 
                 $replyMarkup = null;
                 if ($voucherUrl) {
@@ -471,11 +500,23 @@ if (!function_exists('notify_department_head')) {
     {
         try {
             $dept = \App\Models\Department::with('head')->find($deptId);
-            if (!$dept || !$dept->head) {
+            if (!$dept) {
                 return;
             }
 
             $head = $dept->head;
+            if (!$head && $dept->head_user_id) {
+                $head = \App\Models\User::find($dept->head_user_id);
+            }
+            if (!$head) {
+                $head = \App\Models\User::where('department_id', $deptId)
+                    ->whereHas('role', fn($q) => $q->whereIn('name', ['dept_head', 'department_head']))
+                    ->first();
+            }
+
+            if (!$head) {
+                return;
+            }
 
             // 1. In-app notification
             \Illuminate\Support\Facades\DB::table('notifications')->insert([
@@ -488,10 +529,27 @@ if (!function_exists('notify_department_head')) {
             ]);
 
             // 2. Telegram notification
+            $chatId = null;
+            if (!empty($head->telegram_chat_id)) {
+                $chatId = trim((string)$head->telegram_chat_id);
+            } else {
+                try {
+                    $tu = \Illuminate\Support\Facades\DB::table('telegram_users')
+                        ->where('user_id', $head->id)
+                        ->where('is_active', 1)
+                        ->first();
+                    if ($tu) {
+                        $chatId = trim((string)$tu->telegram_user_id);
+                    }
+                } catch (\Throwable $e) {}
+            }
+
             $telegram = app(\App\Services\TelegramService::class);
-            if ($telegram && $telegram->isConfigured() && !empty($head->telegram_chat_id)) {
-                $telegramText = "<b>" . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "</b>\n\n"
-                    . $message;
+            if ($telegram && $telegram->isConfigured() && !empty($chatId) && $chatId !== '123456789') {
+                $safeTitle = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
+                $safeMessage = htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+
+                $telegramText = "<b>{$safeTitle}</b>\n\n{$safeMessage}";
 
                 $replyMarkup = null;
                 if ($url) {
@@ -507,7 +565,7 @@ if (!function_exists('notify_department_head')) {
                 }
                 $telegramText .= "\n\n📅 <i>" . format_ethiopian_datetime() . "</i>";
 
-                $telegram->sendMessage($head->telegram_chat_id, $telegramText, $replyMarkup);
+                $telegram->sendMessage($chatId, $telegramText, $replyMarkup);
             }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error("notify_department_head error: " . $e->getMessage());

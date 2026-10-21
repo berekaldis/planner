@@ -130,16 +130,41 @@ class DeadlineCheckCommand extends Command
 
                 // Send Telegram Escalation Alert to Department Head
                 $head = $dept->head;
-                if ($telegram->isConfigured() && $head && !empty($head->telegram_chat_id)) {
+                if (!$head && $dept->head_user_id) {
+                    $head = User::find($dept->head_user_id);
+                }
+                if (!$head) {
+                    $head = User::where('department_id', $dept->id)
+                        ->whereHas('role', fn($q) => $q->whereIn('name', ['dept_head', 'department_head']))
+                        ->first();
+                }
+
+                $chatId = null;
+                if ($head && !empty($head->telegram_chat_id) && $head->telegram_chat_id !== '123456789') {
+                    $chatId = trim((string)$head->telegram_chat_id);
+                } elseif ($head) {
+                    $tu = \Illuminate\Support\Facades\DB::table('telegram_users')->where('user_id', $head->id)->where('is_active', 1)->first();
+                    if ($tu && !empty($tu->telegram_user_id) && $tu->telegram_user_id !== '123456789') {
+                        $chatId = trim((string)$tu->telegram_user_id);
+                    }
+                }
+
+                if ($telegram->isConfigured() && !empty($chatId)) {
+                    $safeDeptName = htmlspecialchars($dept->department_name, ENT_QUOTES, 'UTF-8');
+                    $safeHeadName = htmlspecialchars($head ? $head->full_name : 'Department Head', ENT_QUOTES, 'UTF-8');
+                    $perfUrl = url('/weekly/performance?week=' . $week . '&year=' . urlencode($year) . '&month=' . urlencode($month));
+
                     $msg = "🚨 <b>Kaldis Deadline Escalation Alert</b>\n\n"
-                         . "Attention: <b>{$head->full_name}</b> ({$dept->department_name})\n\n"
-                         . "The weekly submission deadline for <b>{$dept->department_name}</b> ({$month} {$year}, Week {$week}) has expired without a submitted report.\n\n"
+                         . "Attention: <b>{$safeHeadName}</b> ({$safeDeptName})\n\n"
+                         . "The weekly submission deadline for <b>{$safeDeptName}</b> ({$month} {$year}, Week {$week}) has expired without a submitted report.\n\n"
                          . "⚠️ A <b>Level 1 Escalation</b> has been registered in the system.\n"
                          . "Please evaluate your tasks and submit your execution report immediately:\n"
-                         . "<code>" . url('/weekly/performance?week=' . $week) . "</code>\n\n"
-                         . "☕ <i>Kaldis Coffee PLC — Executive Operations</i>";
+                         . "🌐 <a href=\"{$perfUrl}\"><b>Submit Performance Report Now</b></a>\n"
+                         . "🔗 {$perfUrl}\n\n"
+                         . "☕ <i>Kaldis Coffee PLC — Executive Operations</i>\n"
+                         . "📅 <i>" . format_ethiopian_datetime() . "</i>";
 
-                    $res = $telegram->sendMessage($head->telegram_chat_id, $msg);
+                    $res = $telegram->sendMessage($chatId, $msg);
                     if (!empty($res['ok'])) {
                         $escalationsSent++;
                     }
@@ -166,20 +191,40 @@ class DeadlineCheckCommand extends Command
             })->where('is_active', 1)->get();
 
             foreach ($gmUsers as $gm) {
-                if (!empty($gm->telegram_chat_id)) {
-                    $gmChatIds[] = trim($gm->telegram_chat_id);
+                if (!empty($gm->telegram_chat_id) && $gm->telegram_chat_id !== '123456789') {
+                    $gmChatIds[] = trim((string)$gm->telegram_chat_id);
                 }
             }
+
+            // Also check telegram_users table for linked GM accounts
+            try {
+                $linkedGmIds = \Illuminate\Support\Facades\DB::table('telegram_users')
+                    ->whereIn('user_id', $gmUsers->pluck('id'))
+                    ->where('is_active', 1)
+                    ->pluck('telegram_user_id')
+                    ->toArray();
+                foreach ($linkedGmIds as $lcid) {
+                    $lcid = trim((string)$lcid);
+                    if (!empty($lcid) && $lcid !== '123456789') {
+                        $gmChatIds[] = $lcid;
+                    }
+                }
+            } catch (\Throwable $e) {}
 
             // Check system settings for escalation_recipients_gm
             $recipients = kaldis_setting('escalation_recipients_gm', '');
             if (!empty($recipients)) {
                 foreach (explode(',', $recipients) as $r) {
                     $r = trim($r);
-                    if (is_numeric($r) || str_starts_with($r, '@')) {
+                    if ($r !== '123456789' && (is_numeric($r) || str_starts_with($r, '-') || str_starts_with($r, '@'))) {
                         $gmChatIds[] = $r;
                     }
                 }
+            }
+
+            $groupChatId = kaldis_setting('telegram_chat_id', env('TELEGRAM_CHAT_ID', ''));
+            if (!empty($groupChatId)) {
+                $gmChatIds[] = trim((string)$groupChatId);
             }
 
             $gmChatIds = array_unique(array_filter($gmChatIds));
@@ -201,7 +246,8 @@ class DeadlineCheckCommand extends Command
                 if (!empty($onTimeDepts)) {
                     $execMsg .= "🟢 <b>On-Time Submissions:</b>\n";
                     foreach ($onTimeDepts as $item) {
-                        $execMsg .= "• {$item['dept']->department_name} ({$item['rate']}% completion, {$item['done']}/{$item['total']} tasks)\n";
+                        $safeDept = htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8');
+                        $execMsg .= "• {$safeDept} ({$item['rate']}% completion, {$item['done']}/{$item['total']} tasks)\n";
                     }
                     $execMsg .= "\n";
                 }
@@ -209,7 +255,8 @@ class DeadlineCheckCommand extends Command
                 if (!empty($lateDepts)) {
                     $execMsg .= "🟡 <b>Late Submissions:</b>\n";
                     foreach ($lateDepts as $item) {
-                        $execMsg .= "• {$item['dept']->department_name} ({$item['rate']}% completion)\n";
+                        $safeDept = htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8');
+                        $execMsg .= "• {$safeDept} ({$item['rate']}% completion)\n";
                     }
                     $execMsg .= "\n";
                 }
@@ -217,8 +264,10 @@ class DeadlineCheckCommand extends Command
                 if (!empty($missingDepts)) {
                     $execMsg .= "🔴 <b>Delinquent Departments (NOT SUBMITTED):</b>\n";
                     foreach ($missingDepts as $item) {
+                        $safeDept = htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8');
                         $headName = $item['dept']->head ? $item['dept']->head->full_name : 'No Head Assigned';
-                        $execMsg .= "• <b>{$item['dept']->department_name}</b> ({$headName})\n";
+                        $safeHead = htmlspecialchars($headName, ENT_QUOTES, 'UTF-8');
+                        $execMsg .= "• <b>{$safeDept}</b> ({$safeHead})\n";
                     }
                     $execMsg .= "\n";
                 }

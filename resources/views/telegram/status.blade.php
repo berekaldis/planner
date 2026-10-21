@@ -193,6 +193,30 @@
                             <strong>Webhook Error:</strong> {{ $webhookInfo['result']['last_error_message'] }}
                         </div>
                     @endif
+
+                    <hr class="my-3 text-light-subtle">
+                    <div class="bg-light p-3 rounded-3 border border-light-subtle">
+                        <label class="form-label small fw-bold text-dark d-flex align-items-center justify-content-between mb-2">
+                            <span><i class="fas fa-key text-warning me-1"></i> Update Bot API Token</span>
+                            <span class="badge bg-warning-subtle text-dark border border-warning-subtle" style="font-size: 0.7rem;">@BotFather</span>
+                        </label>
+                        <form id="updateTokenForm">
+                            @csrf
+                            <div class="input-group input-group-sm mb-2">
+                                <input type="password" id="newBotTokenInput" name="token" class="form-control font-monospace" placeholder="Paste token (e.g. 123456789:ABCdefGhI...)" required autocomplete="off">
+                                <button class="btn btn-outline-secondary" type="button" id="btnToggleTokenVisibility" title="Show / Hide">
+                                    <i class="fas fa-eye" id="tokenEyeIcon"></i>
+                                </button>
+                                <button class="btn btn-primary fw-semibold" type="submit" id="btnSaveToken">
+                                    <i class="fas fa-check me-1"></i> Save &amp; Connect
+                                </button>
+                            </div>
+                            <div class="form-text small text-muted" style="font-size: 0.72rem;">
+                                If you changed or regenerated the token in @BotFather, paste it here. It will test live connectivity and update the server configuration.
+                            </div>
+                            <div id="updateTokenAlert" class="mt-2 d-none"></div>
+                        </form>
+                    </div>
                 </div>
             </div>
 
@@ -633,6 +657,71 @@ document.addEventListener('DOMContentLoaded', function () {
                 pollBtn.disabled = false;
                 pollBtn.innerHTML = '<i class="fas fa-arrows-rotate"></i> Sync Updates';
                 alert('Polling error: ' + err.message);
+            });
+        });
+    }
+
+    // Update Bot Token Form Handler
+    const updateTokenForm = document.getElementById('updateTokenForm');
+    const newBotTokenInput = document.getElementById('newBotTokenInput');
+    const btnToggleTokenVisibility = document.getElementById('btnToggleTokenVisibility');
+    const tokenEyeIcon = document.getElementById('tokenEyeIcon');
+    const btnSaveToken = document.getElementById('btnSaveToken');
+    const updateTokenAlert = document.getElementById('updateTokenAlert');
+
+    if (btnToggleTokenVisibility && newBotTokenInput) {
+        btnToggleTokenVisibility.addEventListener('click', function () {
+            if (newBotTokenInput.type === 'password') {
+                newBotTokenInput.type = 'text';
+                tokenEyeIcon.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                newBotTokenInput.type = 'password';
+                tokenEyeIcon.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+        });
+    }
+
+    if (updateTokenForm) {
+        updateTokenForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            const token = (newBotTokenInput.value || '').trim();
+            if (!token) return;
+
+            btnSaveToken.disabled = true;
+            btnSaveToken.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Verifying...';
+            updateTokenAlert.classList.add('d-none');
+
+            fetch('{{ route('telegram.update_token') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ token: token })
+            })
+            .then(res => res.json().then(data => ({ status: res.status, body: data })))
+            .then(({ status, body }) => {
+                btnSaveToken.disabled = false;
+                btnSaveToken.innerHTML = '<i class="fas fa-check me-1"></i> Save &amp; Connect';
+
+                updateTokenAlert.classList.remove('d-none', 'alert-success', 'alert-danger');
+
+                if (body.ok) {
+                    updateTokenAlert.classList.add('alert', 'alert-success', 'py-2', 'px-3', 'small');
+                    updateTokenAlert.innerHTML = '<i class="fas fa-check-circle me-1"></i> ' + body.message + ' Reloading...';
+                    setTimeout(() => window.location.reload(), 1200);
+                } else {
+                    updateTokenAlert.classList.add('alert', 'alert-danger', 'py-2', 'px-3', 'small');
+                    updateTokenAlert.innerHTML = '<i class="fas fa-circle-exclamation me-1"></i> ' + (body.description || body.message || 'Token verification failed.');
+                }
+            })
+            .catch(err => {
+                btnSaveToken.disabled = false;
+                btnSaveToken.innerHTML = '<i class="fas fa-check me-1"></i> Save &amp; Connect';
+                updateTokenAlert.classList.remove('d-none', 'alert-success');
+                updateTokenAlert.classList.add('alert', 'alert-danger', 'py-2', 'px-3', 'small');
+                updateTokenAlert.innerHTML = '<i class="fas fa-triangle-exclamation me-1"></i> Network error: ' + err.message;
             });
         });
     }

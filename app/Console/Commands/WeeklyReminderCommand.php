@@ -5,60 +5,191 @@ namespace App\Console\Commands;
 use App\Models\AuditLog;
 use App\Models\Department;
 use App\Models\Submission;
+use App\Models\User;
+use App\Models\WeeklyPlan;
+use App\Models\WeeklyReport;
 use App\Services\TelegramService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 class WeeklyReminderCommand extends Command
 {
     protected $signature = 'kaldis:weekly-reminder 
+                            {--type=performance : Reminder type: "performance" (Execution report), "plan" (Upcoming tasks scheduling), or "all"}
                             {--week= : Specific week number (1 to 5)}
                             {--month= : Specific Ethiopian Month}
                             {--year= : Specific Planning Year}';
-    protected $description = 'Send weekly performance report submission reminders to department heads via Telegram & system logs';
 
-    public function handle(TelegramService $telegram)
+    protected $description = 'Send automated weekly performance report and weekly planning reminders to department heads and GM via Telegram';
+
+    public function handle(TelegramService $telegram): int
     {
         $year = $this->option('year') ?: kaldis_setting('current_planning_year', config('kaldis.current_planning_year', '2019 E.C.'));
         $month = $this->option('month') ?: kaldis_setting('current_planning_month', config('kaldis.current_planning_month', 'Meskerem'));
         $week = (int)($this->option('week') ?: (function_exists('get_current_planning_week') ? get_current_planning_week() : 1) ?: 1);
+        $type = strtolower((string)$this->option('type'));
 
-        $this->info("Running weekly report reminders for {$month} {$year} (Week {$week})...");
+        $this->info("Executing Weekly Reminder [Type: {$type}] for {$month} {$year} (Week {$week})...");
 
         $departments = Department::where('active', 1)->with('head')->get();
-        $remindedCount = 0;
-        $telegramSentCount = 0;
+        $totalDepts = $departments->count();
+
+        $performanceReminded = 0;
+        $planReminded = 0;
+        $unsubmittedDepts = [];
 
         foreach ($departments as $dept) {
-            $submitted = Submission::where('department_id', $dept->id)
-                ->where('year', $year)
-                ->where('month', $month)
-                ->where('week_number', $week)
-                ->exists();
+            $head = $dept->head;
+            if (!$head && $dept->head_user_id) {
+                $head = User::find($dept->head_user_id);
+            }
+            if (!$head) {
+                $head = User::where('department_id', $dept->id)
+                    ->whereHas('role', fn($q) => $q->whereIn('name', ['dept_head', 'department_head']))
+                    ->first();
+            }
 
-            if (!$submitted) {
-                $headName = $dept->head ? $dept->head->full_name : 'Department Head';
-                $this->line("- Reminding: {$dept->department_name} ({$headName})");
-                $remindedCount++;
+            // Find head chat ID
+            $chatId = null;
+            if ($head && !empty($head->telegram_chat_id) && $head->telegram_chat_id !== '123456789') {
+                $chatId = trim((string)$head->telegram_chat_id);
+            } elseif ($head) {
+                $tu = DB::table('telegram_users')->where('user_id', $head->id)->where('is_active', 1)->first();
+                if ($tu && !empty($tu->telegram_user_id) && $tu->telegram_user_id !== '123456789') {
+                    $chatId = trim((string)$tu->telegram_user_id);
+                }
+            }
 
-                // Send Telegram reminder if bot is configured and department head has chat ID
-                if ($telegram->isConfigured() && $dept->head && !empty($dept->head->telegram_chat_id)) {
-                    $msg = "⏰ *Kaldis Weekly Performance Reminder*\n\n"
-                         . "Dear {$dept->head->full_name},\n"
-                         . "This is a friendly reminder that the weekly report for *{$dept->department_name}* ({$month} {$year}, Week {$week}) is pending submission.\n\n"
-                         . "Please review your tasks and submit on time.\n\n"
-                         . "☕ _Kaldis Coffee PLC — Planning & Performance_";
+            $safeDeptName = htmlspecialchars($dept->department_name, ENT_QUOTES, 'UTF-8');
+            $safeHeadName = htmlspecialchars($head ? $head->full_name : 'Department Head', ENT_QUOTES, 'UTF-8');
 
-                    $res = $telegram->sendMessage($dept->head->telegram_chat_id, $msg);
-                    if (!empty($res['ok'])) {
-                        $telegramSentCount++;
+            // 1. Weekly Performance Execution Reminder
+            if ($type === 'performance' || $type === 'all') {
+                $isSubmitted = Submission::where('department_id', $dept->id)
+                    ->where('year', $year)
+                    ->where('month', $month)
+                    ->where('week_number', $week)
+                    ->whereIn('status', ['ON_TIME', 'LATE'])
+                    ->exists();
+
+                if (!$isSubmitted) {
+                    $unsubmittedDepts[] = [
+                        'dept' => $dept,
+                        'head' => $head,
+                    ];
+
+                    $this->line("- Reminding Performance: {$dept->department_name} ({$safeHeadName})");
+
+                    if ($telegram->isConfigured() && !empty($chatId)) {
+                        $perfUrl = url("/weekly/performance?year=" . urlencode($year) . "&month=" . urlencode($month) . "&week=" . $week);
+                        $msg = "⏰ <b>Kaldis Coffee PLC — Weekly Performance Reminder</b>\n\n"
+                             . "Dear <b>{$safeHeadName}</b> ({$safeDeptName}),\n\n"
+                             . "This is a reminder to evaluate and submit your department's <b>Weekly Performance Execution Report</b> for <b>{$month} {$year}, Week {$week}</b>.\n\n"
+                             . "📅 <b>Submission Deadline:</b> Monday 12:00 PM\n"
+                             . "🎯 Please verify all binary task statuses (DONE / NOT DONE) with reasons.\n\n"
+                             . "🌐 <a href=\"{$perfUrl}\"><b>Open Weekly Performance in Portal</b></a>\n"
+                             . "🔗 {$perfUrl}\n\n"
+                             . "☕ <i>Kaldis Coffee PLC — Planning & Operational Governance</i>\n"
+                             . "📅 <i>" . format_ethiopian_datetime() . "</i>";
+
+                        $res = $telegram->sendMessage($chatId, $msg);
+                        if (!empty($res['ok'])) {
+                            $performanceReminded++;
+                        }
+                    }
+                }
+            }
+
+            // 2. Weekly Planning (Upcoming Week Task Scheduling) Reminder
+            if ($type === 'plan' || $type === 'all') {
+                $hasWeeklyPlan = WeeklyPlan::where('department_id', $dept->id)
+                    ->where('year', $year)
+                    ->where('month', $month)
+                    ->where('week_number', $week)
+                    ->whereHas('tasks')
+                    ->exists();
+
+                if (!$hasWeeklyPlan) {
+                    $this->line("- Reminding Task Scheduling: {$dept->department_name} ({$safeHeadName})");
+
+                    if ($telegram->isConfigured() && !empty($chatId)) {
+                        $planUrl = url("/weekly/plans?year=" . urlencode($year) . "&month=" . urlencode($month) . "&week=" . $week);
+                        $msg = "📝 <b>Kaldis Coffee PLC — Weekly Planning Reminder</b>\n\n"
+                             . "Dear <b>{$safeHeadName}</b> ({$safeDeptName}),\n\n"
+                             . "This is a reminder to schedule your department's <b>Weekly Operational Tasks</b> for <b>{$month} {$year}, Week {$week}</b>.\n\n"
+                             . "🎯 Align your weekly deliverables with the active monthly targets and strategic goals.\n\n"
+                             . "🌐 <a href=\"{$planUrl}\"><b>Schedule Tasks in Portal</b></a>\n"
+                             . "🔗 {$planUrl}\n\n"
+                             . "☕ <i>Kaldis Coffee PLC — Planning & Operational Governance</i>\n"
+                             . "📅 <i>" . format_ethiopian_datetime() . "</i>";
+
+                        $res = $telegram->sendMessage($chatId, $msg);
+                        if (!empty($res['ok'])) {
+                            $planReminded++;
+                        }
                     }
                 }
             }
         }
 
-        AuditLog::log('CRON_REMINDER', 'system', "Sent weekly submission reminder to {$remindedCount} departments (Week {$week}). Telegram delivered: {$telegramSentCount}");
-        $this->info("Completed. {$remindedCount} departments reminded ({$telegramSentCount} via Telegram).");
+        // Summary notification to GM / Management group if unsubmitted departments exist
+        $gmSentCount = 0;
+        if (!empty($unsubmittedDepts) && $telegram->isConfigured()) {
+            $gmChatIds = [];
 
+            // Collect GM chat IDs
+            $gmUsers = User::where(function ($q) {
+                $q->whereHas('role', fn($r) => $r->whereIn('name', ['gm_management', 'super_admin', 'gm']))
+                  ->orWhereIn('role_id', [1, 2]);
+            })->where('is_active', 1)->get();
+
+            foreach ($gmUsers as $gm) {
+                if (!empty($gm->telegram_chat_id) && $gm->telegram_chat_id !== '123456789') {
+                    $gmChatIds[] = trim((string)$gm->telegram_chat_id);
+                }
+            }
+
+            $groupChatId = kaldis_setting('telegram_chat_id', env('TELEGRAM_CHAT_ID', ''));
+            if (!empty($groupChatId)) {
+                $gmChatIds[] = trim((string)$groupChatId);
+            }
+
+            $gmChatIds = array_unique(array_filter($gmChatIds));
+
+            if (!empty($gmChatIds)) {
+                $unsubCount = count($unsubmittedDepts);
+                $gmMsg = "📊 <b>Kaldis Weekly Submission Status Digest</b>\n"
+                       . "📅 <b>Period:</b> Week {$week} &bull; {$month} {$year}\n"
+                       . "⏰ <b>Status Check:</b> " . format_ethiopian_datetime() . "\n\n"
+                       . "• Total Departments: <b>{$totalDepts}</b>\n"
+                       . "• 🔴 Pending Submissions: <b>{$unsubCount}</b>\n\n";
+
+                $gmMsg .= "<b>Pending Departments:</b>\n";
+                foreach ($unsubmittedDepts as $item) {
+                    $hName = $item['head'] ? $item['head']->full_name : 'No Head Assigned';
+                    $gmMsg .= "• " . htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8') . " (<i>{$hName}</i>)\n";
+                }
+
+                $dashboardUrl = url("/management/dashboard?year=" . urlencode($year) . "&month=" . urlencode($month) . "&week=" . $week);
+                $gmMsg .= "\n🌐 <a href=\"{$dashboardUrl}\"><b>Open Executive Dashboard</b></a>\n"
+                       . "☕ <i>Kaldis Coffee PLC — Executive Operations</i>";
+
+                foreach ($gmChatIds as $cid) {
+                    $res = $telegram->sendMessage($cid, $gmMsg);
+                    if (!empty($res['ok'])) {
+                        $gmSentCount++;
+                    }
+                }
+            }
+        }
+
+        AuditLog::log(
+            'WEEKLY_REMINDER_CHECK',
+            'system',
+            "Weekly reminders for Week {$week} ({$month} {$year}). Performance alerts: {$performanceReminded}, Planning alerts: {$planReminded}, GM summaries: {$gmSentCount}"
+        );
+
+        $this->info("Completed. Performance alerts sent: {$performanceReminded}, Planning alerts: {$planReminded}, GM summaries: {$gmSentCount}");
         return Command::SUCCESS;
     }
 }
