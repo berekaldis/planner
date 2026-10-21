@@ -691,7 +691,7 @@ document.addEventListener('DOMContentLoaded', function () {
             btnSaveToken.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Verifying...';
             updateTokenAlert.classList.add('d-none');
 
-            fetch('{{ route('telegram.update_token') }}', {
+            fetch('{{ url('/telegram/test-connection') }}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

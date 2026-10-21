@@ -25,6 +25,15 @@ class AppServiceProvider extends ServiceProvider
     {
         Paginator::useBootstrapFive();
 
+        // Auto-heal: Invalidate stale route cache if routes/web.php was updated
+        try {
+            $routeCache = base_path('bootstrap/cache/routes-v7.php');
+            $routesWeb = base_path('routes/web.php');
+            if (file_exists($routeCache) && file_exists($routesWeb) && filemtime($routesWeb) > filemtime($routeCache)) {
+                @unlink($routeCache);
+            }
+        } catch (\Throwable $e) {}
+
         // Auto-heal schema for monthly_submissions to eliminate truncation warnings
         try {
             if (!Cache::has('schema_monthly_submissions_status_v2')) {

@@ -23,6 +23,15 @@ class TelegramController extends Controller
      */
     public function status(Request $request)
     {
+        // Auto-heal: Invalidate stale route and view caches if routes were updated
+        try {
+            $routeCache = base_path('bootstrap/cache/routes-v7.php');
+            $routesWeb = base_path('routes/web.php');
+            if (file_exists($routeCache) && file_exists($routesWeb) && filemtime($routesWeb) > filemtime($routeCache)) {
+                @unlink($routeCache);
+            }
+        } catch (\Throwable $e) {}
+
         $isConfigured = $this->telegram->isConfigured();
         $botInfo = $isConfigured ? $this->telegram->getMe() : ['ok' => false];
         $webhookInfo = $isConfigured ? $this->telegram->getWebhookInfo() : ['ok' => false];
@@ -84,10 +93,14 @@ class TelegramController extends Controller
     }
 
     /**
-     * AJAX endpoint to test Telegram connection (getMe)
+     * AJAX endpoint to test Telegram connection (getMe) or update token if provided
      */
     public function testConnection(Request $request)
     {
+        if ($request->filled('token')) {
+            return $this->updateToken($request);
+        }
+
         $res = $this->telegram->getMe();
         return response()->json($res);
     }
@@ -131,9 +144,15 @@ class TelegramController extends Controller
         $this->updateEnvFile('TELEGRAM_BOT_TOKEN', $token);
         $this->updateEnvFile('TELEGRAM_BOT_USERNAME', $botUsername);
 
-        // 3. Clear configuration cache
+        // 3. Clear application caches and un-cache stale routes
         try {
+            \Illuminate\Support\Facades\Artisan::call('route:clear');
             \Illuminate\Support\Facades\Artisan::call('config:clear');
+            \Illuminate\Support\Facades\Artisan::call('view:clear');
+            $cacheRoute = base_path('bootstrap/cache/routes-v7.php');
+            if (file_exists($cacheRoute)) {
+                @unlink($cacheRoute);
+            }
         } catch (\Throwable $e) {}
 
         AuditLog::log('UPDATE_TELEGRAM_TOKEN', 'telegram', "Updated Telegram Bot Token to @{$botUsername} ({$botName})");
