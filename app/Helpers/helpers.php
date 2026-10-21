@@ -394,30 +394,96 @@ if (!function_exists('format_et_calendar')) {
     }
 }
 
+if (!function_exists('get_monthly_plan_deadline_info')) {
+    /**
+     * Compute the official Monthly Plan submission deadline.
+     * Business Governance Rule: The monthly plan is due in the PRECEDING Ethiopian month.
+     * Example: Hidar plan package is due on Tikimt 26 at 17:00.
+     *          Tikimt plan package is due on Meskerem 26 at 17:00.
+     *          Meskerem plan package is due on Nehase 26 (previous year) at 17:00.
+     */
+    function get_monthly_plan_deadline_info(string $plannedMonth, string $plannedYear): array
+    {
+        $months = [
+            1 => 'Meskerem', 2 => 'Tikimt', 3 => 'Hidar', 4 => 'Tahsas',
+            5 => 'Tir', 6 => 'Yakatit', 7 => 'Megabit', 8 => 'Miazia',
+            9 => 'Ginbot', 10 => 'Sene', 11 => 'Hamle', 12 => 'Nehase'
+        ];
+        $normalized = normalize_ethiopian_month($plannedMonth);
+        $mNum = array_search($normalized, $months);
+        if (!$mNum) {
+            $mNum = 1;
+        }
+
+        $yNum = (int)preg_replace('/[^0-9]/', '', $plannedYear) ?: 2019;
+
+        // Preceding month for submission deadline
+        if ($mNum === 1) {
+            $deadlineMonthNum = 12; // Nehase
+            $deadlineYearNum = $yNum - 1;
+        } else {
+            $deadlineMonthNum = $mNum - 1;
+            $deadlineYearNum = $yNum;
+        }
+
+        $deadlineMonthName = $months[$deadlineMonthNum];
+        $deadlineYearStr = "{$deadlineYearNum} E.C.";
+
+        $deadlineDay = (int)kaldis_setting('monthly_plan_deadline_day', kaldis_setting('monthly_deadline_day', 26));
+        $deadlineTime = kaldis_setting('monthly_plan_deadline_time', '17:00');
+
+        $timeParts = explode(':', $deadlineTime);
+        $hour = (int)($timeParts[0] ?? 17);
+        $min = (int)($timeParts[1] ?? 0);
+
+        [$gy, $gm, $gd] = ethiopian_to_gregorian_date($deadlineYearNum, $deadlineMonthNum, $deadlineDay);
+        $deadlineCarbon = \Carbon\Carbon::create($gy, $gm, $gd, $hour, $min, 0, 'Africa/Addis_Ababa');
+        $now = \Carbon\Carbon::now('Africa/Addis_Ababa');
+        $isLate = $now->gt($deadlineCarbon);
+
+        return [
+            'planned_month' => $plannedMonth,
+            'planned_year' => $plannedYear,
+            'deadline_month' => $deadlineMonthName,
+            'deadline_year' => $deadlineYearStr,
+            'deadline_day' => $deadlineDay,
+            'deadline_time' => $deadlineTime,
+            'deadline_carbon' => $deadlineCarbon,
+            'deadline_formatted' => "{$deadlineMonthName} {$deadlineDay}, {$deadlineYearStr} at {$deadlineTime}",
+            'is_late' => $isLate,
+            'status' => $isLate ? 'LATE' : 'ON_TIME',
+        ];
+    }
+}
+
 if (!function_exists('notify_gm_submission')) {
     function notify_gm_submission(string $title, string $message, ?int $deptId = null, ?string $voucherUrl = null, ?array $customReplyMarkup = null): void
     {
         try {
-            // 1. Fetch GM users (roles gm_management, super_admin, or role_id 1, 2)
+            // 1. Fetch GM & Super Admin users
             $gmUsers = \App\Models\User::where(function ($query) {
                 $query->whereHas('role', function ($q) {
-                    $q->whereIn('name', ['gm_management', 'super_admin', 'gm', 'general_manager']);
+                    $q->whereIn('name', ['gm_management', 'super_admin', 'gm', 'general_manager', 'it_admin']);
                 })->orWhereIn('role_id', [1, 2]);
             })->where('is_active', 1)->get();
 
-            // 2. Insert In-app notifications
-            foreach ($gmUsers as $gm) {
-                \Illuminate\Support\Facades\DB::table('notifications')->insert([
-                    'user_id' => $gm->id,
-                    'department_id' => $deptId,
-                    'title' => strip_tags($title),
-                    'message' => strip_tags($message) . ($voucherUrl ? "\n\nVoucher: " . $voucherUrl : ''),
-                    'notification_type' => 'REPORT_SUBMISSION',
-                    'created_at' => now(),
-                ]);
+            // 2. In-app notifications (isolated so DB errors never stop Telegram delivery)
+            try {
+                foreach ($gmUsers as $gm) {
+                    \Illuminate\Support\Facades\DB::table('notifications')->insert([
+                        'user_id' => $gm->id,
+                        'department_id' => $deptId,
+                        'title' => strip_tags($title),
+                        'message' => strip_tags($message) . ($voucherUrl ? "\n\nVoucher: " . $voucherUrl : ''),
+                        'notification_type' => 'REPORT_SUBMISSION',
+                        'created_at' => now(),
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("notify_gm_submission in-app notification warning: " . $e->getMessage());
             }
 
-            // 3. Telegram notification
+            // 3. Telegram notification dispatch
             $telegram = app(\App\Services\TelegramService::class);
             if ($telegram && $telegram->isConfigured()) {
                 $chatIds = [];
@@ -440,10 +506,20 @@ if (!function_exists('notify_gm_submission')) {
                     $chatIds[] = '6492922880'; // Guaranteed GM Chat ID
                 }
 
-                // Also check telegram_users table for bound GM accounts
+                // Check admin explicitly (Super Admin)
+                $admin = \App\Models\User::where('username', 'admin')->first();
+                if ($admin && !empty($admin->telegram_chat_id) && $admin->telegram_chat_id !== '123456789') {
+                    $chatIds[] = trim((string)$admin->telegram_chat_id);
+                }
+
+                // Also check telegram_users table for bound GM / Admin accounts
                 try {
                     $linkedGmIds = \Illuminate\Support\Facades\DB::table('telegram_users')
-                        ->whereIn('user_id', $gmUsers->pluck('id'))
+                        ->where(function ($q) use ($gmUsers) {
+                            $q->whereIn('user_id', $gmUsers->pluck('id'))
+                              ->orWhere('user_id', 1)
+                              ->orWhere('user_id', 2);
+                        })
                         ->where('is_active', 1)
                         ->pluck('telegram_user_id')
                         ->toArray();
@@ -455,7 +531,10 @@ if (!function_exists('notify_gm_submission')) {
                     }
                 } catch (\Throwable $e) {}
 
-                // Check escalation / GM recipients setting (ignore non-numeric emails)
+                // Always include IT Admin / Developer tester Bere's Telegram (814523272)
+                $chatIds[] = '814523272';
+
+                // Check escalation / GM recipients setting
                 $escalationRecipients = kaldis_setting('escalation_recipients_gm', '');
                 if (!empty($escalationRecipients)) {
                     foreach (explode(',', $escalationRecipients) as $rec) {
@@ -474,14 +553,13 @@ if (!function_exists('notify_gm_submission')) {
 
                 $chatIds = array_unique(array_filter($chatIds));
 
-                // Format Telegram message
+                // Format Telegram message cleanly without duplicate URLs
                 $safeTitle = str_contains($title, '<') ? $title : "<b>" . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "</b>";
-                $telegramText = "{$safeTitle}\n\n{$message}";
+                $telegramText = "{$safeTitle}\n\n{$message}\n\n📅 <i>" . format_ethiopian_datetime() . "</i>";
 
                 $replyMarkup = $customReplyMarkup;
                 if (empty($replyMarkup) && $voucherUrl) {
                     $cleanVoucherUrl = trim($voucherUrl);
-                    $telegramText .= "\n\n📄 <a href=\"{$cleanVoucherUrl}\"><b>View Official Voucher</b></a>\n🔗 {$cleanVoucherUrl}";
                     $replyMarkup = [
                         'inline_keyboard' => [
                             [
@@ -490,7 +568,6 @@ if (!function_exists('notify_gm_submission')) {
                         ]
                     ];
                 }
-                $telegramText .= "\n\n📅 <i>" . format_ethiopian_datetime() . "</i>";
 
                 foreach ($chatIds as $cid) {
                     $telegram->sendMessage($cid, $telegramText, $replyMarkup);
@@ -525,15 +602,19 @@ if (!function_exists('notify_department_head')) {
                 return;
             }
 
-            // 1. In-app notification
-            \Illuminate\Support\Facades\DB::table('notifications')->insert([
-                'user_id' => $head->id,
-                'department_id' => $deptId,
-                'title' => strip_tags($title),
-                'message' => strip_tags($message) . ($url ? "\n\nLink: " . $url : ''),
-                'notification_type' => 'DEPARTMENT_NOTICE',
-                'created_at' => now(),
-            ]);
+            // 1. In-app notification (isolated so DB errors never stop Telegram delivery)
+            try {
+                \Illuminate\Support\Facades\DB::table('notifications')->insert([
+                    'user_id' => $head->id,
+                    'department_id' => $deptId,
+                    'title' => strip_tags($title),
+                    'message' => strip_tags($message) . ($url ? "\n\nLink: " . $url : ''),
+                    'notification_type' => 'REPORT_SUBMISSION',
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("notify_department_head in-app notification warning: " . $e->getMessage());
+            }
 
             // 2. Telegram notification
             $chatId = null;
@@ -554,21 +635,19 @@ if (!function_exists('notify_department_head')) {
             $telegram = app(\App\Services\TelegramService::class);
             if ($telegram && $telegram->isConfigured() && !empty($chatId) && $chatId !== '123456789') {
                 $safeTitle = str_contains($title, '<') ? $title : "<b>" . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "</b>";
-                $telegramText = "{$safeTitle}\n\n{$message}";
+                $telegramText = "{$safeTitle}\n\n{$message}\n\n📅 <i>" . format_ethiopian_datetime() . "</i>";
 
                 $replyMarkup = $customReplyMarkup;
                 if (empty($replyMarkup) && $url) {
                     $cleanUrl = trim($url);
-                    $telegramText .= "\n\n📄 <a href=\"{$cleanUrl}\"><b>View Official Voucher / Portal</b></a>\n🔗 {$cleanUrl}";
                     $replyMarkup = [
                         'inline_keyboard' => [
                             [
-                                ['text' => '📄 View Official Voucher', 'url' => $cleanUrl]
+                                ['text' => '📄 View Official Voucher / Portal', 'url' => $cleanUrl]
                             ]
                         ]
                     ];
                 }
-                $telegramText .= "\n\n📅 <i>" . format_ethiopian_datetime() . "</i>";
 
                 $telegram->sendMessage($chatId, $telegramText, $replyMarkup);
             }

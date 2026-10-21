@@ -62,7 +62,7 @@
             <strong>Monthly Plan Package Pending Submission:</strong> These plans have not yet been officially transmitted to General Management. Click <strong>Submit to GM</strong> above when ready.
         </div>
         <div class="small text-muted">
-            Cutoff: Day {{ kaldis_setting('monthly_plan_deadline_day', 26) }} of Ethiopian Month
+            Submission Deadline: <strong>{{ $deadlineInfo['deadline_formatted'] ?? 'Day 26 of Preceding Month' }}</strong>
         </div>
     </div>
 @endif
@@ -355,8 +355,8 @@
                             <span class="badge bg-info text-dark">{{ $monthlyPlans->where('plan_type', 'OPERATIONAL')->count() }}</span>
                         </div>
                         <div class="d-flex justify-content-between small pt-1 border-top mt-1">
-                            <span class="text-muted">Official Cutoff:</span>
-                            <span class="text-secondary fw-semibold">Day {{ kaldis_setting('monthly_plan_deadline_day', 26) }} of Ethiopian Month ({{ kaldis_setting('monthly_plan_deadline_time', '17:00') }})</span>
+                            <span class="text-muted">Submission Deadline:</span>
+                            <span class="text-secondary fw-semibold">{{ $deadlineInfo['deadline_formatted'] ?? 'Day 26 of Preceding Month (17:00)' }}</span>
                         </div>
                     </div>
 

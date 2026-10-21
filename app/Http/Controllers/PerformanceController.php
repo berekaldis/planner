@@ -384,8 +384,9 @@ class PerformanceController extends Controller
         // Dispatch GM notification (In-app + Telegram) with Official Vouchers
         $dept = Department::find($deptId);
         $statusEmoji = ($compliance === 'ON_TIME') ? '🟢 [ON-TIME]' : '🟡 [LATE]';
-        $deptCode = $dept->department_code ?? "Dept #{$deptId}";
-        $deptName = $dept->department_name ?? 'Department';
+        $statusBadge = ($compliance === 'ON_TIME') ? '🟢 ON-TIME SUBMISSION' : '🟡 LATE SUBMISSION';
+        $deptCode = htmlspecialchars($dept->department_code ?? "Dept #{$deptId}", ENT_QUOTES, 'UTF-8');
+        $deptName = htmlspecialchars($dept->department_name ?? 'Department', ENT_QUOTES, 'UTF-8');
 
         // Check and link the upcoming week operational plan (Week W performance + Week W+1 plan)
         $nextWeek = min(5, (int)$validated['week_number'] + 1);
@@ -431,19 +432,18 @@ class PerformanceController extends Controller
             'type' => 'plan',
         ]);
 
-        $notifTitle = "{$statusEmoji} Weekly Cycle Submission: {$deptCode}";
+        $notifTitle = "{$statusEmoji} Weekly Governance Cycle: {$deptCode}";
         $notifMessage = "<b>{$deptName}</b> has officially submitted their combined Weekly Governance Package for <b>{$validated['month']} {$validated['year']}</b>.\n\n"
                       . "📊 <b>WEEK {$validated['week_number']} PERFORMANCE EXECUTION</b>\n"
-                      . "• Submission Timing: " . ($compliance === 'ON_TIME' ? '🟢 ON-TIME SUBMISSION' : '🟡 LATE SUBMISSION') . "\n"
+                      . "• Timing Status: <b>{$statusBadge}</b>\n"
                       . "• Completion Rate: <b>{$completionRate}%</b>\n"
-                      . "• Binary Execution: <b>{$doneTasks} DONE</b> &bull; <b>{$notDoneTasks} NOT DONE</b> (Total {$totalTasks})\n"
-                      . "📄 <a href=\"{$perfVoucherUrl}\"><b>Open Week {$validated['week_number']} Performance Voucher</b></a>\n\n"
+                      . "• Binary Execution: <b>{$doneTasks} DONE</b> &bull; <b>{$notDoneTasks} NOT DONE</b> ({$totalTasks} planned)\n\n"
                       . "📝 <b>WEEK {$nextWeek} UPCOMING OPERATIONAL PLAN</b>\n"
-                      . "• Tasks Scheduled: <b>{$nextWeekCount}</b> ({$nextWeekStrat} Strategy, {$nextWeekOps} Operational)\n"
-                      . "📄 <a href=\"{$planVoucherUrl}\"><b>Open Week {$nextWeek} Plan Voucher</b></a>";
+                      . "• Tasks Scheduled: <b>{$nextWeekCount}</b> ({$nextWeekStrat} Strategy, {$nextWeekOps} Operational)";
 
-        if (!empty($validated['notes'])) {
-            $notifMessage .= "\n\n💬 <b>Department Head Remarks:</b>\n" . htmlspecialchars($validated['notes'], ENT_QUOTES, 'UTF-8');
+        $remarks = !empty($validated['notes']) ? $validated['notes'] : (!empty($validated['report_summary']) ? $validated['report_summary'] : null);
+        if (!empty($remarks)) {
+            $notifMessage .= "\n\n💬 <b>Remarks:</b> <i>" . htmlspecialchars($remarks, ENT_QUOTES, 'UTF-8') . "</i>";
         }
 
         $replyMarkup = [

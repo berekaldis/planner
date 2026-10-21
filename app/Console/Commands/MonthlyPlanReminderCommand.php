@@ -26,10 +26,13 @@ class MonthlyPlanReminderCommand extends Command
         $year = $this->option('year') ?: kaldis_setting('current_planning_year', config('kaldis.current_planning_year', '2019 E.C.'));
         $month = $this->option('month') ?: kaldis_setting('current_planning_month', config('kaldis.current_planning_month', 'Meskerem'));
         $type = strtolower((string)$this->option('type')) === 'cutoff' ? 'cutoff' : 'reminder';
-        $deadlineDay = (int)kaldis_setting('monthly_plan_deadline_day', kaldis_setting('monthly_deadline_day', 26));
-        $deadlineTime = kaldis_setting('monthly_plan_deadline_time', '17:00');
+        
+        $deadlineInfo = get_monthly_plan_deadline_info($month, $year);
+        $deadlineDay = $deadlineInfo['deadline_day'];
+        $deadlineTime = $deadlineInfo['deadline_time'];
+        $deadlineFormatted = $deadlineInfo['deadline_formatted'];
 
-        $this->info("Executing Monthly Plan Automated Check [Type: {$type}] for {$month} {$year} (Cutoff: Day {$deadlineDay} at {$deadlineTime})...");
+        $this->info("Executing Monthly Plan Automated Check [Type: {$type}] for {$month} {$year} (Cutoff: {$deadlineFormatted})...");
 
         $departments = Department::where('active', 1)->with('head')->get();
         $totalDepts = $departments->count();
@@ -100,14 +103,20 @@ class MonthlyPlanReminderCommand extends Command
                         $msg = "⏰ <b>Kaldis Coffee PLC — Monthly Plan Reminder</b>\n\n"
                              . "Dear <b>{$safeHeadName}</b> ({$safeDeptName}),\n\n"
                              . "This is a reminder to prepare and submit your department's Monthly Plan Package for <b>{$month} {$year}</b>.\n\n"
-                             . "📅 <b>Submission Cutoff:</b> Day {$deadlineDay} of Ethiopian Month at {$deadlineTime}\n"
+                             . "📅 <b>Submission Cutoff:</b> {$deadlineFormatted}\n"
                              . "🎯 Please align your departmental operational tasks with the active Annual Strategic Goals.\n\n"
-                             . "🌐 <a href=\"{$portalUrl}\"><b>Open Monthly Plans in Portal</b></a>\n"
-                             . "🔗 {$portalUrl}\n\n"
                              . "☕ <i>Kaldis Coffee PLC — Planning & Performance</i>\n"
                              . "📅 <i>" . format_ethiopian_datetime() . "</i>";
 
-                        $res = $telegram->sendMessage($chatId, $msg);
+                        $replyMarkup = [
+                            'inline_keyboard' => [
+                                [
+                                    ['text' => '🌐 Open Monthly Plans in Portal', 'url' => $portalUrl]
+                                ]
+                            ]
+                        ];
+
+                        $res = $telegram->sendMessage($chatId, $msg, $replyMarkup);
                         if (!empty($res['ok'])) {
                             $remindedCount++;
                         }
@@ -121,8 +130,8 @@ class MonthlyPlanReminderCommand extends Command
                     ], [
                         'status' => 'MISSING',
                         'approval_status' => 'PENDING',
-                        'deadline_at' => Carbon::now(),
-                        'remarks' => 'Monthly plan submission cutoff expired without submission.',
+                        'deadline_at' => $deadlineInfo['deadline_carbon'],
+                        'remarks' => "Monthly plan submission cutoff ({$deadlineFormatted}) expired without submission.",
                     ]);
 
                     Escalation::firstOrCreate([
@@ -142,15 +151,21 @@ class MonthlyPlanReminderCommand extends Command
                         $portalUrl = url('/monthly/plans?year=' . urlencode($year) . '&month=' . urlencode($month));
                         $msg = "🚨 <b>Kaldis Monthly Plan Cutoff Escalation</b>\n\n"
                              . "Attention: <b>{$safeHeadName}</b> ({$safeDeptName})\n\n"
-                             . "The official deadline for submitting your department's Monthly Plan Package for <b>{$month} {$year}</b> (Cutoff: Day {$deadlineDay} at {$deadlineTime}) has expired.\n\n"
+                             . "The official deadline for submitting your department's Monthly Plan Package for <b>{$month} {$year}</b> (Cutoff: {$deadlineFormatted}) has expired.\n\n"
                              . "⚠️ A <b>Level 1 Escalation</b> has been registered in the system.\n"
                              . "Please contact General Management and submit your package immediately.\n\n"
-                             . "🌐 <a href=\"{$portalUrl}\"><b>Open Monthly Plans in Portal</b></a>\n"
-                             . "🔗 {$portalUrl}\n\n"
                              . "☕ <i>Kaldis Coffee PLC — Office of the General Manager</i>\n"
                              . "📅 <i>" . format_ethiopian_datetime() . "</i>";
 
-                        $res = $telegram->sendMessage($chatId, $msg);
+                        $replyMarkup = [
+                            'inline_keyboard' => [
+                                [
+                                    ['text' => '🌐 Open Monthly Plans in Portal', 'url' => $portalUrl]
+                                ]
+                            ]
+                        ];
+
+                        $res = $telegram->sendMessage($chatId, $msg, $replyMarkup);
                         if (!empty($res['ok'])) {
                             $escalatedCount++;
                         }
@@ -258,12 +273,19 @@ class MonthlyPlanReminderCommand extends Command
                 }
 
                 $dashboardUrl = url('/management/dashboard?year=' . urlencode($year) . '&month=' . urlencode($month));
-                $gmReport .= "🌐 <a href=\"{$dashboardUrl}\"><b>Open GM Executive Dashboard & Vouchers</b></a>\n";
-                $gmReport .= "🔗 {$dashboardUrl}\n\n";
+                $gmReport .= "📌 <b>Submission Cutoff:</b> {$deadlineFormatted}\n\n";
                 $gmReport .= "☕ <i>Kaldis Coffee PLC — Executive Operations</i>";
 
+                $replyMarkup = [
+                    'inline_keyboard' => [
+                        [
+                            ['text' => '🌐 Open GM Executive Dashboard & Vouchers', 'url' => $dashboardUrl]
+                        ]
+                    ]
+                ];
+
                 foreach ($gmChatIds as $cid) {
-                    $res = $telegram->sendMessage($cid, $gmReport);
+                    $res = $telegram->sendMessage($cid, $gmReport, $replyMarkup);
                     if (!empty($res['ok'])) {
                         $gmSentCount++;
                     }

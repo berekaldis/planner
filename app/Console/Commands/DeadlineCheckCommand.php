@@ -158,13 +158,19 @@ class DeadlineCheckCommand extends Command
                          . "Attention: <b>{$safeHeadName}</b> ({$safeDeptName})\n\n"
                          . "The weekly submission deadline for <b>{$safeDeptName}</b> ({$month} {$year}, Week {$week}) has expired without a submitted report.\n\n"
                          . "⚠️ A <b>Level 1 Escalation</b> has been registered in the system.\n"
-                         . "Please evaluate your tasks and submit your execution report immediately:\n"
-                         . "🌐 <a href=\"{$perfUrl}\"><b>Submit Performance Report Now</b></a>\n"
-                         . "🔗 {$perfUrl}\n\n"
+                         . "Please evaluate your tasks and submit your execution report immediately.\n\n"
                          . "☕ <i>Kaldis Coffee PLC — Executive Operations</i>\n"
                          . "📅 <i>" . format_ethiopian_datetime() . "</i>";
 
-                    $res = $telegram->sendMessage($chatId, $msg);
+                    $replyMarkup = [
+                        'inline_keyboard' => [
+                            [
+                                ['text' => '🌐 Submit Performance Report Now', 'url' => $perfUrl]
+                            ]
+                        ]
+                    ];
+
+                    $res = $telegram->sendMessage($chatId, $msg, $replyMarkup);
                     if (!empty($res['ok'])) {
                         $escalationsSent++;
                     }
@@ -273,11 +279,18 @@ class DeadlineCheckCommand extends Command
                 }
 
                 $dashboardUrl = url('/management/dashboard?year=' . urlencode($year) . '&month=' . urlencode($month) . '&week=' . $week);
-                $execMsg .= "🌐 <a href=\"{$dashboardUrl}\"><b>Open GM Executive Dashboard & Vouchers</b></a>\n";
                 $execMsg .= "☕ <i>Kaldis Coffee PLC — Executive Operations</i>";
 
+                $replyMarkup = [
+                    'inline_keyboard' => [
+                        [
+                            ['text' => '🌐 Open GM Executive Dashboard & Vouchers', 'url' => $dashboardUrl]
+                        ]
+                    ]
+                ];
+
                 foreach ($gmChatIds as $cid) {
-                    $res = $telegram->sendMessage($cid, $execMsg);
+                    $res = $telegram->sendMessage($cid, $execMsg, $replyMarkup);
                     if (!empty($res['ok'])) {
                         $gmSummaryDelivered++;
                     }

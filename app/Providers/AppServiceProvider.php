@@ -56,8 +56,16 @@ class AppServiceProvider extends ServiceProvider
                 Cache::forever('schema_escalations_defaults_v2', true);
             }
 
+            // Auto-heal schema for notifications table to prevent enum truncation errors
+            if (!Cache::has('schema_notifications_type_v2')) {
+                if (Schema::hasTable('notifications')) {
+                    DB::statement("ALTER TABLE `notifications` MODIFY COLUMN `notification_type` VARCHAR(50) NULL DEFAULT 'SYSTEM'");
+                }
+                Cache::forever('schema_notifications_type_v2', true);
+            }
+
             // Auto-heal active Telegram credentials & GM chat IDs
-            if (!Cache::has('auto_heal_telegram_gm_v1')) {
+            if (!Cache::has('auto_heal_telegram_gm_v2')) {
                 $revoked = ['8370988256:AAE8aG5s2vzEy6PfSH2b-Fiufr_num0A_rY', 'YOUR_BOT_TOKEN_HERE'];
                 $activeToken = '8370988256:AAHrC_z825ZgqvWzK1PrtEoKs0-CzSDN0mo';
                 $cur = \App\Models\SystemSetting::where('setting_key', 'telegram_bot_token')->value('setting_value');
@@ -72,7 +80,13 @@ class AppServiceProvider extends ServiceProvider
                     $tseday->update(['telegram_chat_id' => '6492922880']);
                 }
 
-                Cache::forever('auto_heal_telegram_gm_v1', true);
+                // Ensure System Super Admin has active Telegram Chat ID configured (Bere / IT Head)
+                $admin = \App\Models\User::where('username', 'admin')->first();
+                if ($admin && (empty($admin->telegram_chat_id) || $admin->telegram_chat_id === '123456789')) {
+                    $admin->update(['telegram_chat_id' => '814523272']);
+                }
+
+                Cache::forever('auto_heal_telegram_gm_v2', true);
             }
         } catch (\Throwable $e) {
             // Graceful fallback if database connection or migration is not yet initialized

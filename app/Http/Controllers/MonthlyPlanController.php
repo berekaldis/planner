@@ -73,6 +73,8 @@ class MonthlyPlanController extends Controller
             ->where('month', $selectedMonth)
             ->first();
 
+        $deadlineInfo = get_monthly_plan_deadline_info($selectedMonth, $selectedYear);
+
         return view('monthly.index', compact(
             'department',
             'monthlyPlans',
@@ -81,7 +83,8 @@ class MonthlyPlanController extends Controller
             'selectedYear',
             'selectedMonth',
             'planTypeFilter',
-            'submission'
+            'submission',
+            'deadlineInfo'
         ));
     }
 
@@ -114,26 +117,11 @@ class MonthlyPlanController extends Controller
         $opsCount = $plans->where('plan_type', 'OPERATIONAL')->count();
         $totalPlans = $plans->count();
 
-        // Check Monthly Deadline (default Day 26 of Ethiopian month at 17:00)
-        $deadlineDay = (int)kaldis_setting('monthly_plan_deadline_day', kaldis_setting('monthly_deadline_day', 26));
-        $deadlineTime = kaldis_setting('monthly_plan_deadline_time', '17:00');
-        $currentEt = get_ethiopian_period();
-        $isCurrentMonth = ($currentEt['month'] === $validated['month'] && $currentEt['year'] === $validated['year']);
-        
-        $status = 'ON_TIME';
-        if ($isCurrentMonth && $currentEt['day'] > $deadlineDay) {
-            $status = 'LATE';
-        }
-
-        // Calculate exact Gregorian deadline timestamp for Day 26 of the Ethiopian Month
-        $monthsMap = array_flip(get_ethiopian_months());
-        $mNum = isset($monthsMap[$validated['month']]) ? ($monthsMap[$validated['month']] + 1) : 1;
-        $yNum = (int)preg_replace('/[^0-9]/', '', $validated['year']) ?: 2019;
-        $timeParts = explode(':', $deadlineTime);
-        $timeHour = (int)($timeParts[0] ?? 17);
-        $timeMin = (int)($timeParts[1] ?? 0);
-        [$gy, $gm, $gd] = ethiopian_to_gregorian_date($yNum, $mNum, $deadlineDay);
-        $deadlineAt = \Carbon\Carbon::create($gy, $gm, $gd, $timeHour, $timeMin, 0, 'Africa/Addis_Ababa');
+        // Check Monthly Plan Submission Deadline (Governance Rule: Due Day 26 of PRECEDING Ethiopian month)
+        // Example: Hidar plan package is due on Tikimt 26 at 17:00.
+        $deadlineInfo = get_monthly_plan_deadline_info($validated['month'], $validated['year']);
+        $status = $deadlineInfo['status'];
+        $deadlineAt = $deadlineInfo['deadline_carbon'];
 
         \App\Models\MonthlySubmission::updateOrCreate([
             'department_id' => $deptId,
@@ -149,11 +137,12 @@ class MonthlyPlanController extends Controller
 
         AuditLog::log('SUBMIT_MONTHLY_PLANS', 'monthly_plans', "Submitted monthly plan package for {$validated['month']} {$validated['year']} ({$status})");
 
-        // Notify GM with Official Monthly Plan Voucher
+        // Notify GM & Department Head with Official Monthly Plan Voucher
         $dept = Department::find($deptId);
         $statusEmoji = ($status === 'ON_TIME') ? '🟢 [ON-TIME]' : '🟡 [LATE]';
-        $deptCode = $dept->department_code ?? "Dept #{$deptId}";
-        $deptName = $dept->department_name ?? 'Department';
+        $statusBadge = ($status === 'ON_TIME') ? '🟢 ON-TIME SUBMISSION' : '🟡 LATE SUBMISSION';
+        $deptCode = htmlspecialchars($dept->department_code ?? "Dept #{$deptId}", ENT_QUOTES, 'UTF-8');
+        $deptName = htmlspecialchars($dept->department_name ?? 'Department', ENT_QUOTES, 'UTF-8');
 
         $voucherUrl = route('monthly.voucher', [
             'department_id' => $deptId,
@@ -161,18 +150,15 @@ class MonthlyPlanController extends Controller
             'month' => $validated['month'],
         ]);
 
-        $notifTitle = "{$statusEmoji} Official Monthly Plan Voucher: {$deptCode}";
+        $notifTitle = "{$statusEmoji} Monthly Plan Package: {$deptCode}";
         $notifMessage = "<b>{$deptName}</b> has officially submitted their <b>Monthly Plan Package</b> for <b>{$validated['month']} {$validated['year']}</b>.\n\n"
                       . "📋 <b>Package Overview:</b>\n"
-                      . "• Submission Timing: " . ($status === 'ON_TIME' ? '🟢 ON-TIME SUBMISSION' : '🟡 LATE SUBMISSION') . "\n"
-                      . "• Total Monthly Plans: <b>{$totalPlans}</b>\n"
-                      . "• Strategic Priority Plans: <b>{$stratCount}</b>\n"
-                      . "• Department Operational Plans: <b>{$opsCount}</b>\n\n"
-                      . "📄 <a href=\"{$voucherUrl}\"><b>Open Official Monthly Plan Voucher</b></a>\n"
-                      . "🔗 {$voucherUrl}";
+                      . "• Timing Status: <b>{$statusBadge}</b>\n"
+                      . "• Total Monthly Plans: <b>{$totalPlans}</b> ({$stratCount} Strategy, {$opsCount} Operational)\n"
+                      . "• Submission Deadline: <b>{$deadlineInfo['deadline_formatted']}</b>";
 
         if (!empty($validated['notes'])) {
-            $notifMessage .= "\n\n💬 <b>Department Head Remarks:</b>\n" . htmlspecialchars($validated['notes'], ENT_QUOTES, 'UTF-8');
+            $notifMessage .= "\n\n💬 <b>Remarks:</b> <i>" . htmlspecialchars($validated['notes'], ENT_QUOTES, 'UTF-8') . "</i>";
         }
 
         $replyMarkup = [
@@ -185,7 +171,7 @@ class MonthlyPlanController extends Controller
 
         notify_both_gm_and_head($deptId, $notifTitle, $notifMessage, $voucherUrl, $replyMarkup);
 
-        return back()->with('success', "Monthly Plan package submitted successfully to General Management! Timing Status: {$status}.");
+        return back()->with('success', "Monthly Plan package submitted successfully to General Management! Timing Status: {$status} (Deadline: {$deadlineInfo['deadline_formatted']}).");
     }
 
     public function saveFeedback(Request $request)
