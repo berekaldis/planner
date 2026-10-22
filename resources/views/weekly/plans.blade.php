@@ -201,20 +201,10 @@
                         <td colspan="7" class="empty-state py-5">
                             <i class="fas fa-calendar-plus d-block opacity-25"></i>
                             <h6>No tasks planned yet for Week {{ $selectedWeek }}</h6>
-                            <p class="small text-muted mb-3">Add weekly tasks broken down from your monthly objectives.</p>
-                            @if($monthlyPlans->isEmpty())
-                                <div class="alert alert-warning d-inline-block py-2 px-3 small border-0 mb-3 text-start">
-                                    <i class="fas fa-exclamation-triangle me-1"></i> You must create monthly plans before scheduling weekly tasks.
-                                </div>
-                                <br>
-                                <a href="{{ route('monthly.plans', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth]) }}" class="btn btn-sm btn-kaldis">
-                                    <i class="fas fa-calendar-plus me-1"></i> Create Monthly Plan &rarr;
-                                </a>
-                            @else
-                                <button type="button" class="btn btn-sm btn-kaldis" data-bs-toggle="modal" data-bs-target="#createTaskModal">
-                                    <i class="fas fa-plus me-1"></i> Schedule Task Now
-                                </button>
-                            @endif
+                            <p class="small text-muted mb-3">Add weekly tasks to plan deliverables for this week.</p>
+                            <button type="button" class="btn btn-sm btn-kaldis" data-bs-toggle="modal" data-bs-target="#createTaskModal">
+                                <i class="fas fa-plus me-1"></i> Schedule Task Now
+                            </button>
                         </td>
                     </tr>
                 @endforelse
@@ -240,72 +230,72 @@
                 </div>
 
                 <div class="modal-body p-4">
-                    @if($monthlyPlans->isEmpty())
-                        <div class="alert alert-warning border-0 p-3 rounded-3 mb-3">
-                            <h6 class="fw-bold mb-1"><i class="fas fa-exclamation-circle me-1"></i> No Monthly Plans Available</h6>
-                            <p class="small mb-2">Weekly tasks must be linked to a parent monthly plan. Please create at least one Monthly Plan for <strong>{{ $department->department_name }}</strong> first.</p>
-                            <a href="{{ route('monthly.plans', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth]) }}" class="btn btn-sm btn-warning fw-semibold">
-                                Create Monthly Plan Now &rarr;
-                            </a>
-                        </div>
-                    @else
-                        <!-- Step 1: Select Monthly Plan -->
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold text-secondary text-uppercase">Parent Monthly Plan <span class="text-danger">*</span></label>
-                            <select name="monthly_plan_id" class="form-select" data-no-search="true" required>
-                                <option value="">-- Choose Monthly Plan --</option>
+                    <!-- Step 1: Optional Parent Monthly Plan & Plan Type -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label small fw-semibold text-secondary">
+                                Parent Monthly Plan <span class="badge bg-light text-muted border ms-1">Optional</span>
+                            </label>
+                            <select name="monthly_plan_id" id="taskMonthlyPlanSelect" class="form-select" data-no-search="true" onchange="handleMonthlyPlanSelect(this)">
+                                <option value="">-- Direct Weekly Task (No Monthly Plan Required) --</option>
                                 @foreach($monthlyPlans as $mp)
-                                    <option value="{{ $mp->id }}">
+                                    <option value="{{ $mp->id }}" data-type="{{ $mp->plan_type }}">
                                         [{{ $mp->plan_type }}] {{ $mp->title }} (Target: {{ $mp->monthly_target }})
                                     </option>
                                 @endforeach
                             </select>
-                            <div class="small text-muted mt-1">The task will inherit the Plan Type (Strategy / Operational) and Annual Goal ID from the chosen monthly plan.</div>
+                            <div class="small text-muted mt-1">Link to a monthly plan to inherit its strategic goal, or leave unselected for a standalone task.</div>
                         </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold text-secondary">Plan Type</label>
+                            <select name="plan_type" id="taskPlanTypeSelect" class="form-select" data-no-search="true">
+                                <option value="OPERATIONAL" selected>Operational</option>
+                                <option value="STRATEGY">Strategy</option>
+                            </select>
+                            <div class="small text-muted mt-1">Classification for report breakdown.</div>
+                        </div>
+                    </div>
 
-                        <!-- Step 2: Task Information -->
-                        <div class="mb-3">
-                            <label class="form-label small fw-semibold text-secondary">Task Title <span class="text-danger">*</span></label>
-                            <input type="text" name="task_title" class="form-control" placeholder="e.g. Run security scan on head office routers" required>
-                        </div>
+                    <!-- Step 2: Task Information -->
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Task Title <span class="text-danger">*</span></label>
+                        <input type="text" name="task_title" class="form-control" placeholder="e.g. Run security scan on head office routers" required>
+                    </div>
 
-                        <div class="row g-3 mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label small fw-semibold text-secondary">Weekly Target / Output <span class="text-danger">*</span></label>
-                                <input type="text" name="task_target" class="form-control" placeholder="e.g. Scan 100% completed with report" required>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label small fw-semibold text-secondary">Priority <span class="text-danger">*</span></label>
-                                <select name="priority" class="form-select" data-no-search="true">
-                                    <option value="HIGH">HIGH</option>
-                                    <option value="MEDIUM" selected>MEDIUM</option>
-                                    <option value="LOW">LOW</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label small fw-semibold text-secondary">Assigned To</label>
-                                <input type="text" name="assigned_to" class="form-control" placeholder="Staff Name">
-                            </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-secondary">Weekly Target / Output <span class="text-danger">*</span></label>
+                            <input type="text" name="task_target" class="form-control" placeholder="e.g. Scan 100% completed with report" required>
                         </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold text-secondary">Priority <span class="text-danger">*</span></label>
+                            <select name="priority" class="form-select" data-no-search="true">
+                                <option value="HIGH">HIGH</option>
+                                <option value="MEDIUM" selected>MEDIUM</option>
+                                <option value="LOW">LOW</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold text-secondary">Assigned To</label>
+                            <input type="text" name="assigned_to" class="form-control" placeholder="Staff Name">
+                        </div>
+                    </div>
 
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label small fw-semibold text-secondary">Deadline Date</label>
-                                <input type="date" name="deadline_date" class="form-control">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-semibold text-secondary">Task Description (Optional)</label>
-                                <input type="text" name="task_description" class="form-control" placeholder="Additional details">
-                            </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-secondary">Deadline Date</label>
+                            <input type="date" name="deadline_date" class="form-control">
                         </div>
-                    @endif
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-secondary">Task Description (Optional)</label>
+                            <input type="text" name="task_description" class="form-control" placeholder="Additional details">
+                        </div>
+                    </div>
                 </div>
 
                 <div class="modal-footer bg-light">
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    @if(!$monthlyPlans->isEmpty())
-                        <button type="submit" class="btn btn-sm btn-kaldis">Save Task</button>
-                    @endif
+                    <button type="submit" class="btn btn-sm btn-kaldis">Save Task</button>
                 </div>
             </form>
         </div>
@@ -408,5 +398,15 @@
 @section('scripts')
 <script>
     setupLiveSearch('weeklyTaskSearchInput', 'weeklyTasksTable');
+
+    function handleMonthlyPlanSelect(selectEl) {
+        if (!selectEl) return;
+        const selectedOpt = selectEl.options[selectEl.selectedIndex];
+        const planType = selectedOpt ? selectedOpt.getAttribute('data-type') : null;
+        const typeSelect = document.getElementById('taskPlanTypeSelect');
+        if (typeSelect && planType) {
+            typeSelect.value = planType;
+        }
+    }
 </script>
 @endsection

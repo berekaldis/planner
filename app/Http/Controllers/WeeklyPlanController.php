@@ -112,7 +112,8 @@ class WeeklyPlanController extends Controller
             'year' => 'required|string',
             'month' => 'required|string',
             'week_number' => 'required|integer|min:1|max:5',
-            'monthly_plan_id' => 'required|exists:monthly_plans,id',
+            'monthly_plan_id' => 'nullable|exists:monthly_plans,id',
+            'plan_type' => 'nullable|in:STRATEGY,OPERATIONAL',
             'task_title' => 'required|string|max:255',
             'task_description' => 'nullable|string',
             'task_target' => 'nullable|string',
@@ -124,7 +125,12 @@ class WeeklyPlanController extends Controller
             'due_date' => 'nullable|date',
         ]);
 
-        $monthlyPlan = MonthlyPlan::findOrFail($validated['monthly_plan_id']);
+        $monthlyPlan = !empty($validated['monthly_plan_id'])
+            ? MonthlyPlan::find($validated['monthly_plan_id'])
+            : null;
+
+        $planType = $monthlyPlan ? $monthlyPlan->plan_type : ($validated['plan_type'] ?? 'OPERATIONAL');
+        $annualGoalId = $monthlyPlan ? $monthlyPlan->annual_goal_id : null;
 
         $weeklyPlan = WeeklyPlan::firstOrCreate([
             'department_id' => $validated['department_id'],
@@ -138,13 +144,13 @@ class WeeklyPlanController extends Controller
 
         $task = WeeklyTask::create([
             'weekly_plan_id' => $weeklyPlan->id,
-            'monthly_plan_id' => $monthlyPlan->id,
+            'monthly_plan_id' => $monthlyPlan ? $monthlyPlan->id : null,
             'department_id' => $validated['department_id'],
             'year' => $validated['year'],
             'month' => $validated['month'],
             'week_number' => $validated['week_number'],
-            'plan_type' => $monthlyPlan->plan_type,
-            'annual_goal_id' => $monthlyPlan->annual_goal_id,
+            'plan_type' => $planType,
+            'annual_goal_id' => $annualGoalId,
             'task_title' => $validated['task_title'],
             'task_description' => $validated['task_description'] ?? null,
             'expected_result' => $validated['expected_result'] ?? ($validated['task_target'] ?? 'Completed'),
