@@ -432,19 +432,50 @@ class PerformanceController extends Controller
             'type' => 'plan',
         ]);
 
-        $notifTitle = "{$statusEmoji} Weekly Governance Cycle: {$deptCode}";
-        $notifMessage = "<b>{$deptName}</b> has officially submitted their combined Weekly Governance Package for <b>{$validated['month']} {$validated['year']}</b>.\n\n"
-                      . "📊 <b>WEEK {$validated['week_number']} PERFORMANCE EXECUTION</b>\n"
-                      . "• Timing Status: <b>{$statusBadge}</b>\n"
-                      . "• Completion Rate: <b>{$completionRate}%</b>\n"
-                      . "• Binary Execution: <b>{$doneTasks} DONE</b> &bull; <b>{$notDoneTasks} NOT DONE</b> ({$totalTasks} planned)\n\n"
-                      . "📝 <b>WEEK {$nextWeek} UPCOMING OPERATIONAL PLAN</b>\n"
-                      . "• Tasks Scheduled: <b>{$nextWeekCount}</b> ({$nextWeekStrat} Strategy, {$nextWeekOps} Operational)";
+        if ($nextWeekCount > 0) {
+            $notifTitle = "📝 Weekly Task Scheduled: {$deptCode}";
+            $notifMessage = "<b>{$deptName}</b> has officially submitted their <b>Weekly Task Schedule</b> for <b>Week {$nextWeek} ({$validated['month']} {$validated['year']})</b> along with <b>Week {$validated['week_number']} Performance Report</b>.\n\n"
+                          . "📋 <b>WEEK {$nextWeek} SCHEDULED TASKS ({$nextWeekCount} Total)</b>\n"
+                          . "• <b>Breakdown:</b> {$nextWeekStrat} Strategic | {$nextWeekOps} Operational\n\n";
+
+            $displayNext = $nextWeekTasks->take(8);
+            $tNum = 1;
+            foreach ($displayNext as $t) {
+                $pTag = $t->priority ?? 'MEDIUM';
+                $tTitle = htmlspecialchars($t->task_title, ENT_QUOTES, 'UTF-8');
+                $tTarget = htmlspecialchars($t->expected_result ?: ($t->task_target ?: 'Completed'), ENT_QUOTES, 'UTF-8');
+                $tResp = htmlspecialchars($t->responsible_person ?: ($t->assigned_to ?: 'Unassigned'), ENT_QUOTES, 'UTF-8');
+                $notifMessage .= "{$tNum}. [{$pTag}] <b>{$tTitle}</b>\n"
+                               . "   🎯 <i>Target:</i> {$tTarget}\n"
+                               . "   👤 <i>Responsible:</i> {$tResp}\n";
+                $tNum++;
+            }
+            if ($nextWeekCount > 8) {
+                $remCount = $nextWeekCount - 8;
+                $notifMessage .= "   <i>... and {$remCount} more task(s) (view Plan Voucher)</i>\n";
+            }
+
+            $notifMessage .= "\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                           . "📊 <b>LAST WEEK PERFORMANCE REPORT (Week {$validated['week_number']}, {$validated['month']} {$validated['year']})</b>\n"
+                           . "• <b>Completion Rate:</b> <b>{$completionRate}%</b>\n"
+                           . "• <b>Binary Execution:</b> <b>{$doneTasks} DONE</b> &bull; <b>{$notDoneTasks} NOT DONE</b> ({$totalTasks} planned)\n"
+                           . "• <b>Submission Status:</b> <b>{$statusBadge}</b>\n";
+        } else {
+            $notifTitle = "{$statusEmoji} Weekly Performance Report: {$deptCode}";
+            $notifMessage = "<b>{$deptName}</b> has officially submitted their Weekly Performance Report for <b>Week {$validated['week_number']} ({$validated['month']} {$validated['year']})</b>.\n\n"
+                          . "📊 <b>WEEK {$validated['week_number']} PERFORMANCE EXECUTION</b>\n"
+                          . "• <b>Timing Status:</b> <b>{$statusBadge}</b>\n"
+                          . "• <b>Completion Rate:</b> <b>{$completionRate}%</b>\n"
+                          . "• <b>Binary Execution:</b> <b>{$doneTasks} DONE</b> &bull; <b>{$notDoneTasks} NOT DONE</b> ({$totalTasks} planned)\n\n"
+                          . "ℹ️ <i>Notice: No upcoming tasks have been scheduled yet for Week {$nextWeek}.</i>\n";
+        }
 
         $remarks = !empty($validated['notes']) ? $validated['notes'] : (!empty($validated['report_summary']) ? $validated['report_summary'] : null);
         if (!empty($remarks)) {
-            $notifMessage .= "\n\n💬 <b>Remarks:</b> <i>" . htmlspecialchars($remarks, ENT_QUOTES, 'UTF-8') . "</i>";
+            $notifMessage .= "\n💬 <b>Remarks:</b> <i>" . htmlspecialchars($remarks, ENT_QUOTES, 'UTF-8') . "</i>\n";
         }
+
+        $notifMessage .= "━━━━━━━━━━━━━━━━━━━━━━━━━━";
 
         $replyMarkup = [
             'inline_keyboard' => [

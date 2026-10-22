@@ -16,11 +16,38 @@
         <button type="button" class="btn btn-kaldis btn-sm" data-bs-toggle="modal" data-bs-target="#createTaskModal">
             <i class="fas fa-plus-circle me-1"></i> Schedule Weekly Task
         </button>
-        <a href="{{ route('weekly.performance', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" class="btn btn-outline-success btn-sm" title="Go to Performance & Submit Weekly Cycle to GM">
-            <i class="fas fa-paper-plane me-1"></i> Performance &amp; Submit to GM
+        <button type="button" class="btn {{ ($weeklyPlan && $weeklyPlan->status === 'SUBMITTED') ? 'btn-outline-success' : 'btn-success' }} btn-sm" data-bs-toggle="modal" data-bs-target="#submitWeeklyPlanModal" {{ $tasks->isEmpty() ? 'disabled' : '' }}>
+            <i class="fas {{ ($weeklyPlan && $weeklyPlan->status === 'SUBMITTED') ? 'fa-redo' : 'fa-paper-plane' }} me-1"></i> {{ ($weeklyPlan && $weeklyPlan->status === 'SUBMITTED') ? 'Re-Submit to GM' : 'Submit Plan to GM' }}
+        </button>
+        <a href="{{ route('weekly.performance', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" class="btn btn-outline-primary btn-sm" title="Go to Performance & Submit Weekly Cycle to GM">
+            <i class="fas fa-chart-line me-1"></i> Weekly Performance
         </a>
     </div>
 </div>
+
+@if($weeklyPlan && $weeklyPlan->status === 'SUBMITTED')
+    <div class="alert alert-success border-0 shadow-sm d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <i class="fas fa-clipboard-check me-2 text-success"></i>
+            <strong>Weekly Tasks Scheduled &amp; Submitted:</strong> Planned tasks for Week {{ $selectedWeek }} ({{ $selectedMonth }} {{ $selectedYear }}) have been officially submitted to General Management.
+            <span class="badge bg-success ms-2">SUBMITTED</span>
+        </div>
+        <div class="small text-muted">
+            Submitted on {{ $weeklyPlan->updated_at ? format_ethiopian_datetime($weeklyPlan->updated_at) : '' }}
+        </div>
+    </div>
+@elseif($tasks->isNotEmpty())
+    <div class="alert alert-warning border-0 shadow-sm d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <i class="fas fa-info-circle me-2 text-warning"></i>
+            <strong>Planning in Progress ({{ $tasks->count() }} Tasks):</strong> You have scheduled tasks for Week {{ $selectedWeek }}. When ready, click <strong>Submit Plan to GM</strong> to notify General Management together with Last Week's Performance Report.
+            <span class="badge bg-secondary ms-2">DRAFT</span>
+        </div>
+        <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#submitWeeklyPlanModal">
+            <i class="fas fa-paper-plane me-1"></i> Submit Plan to GM Now
+        </button>
+    </div>
+@endif
 
 @if(isset($submission) && $submission && in_array($submission->status, ['ON_TIME', 'LATE', 'SUBMITTED']))
     <div class="alert alert-success border-0 shadow-sm d-flex justify-content-between align-items-center mb-3">
@@ -279,6 +306,98 @@
                     @if(!$monthlyPlans->isEmpty())
                         <button type="submit" class="btn btn-sm btn-kaldis">Save Task</button>
                     @endif
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Submit Weekly Plan to GM -->
+<div class="modal fade" id="submitWeeklyPlanModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" action="{{ route('weekly.plans.submit') }}">
+                @csrf
+                <input type="hidden" name="department_id" value="{{ $department->id }}">
+                <input type="hidden" name="year" value="{{ $selectedYear }}">
+                <input type="hidden" name="month" value="{{ $selectedMonth }}">
+                <input type="hidden" name="week_number" value="{{ $selectedWeek }}">
+
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold text-dark fs-6">
+                        <i class="fas fa-paper-plane text-success me-2"></i> Submit Weekly Plan to GM — Week {{ $selectedWeek }} ({{ $selectedMonth }} {{ $selectedYear }})
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    <div class="alert alert-info border-0 py-2 px-3 small mb-3">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Submitting this plan will notify General Management and the Department Head via Telegram with the complete <strong>Weekly Task Schedule</strong> and <strong>Last Week's Performance Report</strong>.
+                    </div>
+
+                    <!-- Dual Summary Cards -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <div class="p-3 rounded-3 bg-light border h-100">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="fw-bold small text-dark">
+                                        <i class="fas fa-calendar-check text-primary me-1"></i> Week {{ $selectedWeek }} Tasks Scheduled
+                                    </span>
+                                    <span class="badge bg-primary">{{ $tasks->count() }} Tasks</span>
+                                </div>
+                                <div class="small text-muted mb-1">
+                                    • Strategy Tasks: <strong class="text-dark">{{ $tasks->where('plan_type', 'STRATEGY')->count() }}</strong>
+                                </div>
+                                <div class="small text-muted mb-1">
+                                    • Operational Tasks: <strong class="text-dark">{{ $tasks->where('plan_type', 'OPERATIONAL')->count() }}</strong>
+                                </div>
+                                <div class="small text-muted">
+                                    • Official Voucher: <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek, 'type' => 'plan']) }}" target="_blank" class="fw-semibold text-primary"><i class="fas fa-file-invoice me-1"></i> Preview Plan Voucher</a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="p-3 rounded-3 bg-light border h-100">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="fw-bold small text-dark">
+                                        <i class="fas fa-chart-line text-success me-1"></i> Last Week Performance Report
+                                    </span>
+                                    <span class="badge {{ !empty($lastWeekPerf['has_data']) ? 'bg-success' : 'bg-secondary' }}">
+                                        Week {{ $lastWeekPerf['prev_week'] ?? max(1, $selectedWeek - 1) }}
+                                    </span>
+                                </div>
+                                @if(!empty($lastWeekPerf['has_data']))
+                                    <div class="small text-muted mb-1">
+                                        • Completion Rate: <strong class="text-dark">{{ $lastWeekPerf['completion_rate'] }}%</strong>
+                                    </div>
+                                    <div class="small text-muted mb-1">
+                                        • Binary Execution: <span class="text-success fw-bold">{{ $lastWeekPerf['done_tasks'] }} DONE</span> &bull; <span class="text-danger fw-bold">{{ $lastWeekPerf['not_done_tasks'] }} NOT DONE</span> ({{ $lastWeekPerf['total_tasks'] }} total)
+                                    </div>
+                                    <div class="small text-muted">
+                                        • Status: <span class="badge bg-light text-dark border">{{ $lastWeekPerf['timing_status'] }}</span>
+                                    </div>
+                                @else
+                                    <div class="small text-muted py-2">
+                                        <i>Initial cycle: No prior weekly report on file.</i>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Department Head Remarks for GM (Optional)</label>
+                        <textarea name="notes" class="form-control" rows="2" placeholder="Operational context, key focus areas, or remarks for General Management...">{{ $weeklyPlan->notes ?? '' }}</textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-success">
+                        <i class="fas fa-paper-plane me-1"></i> Submit Weekly Plan to GM
+                    </button>
                 </div>
             </form>
         </div>

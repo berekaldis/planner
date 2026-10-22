@@ -106,25 +106,120 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'type' => $parentPlan['plan_type']
                 ]);
 
-                // Notify GM of Weekly Task Creation
-                $deptInfo = $db->query("SELECT department_name, department_code FROM departments WHERE id = {$taskDeptId}")->fetch(PDO::FETCH_ASSOC);
-                $deptCode = $deptInfo['department_code'] ?? "Dept #{$taskDeptId}";
-                $deptName = $deptInfo['department_name'] ?? "Department";
-
-                $notifTitle = "Weekly Plan Task Created: {$deptCode}";
-                $notifMessage = "{$deptName} has scheduled a new Weekly Task for {$month} {$year} (Week {$week}).\n"
-                              . "• Task: {$taskTitle}\n"
-                              . "• Expected Result: {$expectedResult}\n"
-                              . "• Responsible: {$responsible}\n"
-                              . "• Priority: {$priority}";
-
-                notify_gm_submission($notifTitle, $notifMessage, $taskDeptId);
-
-                set_flash('success', "Weekly task '{$taskTitle}' planned for Week {$week}.");
+                // Weekly task scheduled without one-by-one Telegram spamming.
+                // Complete Weekly Task Schedule with Last Week Performance Report is dispatched on submission.
+                set_flash('success', "Weekly task '{$taskTitle}' planned for Week {$week}. Submit weekly plan when all tasks are added.");
                 redirect("/department/weekly_plans.php?year={$year}&month={$month}&week={$week}&department_id={$taskDeptId}");
             } catch (PDOException $e) {
                 set_flash('danger', "Database error creating weekly task: " . $e->getMessage());
             }
+        }
+    } elseif ($action === 'submit_weekly_plan') {
+        $taskDeptId = (int)($_POST['department_id'] ?? $deptId);
+        Permissions::requireDepartmentAccess($taskDeptId);
+
+        $year = trim($_POST['year'] ?? $selectedYear);
+        $month = trim($_POST['month'] ?? $selectedMonth);
+        $week = (int)($_POST['week_number'] ?? $selectedWeek);
+        $remarks = trim($_POST['submission_notes'] ?? '');
+
+        try {
+            // Check if planned tasks exist
+            $chkStmt = $db->prepare("SELECT COUNT(*) FROM weekly_tasks WHERE department_id = ? AND year = ? AND month = ? AND week_number = ?");
+            $chkStmt->execute([$taskDeptId, $year, $month, $week]);
+            $taskCount = (int)$chkStmt->fetchColumn();
+
+            if ($taskCount === 0) {
+                set_flash('danger', 'Cannot submit empty weekly plan. Please schedule at least one task first.');
+                redirect("/department/weekly_plans.php?year={$year}&month={$month}&week={$week}&department_id={$taskDeptId}");
+            }
+
+            // Update weekly_plans status to SUBMITTED
+            $db->prepare("
+                UPDATE weekly_plans 
+                SET status = 'SUBMITTED', updated_at = NOW() 
+                WHERE department_id = ? AND year = ? AND month = ? AND week_number = ?
+            ")->execute([$taskDeptId, $year, $month, $week]);
+
+            audit_log($userId, 'WEEKLY_PLAN_SUBMITTED', 'weekly_plans', "{$taskDeptId}_{$year}_{$month}_{$week}", null, [
+                'department_id' => $taskDeptId,
+                'year' => $year,
+                'month' => $month,
+                'week' => $week,
+                'total_tasks' => $taskCount
+            ]);
+
+            // Fetch tasks for the week
+            $tStmt = $db->prepare("
+                SELECT task_title, expected_result, responsible_person, priority, plan_type 
+                FROM weekly_tasks 
+                WHERE department_id = ? AND year = ? AND month = ? AND week_number = ?
+                ORDER BY plan_type DESC, id ASC
+            ");
+            $tStmt->execute([$taskDeptId, $year, $month, $week]);
+            $plannedTasks = $tStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Fetch department details
+            $deptInfo = $db->query("SELECT department_name, department_code FROM departments WHERE id = {$taskDeptId}")->fetch(PDO::FETCH_ASSOC);
+            $deptCode = $deptInfo['department_code'] ?? "Dept #{$taskDeptId}";
+            $deptName = $deptInfo['department_name'] ?? "Department";
+
+            // Find Last Week's Performance
+            $prevWeek = max(1, $week - 1);
+            $prevMonth = $month;
+            $prevYear = $year;
+
+            $lastRepStmt = $db->prepare("
+                SELECT total_tasks, done_tasks, not_done_tasks, completion_percentage, submission_status, notes 
+                FROM weekly_reports 
+                WHERE department_id = ? AND year = ? AND month = ? AND week_number = ?
+            ");
+            $lastRepStmt->execute([$taskDeptId, $prevYear, $prevMonth, $prevWeek]);
+            $lastReport = $lastRepStmt->fetch(PDO::FETCH_ASSOC);
+
+            $notifTitle = "📝 Weekly Task Scheduled: {$deptCode}";
+            $notifMessage = "<b>{$deptName}</b> has officially submitted their <b>Weekly Task Schedule</b> for <b>Week {$week} ({$month} {$year})</b>.\n\n"
+                          . "📋 <b>WEEK {$week} SCHEDULED TASKS ({$taskCount} Total)</b>\n\n";
+
+            $displayCount = 0;
+            foreach ($plannedTasks as $t) {
+                if ($displayCount >= 8) {
+                    $rem = $taskCount - 8;
+                    $notifMessage .= "   <i>... and {$rem} more task(s)</i>\n";
+                    break;
+                }
+                $displayCount++;
+                $notifMessage .= "{$displayCount}. [{$t['priority']}] <b>" . htmlspecialchars($t['task_title'], ENT_QUOTES, 'UTF-8') . "</b>\n"
+                               . "   🎯 <i>Target:</i> " . htmlspecialchars($t['expected_result'], ENT_QUOTES, 'UTF-8') . "\n"
+                               . "   👤 <i>Responsible:</i> " . htmlspecialchars($t['responsible_person'], ENT_QUOTES, 'UTF-8') . "\n";
+            }
+
+            $notifMessage .= "\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                           . "📊 <b>LAST WEEK PERFORMANCE REPORT (Week {$prevWeek}, {$prevMonth} {$prevYear})</b>\n";
+
+            if ($lastReport) {
+                $statusTag = ($lastReport['submission_status'] === 'ON_TIME') ? '🟢 ON-TIME' : '🟡 LATE';
+                $notifMessage .= "• <b>Completion Rate:</b> <b>{$lastReport['completion_percentage']}%</b>\n"
+                               . "• <b>Binary Execution:</b> <b>{$lastReport['done_tasks']} DONE</b> &bull; <b>{$lastReport['not_done_tasks']} NOT DONE</b> ({$lastReport['total_tasks']} planned)\n"
+                               . "• <b>Submission Status:</b> <b>{$statusTag}</b>\n";
+            } else {
+                $notifMessage .= "• <i>Initial cycle — no prior week performance record recorded.</i>\n";
+            }
+
+            if (!empty($remarks)) {
+                $notifMessage .= "\n💬 <b>Department Remarks:</b> <i>\"" . htmlspecialchars($remarks, ENT_QUOTES, 'UTF-8') . "\"</i>\n";
+            }
+            $notifMessage .= "━━━━━━━━━━━━━━━━━━━━━━━━━━";
+
+            $baseUrl = rtrim((string)(getenv('APP_URL') ?: (defined('APP_URL') ? APP_URL : 'http://localhost/Planner')), '/');
+            $planVoucherUrl = "{$baseUrl}/weekly/voucher?department_id={$taskDeptId}&year=" . urlencode($year) . "&month=" . urlencode($month) . "&week={$week}&type=plan";
+
+            notify_gm_submission($notifTitle, $notifMessage, $taskDeptId, $planVoucherUrl);
+
+            set_flash('success', "Weekly task schedule for Week {$week} submitted to General Management with Last Week's Performance Report!");
+            redirect("/department/weekly_plans.php?year={$year}&month={$month}&week={$week}&department_id={$taskDeptId}");
+        } catch (PDOException $e) {
+            set_flash('danger', "Database error submitting weekly plan: " . $e->getMessage());
         }
     } elseif ($action === 'delete_task') {
         $delId = (int)($_POST['task_id'] ?? 0);
@@ -187,7 +282,10 @@ $weeklySubmission = $subStmt->fetch();
         <button class="btn btn-kaldis" data-bs-toggle="modal" data-bs-target="#createTaskModal">
             <i class="fas fa-plus-circle me-1"></i> Add Weekly Task
         </button>
-        <a href="<?= url('/department/performance.php?year=' . urlencode($selectedYear) . '&month=' . urlencode($selectedMonth) . '&week=' . $selectedWeek . '&department_id=' . $deptId) ?>" class="btn btn-success">
+        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#submitWeeklyPlanModal" <?= empty($tasks) ? 'disabled' : '' ?>>
+            <i class="fas fa-paper-plane me-1"></i> Submit Weekly Plan to GM
+        </button>
+        <a href="<?= url('/department/performance.php?year=' . urlencode($selectedYear) . '&month=' . urlencode($selectedMonth) . '&week=' . $selectedWeek . '&department_id=' . $deptId) ?>" class="btn btn-outline-success">
             <i class="fas fa-clipboard-check me-1"></i> Weekly Performance Execution &rarr;
         </a>
     </div>
@@ -477,6 +575,46 @@ $weeklySubmission = $subStmt->fetch();
                         <i class="fas fa-save me-1"></i> Save Task
                     </button>
                 </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Submit Weekly Plan to GM -->
+<div class="modal fade" id="submitWeeklyPlanModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" action="weekly_plans.php">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="submit_weekly_plan">
+                <input type="hidden" name="department_id" value="<?= $deptId ?>">
+                <input type="hidden" name="year" value="<?= htmlspecialchars($selectedYear) ?>">
+                <input type="hidden" name="month" value="<?= htmlspecialchars($selectedMonth) ?>">
+                <input type="hidden" name="week_number" value="<?= $selectedWeek ?>">
+
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title fs-6"><i class="fas fa-paper-plane me-2"></i> Submit Weekly Plan to GM (Week <?= $selectedWeek ?>)</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    <div class="alert alert-info py-2 px-3 small mb-3">
+                        <i class="fas fa-info-circle me-1"></i>
+                        This will submit your planned tasks for Week <?= $selectedWeek ?> to General Management and send a Telegram notification with <strong>Weekly Task Scheduled</strong> and <strong>Last Week's Performance Report</strong>.
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Department Remarks for GM (Optional)</label>
+                        <textarea name="submission_notes" class="form-control" rows="3" placeholder="Context, priorities, or operational highlights for GM..."></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-paper-plane me-1"></i> Submit Weekly Plan to GM
+                    </button>
                 </div>
             </form>
         </div>

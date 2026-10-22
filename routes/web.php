@@ -52,6 +52,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/weekly/plans', [WeeklyPlanController::class, 'index'])->name('weekly.plans');
     Route::get('/weekly/tasks', [WeeklyPlanController::class, 'index'])->name('weekly.tasks');
     Route::post('/weekly/tasks', [WeeklyPlanController::class, 'storeTask'])->name('weekly.tasks.store');
+    Route::post('/weekly/plans/submit', [WeeklyPlanController::class, 'submitPlan'])->name('weekly.plans.submit');
     Route::delete('/weekly/tasks/{id}', [WeeklyPlanController::class, 'destroyTask'])->name('weekly.tasks.destroy');
 
     // Weekly Performance Execution

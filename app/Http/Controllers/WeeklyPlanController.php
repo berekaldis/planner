@@ -82,6 +82,8 @@ class WeeklyPlanController extends Controller
             $submission->gm_feedback_at = $weeklyReport->gm_feedback_at;
         }
 
+        $lastWeekPerf = get_last_week_performance_data($deptId, $selectedYear, $selectedMonth, $selectedWeek);
+
         return view('weekly.plans', compact(
             'department',
             'weeklyPlan',
@@ -91,7 +93,8 @@ class WeeklyPlanController extends Controller
             'selectedYear',
             'selectedMonth',
             'selectedWeek',
-            'submission'
+            'submission',
+            'lastWeekPerf'
         ));
     }
 
@@ -153,26 +156,90 @@ class WeeklyPlanController extends Controller
 
         AuditLog::log('CREATE_WEEKLY_TASK', 'weekly_plans', "Created weekly task: {$task->task_title} (Week {$task->week_number})", $task->id);
 
-        // Automated Telegram Notification to GM and Department Head
-        $dept = Department::find($validated['department_id']);
-        $notifTitle = "📝 Weekly Task Scheduled: " . ($dept->department_code ?? "Dept #{$validated['department_id']}");
-        $notifMessage = "A new weekly task has been scheduled for <b>" . ($dept->department_name ?? 'Department') . "</b> (Week {$validated['week_number']}, {$validated['month']} {$validated['year']}):\n\n"
-            . "• <b>Task:</b> " . htmlspecialchars($task->task_title, ENT_QUOTES, 'UTF-8') . "\n"
-            . "• <b>Target:</b> " . htmlspecialchars($task->expected_result, ENT_QUOTES, 'UTF-8') . "\n"
-            . "• <b>Priority:</b> {$task->priority}\n"
-            . "• <b>Responsible:</b> " . htmlspecialchars($task->responsible_person, ENT_QUOTES, 'UTF-8') . "\n"
-            . "• <b>Monthly Plan:</b> " . htmlspecialchars($monthlyPlan->title, ENT_QUOTES, 'UTF-8') . " [{$monthlyPlan->plan_type}]";
+        // Task created without one-by-one Telegram spamming.
+        // Full Weekly Task Schedule with Last Week Performance Report is dispatched when submitted to GM.
+        return back()->with('success', 'Weekly task scheduled successfully. Remember to submit your weekly plan when all tasks are added.');
+    }
 
-        $weeklyUrl = route('weekly.plans', [
+    public function submitPlan(Request $request)
+    {
+        $user = Auth::user();
+        $deptId = $request->input('department_id', $user->department_id);
+
+        if (!$user->canAccessAllDepartments() && $user->department_id != $deptId) {
+            abort(403, 'Unauthorized department.');
+        }
+
+        $validated = $request->validate([
+            'department_id' => 'required|exists:departments,id',
+            'year' => 'required|string',
+            'month' => 'required|string',
+            'week_number' => 'required|integer|min:1|max:5',
+            'notes' => 'nullable|string',
+        ]);
+
+        $department = Department::findOrFail($validated['department_id']);
+
+        $tasks = WeeklyTask::with(['monthlyPlan.annualGoal'])
+            ->where('department_id', $validated['department_id'])
+            ->where('year', $validated['year'])
+            ->where('month', $validated['month'])
+            ->where('week_number', $validated['week_number'])
+            ->orderBy('plan_type', 'desc')
+            ->orderBy('id')
+            ->get();
+
+        if ($tasks->isEmpty()) {
+            return back()->withErrors(['submission' => 'Cannot submit an empty weekly plan. Please schedule at least one task first.']);
+        }
+
+        $weeklyPlan = WeeklyPlan::updateOrCreate([
             'department_id' => $validated['department_id'],
             'year' => $validated['year'],
             'month' => $validated['month'],
-            'week' => $validated['week_number'],
+            'week_number' => $validated['week_number'],
+        ], [
+            'status' => 'SUBMITTED',
+            'notes' => $validated['notes'] ?? null,
+            'created_by' => $user->id,
         ]);
 
-        notify_both_gm_and_head((int)$validated['department_id'], $notifTitle, $notifMessage, $weeklyUrl);
+        AuditLog::log(
+            'SUBMIT_WEEKLY_PLAN',
+            'weekly_plans',
+            "Submitted {$tasks->count()} weekly scheduled tasks for Week {$validated['week_number']} ({$validated['month']} {$validated['year']})",
+            $weeklyPlan->id
+        );
 
-        return back()->with('success', 'Weekly task scheduled successfully and notified on Telegram.');
+        // Fetch Last Week's Performance Report data
+        $lastWeekPerf = get_last_week_performance_data(
+            (int)$validated['department_id'],
+            $validated['year'],
+            $validated['month'],
+            (int)$validated['week_number']
+        );
+
+        // Build Consolidated Notification: Weekly Task Scheduled with Last Week Performance Report
+        $notification = build_weekly_task_scheduled_notification(
+            $department,
+            $validated['year'],
+            $validated['month'],
+            (int)$validated['week_number'],
+            $tasks,
+            $lastWeekPerf,
+            $validated['notes'] ?? null,
+            $user
+        );
+
+        notify_both_gm_and_head(
+            (int)$validated['department_id'],
+            $notification['title'],
+            $notification['message'],
+            $notification['plan_voucher_url'],
+            $notification['reply_markup']
+        );
+
+        return back()->with('success', "Weekly task schedule for Week {$validated['week_number']} submitted successfully with Last Week's Performance Report!");
     }
 
     public function destroyTask($id)

@@ -692,5 +692,235 @@ if (!function_exists('get_greeting')) {
     }
 }
 
+if (!function_exists('get_last_week_performance_data')) {
+    /**
+     * Retrieve the performance execution record of the preceding week for a given department.
+     */
+    function get_last_week_performance_data(int $deptId, string $year, string $month, int $weekNumber): array
+    {
+        $months = get_ethiopian_months();
+        $normalizedMonth = normalize_ethiopian_month($month);
+        $monthIndex = array_search($normalizedMonth, $months);
+        if ($monthIndex === false) {
+            $monthIndex = 0;
+        }
+
+        $yNum = (int)preg_replace('/[^0-9]/', '', $year) ?: 2019;
+
+        if ($weekNumber > 1) {
+            $prevWeek = $weekNumber - 1;
+            $prevMonth = $normalizedMonth;
+            $prevYear = $year;
+        } else {
+            // Preceding month for Week 1
+            if ($monthIndex === 0) {
+                // If Meskerem, previous is Nehase of prior year
+                $prevMonthIndex = count($months) - 1;
+                $prevYearNum = $yNum - 1;
+            } else {
+                $prevMonthIndex = $monthIndex - 1;
+                $prevYearNum = $yNum;
+            }
+            $prevMonth = $months[$prevMonthIndex];
+            $prevYear = "{$prevYearNum} E.C.";
+
+            // Find the latest week in the previous month that had reports or tasks
+            $maxReportWeek = \App\Models\WeeklyReport::where('department_id', $deptId)
+                ->where('year', $prevYear)
+                ->where('month', $prevMonth)
+                ->max('week_number');
+
+            $maxTaskWeek = \App\Models\WeeklyTask::where('department_id', $deptId)
+                ->where('year', $prevYear)
+                ->where('month', $prevMonth)
+                ->max('week_number');
+
+            $prevWeek = (int)($maxReportWeek ?: ($maxTaskWeek ?: 4));
+        }
+
+        // Query WeeklyReport first
+        $report = \App\Models\WeeklyReport::where('department_id', $deptId)
+            ->where('year', $prevYear)
+            ->where('month', $prevMonth)
+            ->where('week_number', $prevWeek)
+            ->first();
+
+        // Query Submission record for compliance / timing
+        $submission = \App\Models\Submission::where('department_id', $deptId)
+            ->where('year', $prevYear)
+            ->where('month', $prevMonth)
+            ->where('week_number', $prevWeek)
+            ->first();
+
+        // Query WeeklyTask with result
+        $tasks = \App\Models\WeeklyTask::with('result')
+            ->where('department_id', $deptId)
+            ->where('year', $prevYear)
+            ->where('month', $prevMonth)
+            ->where('week_number', $prevWeek)
+            ->get();
+
+        $totalTasks = $tasks->count();
+        $doneTasks = $tasks->filter(fn($t) => $t->result && $t->result->result === 'DONE')->count();
+        $notDoneTasks = $tasks->filter(fn($t) => $t->result && $t->result->result === 'NOT_DONE')->count();
+        $calcRate = $totalTasks > 0 ? round(($doneTasks / $totalTasks) * 100, 1) : 0;
+
+        $hasData = ($report !== null) || ($totalTasks > 0) || ($submission !== null);
+
+        $completionRate = $report ? (float)$report->completion_percentage : $calcRate;
+        $doneCount = $report ? (int)$report->done_tasks : $doneTasks;
+        $notDoneCount = $report ? (int)$report->not_done_tasks : $notDoneTasks;
+        $totalCount = $report ? (int)$report->total_tasks : $totalTasks;
+
+        $timingStatus = $submission->status ?? ($report->submission_status ?? ($hasData ? 'SUBMITTED' : 'NOT_RECORDED'));
+        $remarks = $submission->remarks ?? ($report->notes ?? '');
+
+        return [
+            'has_data' => $hasData,
+            'prev_year' => $prevYear,
+            'prev_month' => $prevMonth,
+            'prev_week' => $prevWeek,
+            'total_tasks' => $totalCount,
+            'done_tasks' => $doneCount,
+            'not_done_tasks' => $notDoneCount,
+            'completion_rate' => $completionRate,
+            'timing_status' => $timingStatus,
+            'remarks' => $remarks,
+            'report' => $report,
+            'submission' => $submission,
+        ];
+    }
+}
+
+if (!function_exists('build_weekly_task_scheduled_notification')) {
+    /**
+     * Build the consolidated notification for Weekly Task Scheduled with Last Week Performance Report.
+     */
+    function build_weekly_task_scheduled_notification(
+        \App\Models\Department $dept,
+        string $year,
+        string $month,
+        int $weekNumber,
+        $tasks,
+        array $lastWeekPerf,
+        ?string $remarks = null,
+        $user = null
+    ): array {
+        $deptCode = htmlspecialchars($dept->department_code ?? "Dept #{$dept->id}", ENT_QUOTES, 'UTF-8');
+        $deptName = htmlspecialchars($dept->department_name ?? 'Department', ENT_QUOTES, 'UTF-8');
+        $submitterName = $user ? htmlspecialchars($user->full_name ?: ($user->username ?: 'Department Head'), ENT_QUOTES, 'UTF-8') : 'Department Head';
+
+        $totalTasks = $tasks->count();
+        $stratCount = $tasks->where('plan_type', 'STRATEGY')->count();
+        $opsCount = $tasks->where('plan_type', 'OPERATIONAL')->count();
+
+        // 1. Notification Title
+        $notifTitle = "📝 Weekly Task Scheduled: {$deptCode}";
+
+        // 2. Scheduled Weekly Tasks Section
+        $msg = "<b>{$deptName}</b> has officially submitted their <b>Weekly Task Schedule</b> for <b>Week {$weekNumber} ({$month} {$year})</b>.\n"
+             . "👤 <i>Submitted by:</i> {$submitterName}\n\n"
+             . "📋 <b>WEEK {$weekNumber} SCHEDULED TASKS ({$totalTasks} Total)</b>\n"
+             . "• <b>Breakdown:</b> {$stratCount} Strategic | {$opsCount} Operational\n\n";
+
+        $displayTasks = $tasks->take(8);
+        $taskNum = 1;
+        foreach ($displayTasks as $t) {
+            $pTag = $t->priority ?? 'MEDIUM';
+            $tTitle = htmlspecialchars($t->task_title, ENT_QUOTES, 'UTF-8');
+            $tTarget = htmlspecialchars($t->expected_result ?: ($t->task_target ?: 'Completed'), ENT_QUOTES, 'UTF-8');
+            $tResp = htmlspecialchars($t->responsible_person ?: ($t->assigned_to ?: 'Unassigned'), ENT_QUOTES, 'UTF-8');
+
+            $msg .= "{$taskNum}. [{$pTag}] <b>{$tTitle}</b>\n"
+                  . "   🎯 <i>Target:</i> {$tTarget}\n"
+                  . "   👤 <i>Responsible:</i> {$tResp}\n";
+            $taskNum++;
+        }
+
+        if ($totalTasks > 8) {
+            $remaining = $totalTasks - 8;
+            $msg .= "   <i>... and {$remaining} more task(s) (view Plan Voucher)</i>\n";
+        }
+
+        // 3. Last Week Performance Report Section
+        $prevWeek = $lastWeekPerf['prev_week'] ?? max(1, $weekNumber - 1);
+        $prevMonth = $lastWeekPerf['prev_month'] ?? $month;
+        $prevYear = $lastWeekPerf['prev_year'] ?? $year;
+
+        $msg .= "\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+              . "📊 <b>LAST WEEK PERFORMANCE REPORT (Week {$prevWeek}, {$prevMonth} {$prevYear})</b>\n";
+
+        if (!empty($lastWeekPerf['has_data'])) {
+            $timingRaw = $lastWeekPerf['timing_status'] ?? 'ON_TIME';
+            $timingBadge = match ($timingRaw) {
+                'ON_TIME' => '🟢 ON-TIME',
+                'LATE' => '🟡 LATE',
+                'MISSING' => '🔴 MISSING',
+                default => '⚪ ' . str_replace('_', ' ', $timingRaw),
+            };
+
+            $compRate = $lastWeekPerf['completion_rate'];
+            $done = $lastWeekPerf['done_tasks'];
+            $notDone = $lastWeekPerf['not_done_tasks'];
+            $tot = $lastWeekPerf['total_tasks'];
+
+            $msg .= "• <b>Completion Rate:</b> <b>{$compRate}%</b>\n"
+                  . "• <b>Binary Execution:</b> <b>{$done} DONE</b> &bull; <b>{$notDone} NOT DONE</b> ({$tot} planned)\n"
+                  . "• <b>Submission Status:</b> <b>{$timingBadge}</b>\n";
+
+            if (!empty($lastWeekPerf['remarks'])) {
+                $safeRem = htmlspecialchars($lastWeekPerf['remarks'], ENT_QUOTES, 'UTF-8');
+                $msg .= "• <b>Remarks:</b> <i>\"{$safeRem}\"</i>\n";
+            }
+        } else {
+            $msg .= "• <i>Initial cycle — no prior week performance record recorded on portal.</i>\n";
+        }
+
+        // Optional Remarks for current submission
+        if (!empty($remarks)) {
+            $safeNotes = htmlspecialchars($remarks, ENT_QUOTES, 'UTF-8');
+            $msg .= "\n💬 <b>Department Head Remarks:</b> <i>\"{$safeNotes}\"</i>\n";
+        }
+
+        $msg .= "━━━━━━━━━━━━━━━━━━━━━━━━━━";
+
+        // Vouchers URLs
+        $planVoucherUrl = route('weekly.voucher', [
+            'department_id' => $dept->id,
+            'year' => $year,
+            'month' => $month,
+            'week' => $weekNumber,
+            'type' => 'plan',
+        ]);
+
+        $perfVoucherUrl = route('weekly.voucher', [
+            'department_id' => $dept->id,
+            'year' => $prevYear,
+            'month' => $prevMonth,
+            'week' => $prevWeek,
+            'type' => 'performance',
+        ]);
+
+        $replyMarkup = [
+            'inline_keyboard' => [
+                [
+                    ['text' => "📝 View Week {$weekNumber} Plan Voucher", 'url' => $planVoucherUrl],
+                ],
+                [
+                    ['text' => "📊 View Week {$prevWeek} Performance Voucher", 'url' => $perfVoucherUrl],
+                ],
+            ]
+        ];
+
+        return [
+            'title' => $notifTitle,
+            'message' => $msg,
+            'plan_voucher_url' => $planVoucherUrl,
+            'perf_voucher_url' => $perfVoucherUrl,
+            'reply_markup' => $replyMarkup,
+        ];
+    }
+}
+
 
 
