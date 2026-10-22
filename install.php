@@ -577,7 +577,8 @@ if ($action === 'install' && $canInstall) {
             "ALTER TABLE `monthly_submissions` MODIFY COLUMN `status` VARCHAR(50) NOT NULL DEFAULT 'DRAFT'",
             "ALTER TABLE `monthly_submissions` MODIFY COLUMN `approval_status` VARCHAR(50) NOT NULL DEFAULT 'PENDING'",
             "ALTER TABLE `monthly_submissions` MODIFY COLUMN `submission_channel` VARCHAR(50) NOT NULL DEFAULT 'WEB'",
-            "ALTER TABLE `weekly_plans` ADD COLUMN `notes` TEXT NULL AFTER `status`"
+            "ALTER TABLE `weekly_plans` ADD COLUMN `notes` TEXT NULL AFTER `status`",
+            "UPDATE `system_settings` SET `setting_value` = '12:30' WHERE `setting_key` = 'weekly_deadline_time' AND `setting_value` IN ('12:00', '12:00:00')"
         ];
         foreach ($columnPatches as $patch) {
             try {
@@ -1470,7 +1471,7 @@ if ($action === 'install' && $canInstall) {
         // 10. Seed System Settings
         $settings = [
             ['weekly_deadline_day', 'Monday', 'DEADLINE', 'Day of the week when weekly reports are due'],
-            ['weekly_deadline_time', '12:00', 'DEADLINE', 'Cutoff time for weekly reports (24h format)'],
+            ['weekly_deadline_time', '12:30', 'DEADLINE', 'Cutoff time for weekly reports (24h format, 12:30 PM Western / 6:30 Ethiopian LT)'],
             ['escalation_level_1_rule', '1 missed week -> Department Head Warning Reminder', 'ESCALATION', 'Level 1 escalation trigger'],
             ['escalation_level_2_rule', '2 consecutive missed weeks -> HR & Operations Alert', 'ESCALATION', 'Level 2 escalation trigger'],
             ['escalation_level_3_rule', '3+ consecutive missed weeks -> General Manager Escalation', 'ESCALATION', 'Level 3 escalation trigger'],

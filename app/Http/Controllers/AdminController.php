@@ -249,7 +249,7 @@ class AdminController extends Controller
             ],
             'Reporting, Compliance & Official Vouchers' => [
                 'Submit Weekly Performance Report' => [
-                    'desc' => 'Transmit weekly execution scorecard before Monday 12:00 PM deadline',
+                    'desc' => 'Transmit weekly execution scorecard before Monday 6:30 LT (12:30 PM) deadline',
                     'super_admin' => true, 'gm_management' => false, 'hr' => false, 'dept_head' => true, 'it_admin' => false,
                 ],
                 'Generate Official Monthly Voucher' => [

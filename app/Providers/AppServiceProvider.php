@@ -74,6 +74,16 @@ class AppServiceProvider extends ServiceProvider
                 Cache::forever('schema_weekly_plans_notes_v1', true);
             }
 
+            // Auto-heal weekly deadline time to 12:30 (6:30 Ethiopian LT)
+            if (!Cache::has('schema_weekly_deadline_time_1230_v1')) {
+                if (Schema::hasTable('system_settings')) {
+                    \App\Models\SystemSetting::where('setting_key', 'weekly_deadline_time')
+                        ->whereIn('setting_value', ['12:00', '12:00:00'])
+                        ->update(['setting_value' => '12:30']);
+                }
+                Cache::forever('schema_weekly_deadline_time_1230_v1', true);
+            }
+
             // Auto-heal active Telegram credentials & GM chat IDs
             if (!Cache::has('auto_heal_telegram_gm_v2')) {
                 $revoked = ['8370988256:AAE8aG5s2vzEy6PfSH2b-Fiufr_num0A_rY', 'YOUR_BOT_TOKEN_HERE'];

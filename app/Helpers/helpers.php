@@ -459,6 +459,107 @@ if (!function_exists('get_monthly_plan_deadline_info')) {
     }
 }
 
+if (!function_exists('get_weekly_cycle_deadline')) {
+    /**
+     * Compute the official deadline for a weekly performance report and upcoming plan.
+     * Business Governance Rule:
+     * Week W performance and Week W+1 plan must be submitted by Week W+1 Monday at 6:30 LT (12:30 PM Western / EAT).
+     *
+     * Example: Week 1 performance and Week 2 plan are due on Week 2 Monday at 6:30 LT (12:30 PM).
+     *          Week 2 performance and Week 3 plan are due on Week 3 Monday at 6:30 LT (12:30 PM).
+     *
+     * @param string $year Planning Year (e.g. '2019 E.C.')
+     * @param string $month Ethiopian Month (e.g. 'Tikimt')
+     * @param int $perfWeek Performance Week number (1 to 5)
+     * @param mixed $submittedAt Optional datetime/timestamp to evaluate timing status against
+     * @return array
+     */
+    function get_weekly_cycle_deadline(string $year, string $month, int $perfWeek, $submittedAt = null): array
+    {
+        $planWeek = min(5, $perfWeek + 1);
+        $deadlineDayName = kaldis_setting('weekly_deadline_day', 'Monday');
+        $deadlineTime = kaldis_setting('weekly_deadline_time', '12:30');
+        $timeParts = explode(':', $deadlineTime);
+        $hour = (int)($timeParts[0] ?? 12);
+        $min = (int)($timeParts[1] ?? 30);
+
+        $yNum = (int)preg_replace('/[^0-9]/', '', $year) ?: 2019;
+        $months = [
+            1 => 'Meskerem', 2 => 'Tikimt', 3 => 'Hidar', 4 => 'Tahsas',
+            5 => 'Tir', 6 => 'Yakatit', 7 => 'Megabit', 8 => 'Miazia',
+            9 => 'Ginbot', 10 => 'Sene', 11 => 'Hamle', 12 => 'Nehase', 13 => 'Pagume'
+        ];
+        $normalizedMonth = normalize_ethiopian_month($month);
+        $mNum = array_search($normalizedMonth, $months) ?: 1;
+
+        // In the Ethiopian calendar, Week W+1 begins on Day (W * 7) + 1
+        $startDay = ($perfWeek * 7) + 1;
+        $endDay = min(30, $startDay + 6);
+
+        $deadlineCarbon = null;
+        $ethDayFound = null;
+        $ethMonthFound = $mNum;
+        $ethYearFound = $yNum;
+
+        // Search for Monday within target week days
+        for ($d = $startDay; $d <= $endDay; $d++) {
+            [$gy, $gm, $gd] = ethiopian_to_gregorian_date($yNum, $mNum, $d);
+            $dateStr = sprintf('%04d-%02d-%02d', $gy, $gm, $gd);
+            if (date('N', strtotime($dateStr)) == 1) { // 1 = Monday
+                $deadlineCarbon = \Carbon\Carbon::create($gy, $gm, $gd, $hour, $min, 0, 'Africa/Addis_Ababa');
+                $ethDayFound = $d;
+                break;
+            }
+        }
+
+        // If not found in current month (e.g. crossing month boundary at week 5)
+        if (!$deadlineCarbon) {
+            $nextM = $mNum + 1;
+            $nextY = $yNum;
+            if ($nextM > 13) {
+                $nextM = 1;
+                $nextY++;
+            }
+            for ($d = 1; $d <= 7; $d++) {
+                [$gy, $gm, $gd] = ethiopian_to_gregorian_date($nextY, $nextM, $d);
+                $dateStr = sprintf('%04d-%02d-%02d', $gy, $gm, $gd);
+                if (date('N', strtotime($dateStr)) == 1) {
+                    $deadlineCarbon = \Carbon\Carbon::create($gy, $gm, $gd, $hour, $min, 0, 'Africa/Addis_Ababa');
+                    $ethDayFound = $d;
+                    $ethMonthFound = $nextM;
+                    $ethYearFound = $nextY;
+                    break;
+                }
+            }
+        }
+
+        if (!$deadlineCarbon) {
+            $deadlineCarbon = \Carbon\Carbon::parse("this {$deadlineDayName} {$deadlineTime}", 'Africa/Addis_Ababa');
+        }
+
+        $evalTime = $submittedAt ? \Carbon\Carbon::parse($submittedAt, 'Africa/Addis_Ababa') : \Carbon\Carbon::now('Africa/Addis_Ababa');
+        $isLate = $evalTime->gt($deadlineCarbon);
+        $compliance = $isLate ? 'LATE' : 'ON_TIME';
+
+        $ethMonthName = $months[$ethMonthFound] ?? $month;
+        $ethTimeStr = "6:30 LT ({$deadlineTime})";
+
+        return [
+            'perf_week' => $perfWeek,
+            'plan_week' => $planWeek,
+            'deadline_carbon' => $deadlineCarbon,
+            'deadline_formatted' => $deadlineCarbon->format('Y-m-d H:i:s'),
+            'deadline_display' => "Week {$planWeek} Monday at {$ethTimeStr}",
+            'eth_month' => $ethMonthName,
+            'eth_day' => $ethDayFound,
+            'eth_year' => "{$ethYearFound} E.C.",
+            'eth_full_str' => "{$ethMonthName} {$ethDayFound}, {$ethYearFound} E.C. Monday at {$ethTimeStr}",
+            'is_late' => $isLate,
+            'compliance' => $compliance,
+        ];
+    }
+}
+
 if (!function_exists('notify_gm_submission')) {
     function notify_gm_submission(string $title, string $message, ?int $deptId = null, ?string $voucherUrl = null, ?array $customReplyMarkup = null): array
     {

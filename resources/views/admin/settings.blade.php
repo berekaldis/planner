@@ -173,9 +173,9 @@
                                     <div class="col-md-6">
                                         <label class="form-label small fw-semibold text-secondary">WEEKLY CUTOFF TIME (24H)</label>
                                         <input type="time" name="weekly_deadline_time" class="form-control" 
-                                               value="{{ $settings['weekly_deadline_time']->setting_value ?? '12:00' }}" required>
+                                               value="{{ $settings['weekly_deadline_time']->setting_value ?? '12:30' }}" required>
                                         <div class="form-text text-muted small">
-                                            Weekly audit cutoff (default: <strong>12:00 PM</strong>).
+                                            Weekly audit cutoff: <strong>12:30 PM (6:30 Ethiopian Midday Local Time)</strong>. Automated GM compliance report dispatches every Monday at 15:00 (9:00 LT).
                                         </div>
                                     </div>
                                 </div>

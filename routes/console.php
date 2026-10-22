@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Schedule;
 
-// 1. Weekly Performance Reports: Advance reminder on Sunday 18:00 & Final reminder on Monday 08:30 AM before 12:00 PM cutoff
+// 1. Weekly Performance Reports: Advance reminder on Sunday 18:00 & Final reminder on Monday 08:30 AM before 12:30 PM (6:30 LT) cutoff
 Schedule::command('kaldis:weekly-reminder --type=performance')
     ->weeklyOn(0, '18:00')
     ->timezone('Africa/Addis_Ababa')
@@ -11,13 +11,19 @@ Schedule::command('kaldis:weekly-reminder --type=performance')
 Schedule::command('kaldis:weekly-reminder --type=performance')
     ->weeklyOn(1, '08:30')
     ->timezone('Africa/Addis_Ababa')
-    ->description('Weekly Performance Report Final Reminder to Department Heads (Monday 08:30)');
+    ->description('Weekly Performance Report Final Reminder to Department Heads (Monday 08:30 / 2:30 LT)');
 
-// 2. Weekly Performance Reports: Monday 12:05 PM deadline evaluation cutoff & GM Executive Summary
-Schedule::command('kaldis:deadline-check')
-    ->weeklyOn(1, '12:05')
+// 2. Weekly Deadline Cutoff: Monday 12:35 PM (6:35 LT) escalation alert to delinquent department heads
+Schedule::command('kaldis:deadline-check --target=heads')
+    ->weeklyOn(1, '12:35')
     ->timezone('Africa/Addis_Ababa')
-    ->description('Weekly Cutoff Compliance Check & GM Executive Telegram Summary (Monday 12:05)');
+    ->description('Weekly Cutoff Head Escalation Alerts (Monday 12:35 PM / 6:35 LT)');
+
+// 3. Weekly Compliance Notification: Every Monday at 15:00 (9:00 LT) GM Executive Report
+Schedule::command('kaldis:deadline-check --target=gm')
+    ->weeklyOn(1, '15:00')
+    ->timezone('Africa/Addis_Ababa')
+    ->description('Weekly Deadline Compliance Check & GM Executive Telegram Notification (Every Monday 9:00 LT / 15:00)');
 
 // 3. Weekly Task Planning: Reminders to schedule tasks for upcoming week (Friday 15:30 & Saturday 10:00)
 Schedule::command('kaldis:weekly-reminder --type=plan')

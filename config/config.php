@@ -50,7 +50,7 @@ return [
 
     // Weekly Reporting Deadlines
     'weekly_deadline_day' => 'Monday',
-    'weekly_deadline_time' => '12:00', // 24-hour format
+    'weekly_deadline_time' => '12:30', // 24-hour format
 
     // Monthly Plan Submission Deadlines (Ethiopian Calendar Day 26)
     'monthly_plan_deadline_day' => 26,

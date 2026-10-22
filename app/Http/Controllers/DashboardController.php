@@ -38,7 +38,7 @@ class DashboardController extends Controller
         $monthlyDeadlineDay = (int)kaldis_setting('monthly_plan_deadline_day', 26);
         $monthlyDeadlineTime = kaldis_setting('monthly_plan_deadline_time', '17:00');
         $weeklyDeadlineDay = kaldis_setting('weekly_deadline_day', 'Monday');
-        $weeklyDeadlineTime = kaldis_setting('weekly_deadline_time', '12:00');
+        $weeklyDeadlineTime = kaldis_setting('weekly_deadline_time', '12:30');
 
         $monthlyDaysLeft = max(0, $monthlyDeadlineDay - $currentEthDay);
 
@@ -394,6 +394,7 @@ class DashboardController extends Controller
             '--year' => $year,
             '--month' => $month,
             '--week' => $week,
+            '--force' => true,
         ]);
 
         // 2. Weekly cutoff check & GM summary
@@ -401,6 +402,7 @@ class DashboardController extends Controller
             '--year' => $year,
             '--month' => $month,
             '--week' => $week,
+            '--force' => true,
         ]);
 
         \Illuminate\Support\Facades\Artisan::call('kaldis:monthly-reminder', [

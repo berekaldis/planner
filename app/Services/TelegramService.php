@@ -515,7 +515,7 @@ class TelegramService
         if ($sub && $sub->submitted_at) {
             $msg .= "Submitted At: <b>" . Carbon::parse($sub->submitted_at)->format('M d, Y h:i A') . "</b>\n";
         }
-        $msg .= "\n⏰ Regular weekly submission deadline is <b>Monday 12:00 PM</b>.";
+        $msg .= "\n⏰ Regular weekly submission deadline is <b>Monday 6:30 LT (12:30 PM)</b>.";
 
         $this->sendMessage($chatId, $msg);
     }
@@ -624,12 +624,12 @@ class TelegramService
         $year = kaldis_setting('current_planning_year', config('kaldis.current_planning_year', '2019 E.C.'));
         $month = kaldis_setting('current_planning_month', config('kaldis.current_planning_month', 'Meskerem'));
         $deadlineDay = kaldis_setting('weekly_deadline_day', 'Monday');
-        $deadlineTime = kaldis_setting('weekly_deadline_time', '12:00');
+        $deadlineTime = kaldis_setting('weekly_deadline_time', '12:30');
 
         $text = "☕ <b>Kaldis Coffee PLC — Weekly Report Reminder</b>\n\n";
         $text .= "Dear <b>{$head->full_name}</b> ({$department->department_name}),\n\n";
         $text .= "This is a reminder to finalize and submit your department's <b>Week {$weekNumber}</b> Performance Report for <b>{$month} {$year}</b>.\n\n";
-        $text .= "⏰ <b>Submission Deadline:</b> {$deadlineDay} at {$deadlineTime}\n";
+        $text .= "⏰ <b>Submission Deadline:</b> {$deadlineDay} at 6:30 LT ({$deadlineTime})\n";
         $text .= "🌐 Please evaluate all tasks as <b>DONE</b> or <b>NOT DONE</b> in the portal:\n";
         $text .= "<code>http://localhost/Planner/weekly/performance</code>";
 

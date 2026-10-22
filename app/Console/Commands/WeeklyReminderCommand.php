@@ -24,10 +24,21 @@ class WeeklyReminderCommand extends Command
 
     public function handle(TelegramService $telegram): int
     {
+        $ethPeriod = function_exists('get_ethiopian_period') ? get_ethiopian_period() : ['week' => 1];
+        $currentEthWeek = (int)($ethPeriod['week'] ?? 1);
+
         $year = $this->option('year') ?: kaldis_setting('current_planning_year', config('kaldis.current_planning_year', '2019 E.C.'));
         $month = $this->option('month') ?: kaldis_setting('current_planning_month', config('kaldis.current_planning_month', 'Meskerem'));
-        $week = (int)($this->option('week') ?: (function_exists('get_current_planning_week') ? get_current_planning_week() : 1) ?: 1);
         $type = strtolower((string)$this->option('type'));
+
+        // If type is performance, default week is the week that just completed (e.g. Week 1 when in Week 2)
+        // If type is plan, default week is the upcoming week to be planned (e.g. Week 2 when in Week 1/2)
+        if ($this->option('week')) {
+            $week = (int)$this->option('week');
+        } else {
+            $week = ($type === 'performance' && $currentEthWeek > 1) ? $currentEthWeek - 1 : $currentEthWeek;
+        }
+        $planWeek = min(5, $week + 1);
 
         $this->info("Executing Weekly Reminder [Type: {$type}] for {$month} {$year} (Week {$week})...");
 
@@ -82,12 +93,12 @@ class WeeklyReminderCommand extends Command
 
                     if ($telegram->isConfigured() && !empty($chatId)) {
                         $perfUrl = url("/weekly/performance?year=" . urlencode($year) . "&month=" . urlencode($month) . "&week=" . $week);
-                        $msg = "⏰ <b>Kaldis Coffee PLC — Weekly Performance Reminder</b>\n\n"
+                        $msg = "⏰ <b>Kaldis Coffee PLC — Weekly Performance &amp; Plan Reminder</b>\n\n"
                              . "Dear <b>{$safeHeadName}</b> ({$safeDeptName}),\n\n"
-                             . "This is an advance reminder to finalize and submit your department's <b>Weekly Performance Execution Report</b> for <b>{$month} {$year}, Week {$week}</b>.\n\n"
-                             . "📅 <b>Submission Deadline:</b> Monday 12:00 PM (Noon)\n"
-                             . "🎯 Please verify all binary task statuses (DONE / NOT DONE) with root-cause reasons.\n\n"
-                             . "☕ <i>Kaldis Coffee PLC — Planning & Operational Governance</i>\n"
+                             . "This is a reminder to finalize and submit your department's <b>Weekly Performance Execution Report for Week {$week}</b> and <b>Weekly Task Schedule for Week {$planWeek}</b> ({$month} {$year}).\n\n"
+                             . "📅 <b>Submission Deadline:</b> Monday 6:30 LT (12:30 PM Midday)\n"
+                             . "🎯 Please verify all binary task statuses (DONE / NOT DONE) with root-cause reasons and submit before the cutoff.\n\n"
+                             . "☕ <i>Kaldis Coffee PLC — Planning &amp; Operational Governance</i>\n"
                              . "📅 <i>" . format_ethiopian_datetime() . "</i>";
 
                         $replyMarkup = [

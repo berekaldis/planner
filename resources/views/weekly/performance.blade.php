@@ -299,7 +299,9 @@
         <h6 class="fw-bold mb-0 text-dark">
             <i class="fas fa-paper-plane text-warning me-1"></i> Submit Weekly Cycle to GM: Week {{ $selectedWeek }} Performance &amp; Week {{ $nextWeek }} Plan
         </h6>
-        <span class="badge bg-light text-secondary border">Monday 12:00 PM Cutoff</span>
+        <span class="badge bg-light text-secondary border" title="{{ $cycleDeadline['eth_full_str'] ?? '' }}">
+            <i class="fas fa-clock text-warning me-1"></i> Monday 6:30 LT (12:30 PM) Cutoff
+        </span>
     </div>
     <div class="card-body">
         <form method="POST" action="{{ route('weekly.report.submit') }}">

@@ -7,27 +7,48 @@ use App\Models\Department;
 use App\Models\Escalation;
 use App\Models\Submission;
 use App\Models\User;
+use App\Models\WeeklyPlan;
 use App\Models\WeeklyReport;
+use App\Models\WeeklyTask;
 use App\Services\TelegramService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class DeadlineCheckCommand extends Command
 {
     protected $signature = 'kaldis:deadline-check 
-                            {--week= : Inspection week number (1 to 5)}
+                            {--week= : Inspection performance week number (1 to 5)}
                             {--month= : Specific Ethiopian Month}
-                            {--year= : Specific Planning Year}';
+                            {--year= : Specific Planning Year}
+                            {--target=all : Target recipients: "all", "gm", or "heads"}
+                            {--force : Force send and bypass cache debounce}';
 
-    protected $description = 'Evaluate weekly report deadline cutoff, flag missing departments, and send escalation alerts and GM executive summary via Telegram';
+    protected $description = 'Evaluate weekly report and planning deadline compliance, flag delinquent departments, and send escalation alerts and GM executive summary via Telegram';
 
     public function handle(TelegramService $telegram): int
     {
+        $ethPeriod = function_exists('get_ethiopian_period') ? get_ethiopian_period() : ['week' => 1];
+        $currentEthWeek = (int)($ethPeriod['week'] ?? 1);
+
         $year = $this->option('year') ?: kaldis_setting('current_planning_year', config('kaldis.current_planning_year', '2019 E.C.'));
         $month = $this->option('month') ?: kaldis_setting('current_planning_month', config('kaldis.current_planning_month', 'Meskerem'));
-        $week = (int)($this->option('week') ?: (function_exists('get_current_planning_week') ? get_current_planning_week() : 1) ?: 1);
+        
+        // If week option is passed, evaluate that performance week.
+        // Otherwise, in the weekly cycle, on Monday of Week W, the report due is for Week W - 1 (or 1 if W=1).
+        $week = (int)($this->option('week') ?: ($currentEthWeek > 1 ? $currentEthWeek - 1 : 1));
+        $planWeek = min(5, $week + 1);
+        $target = strtolower((string)($this->option('target') ?: 'all'));
+        $force = (bool)$this->option('force');
 
-        $this->info("Checking Monday 12:00 PM deadline compliance for {$month} {$year} (Week {$week})...");
+        $deadlineInfo = function_exists('get_weekly_cycle_deadline')
+            ? get_weekly_cycle_deadline($year, $month, $week)
+            : ['deadline_carbon' => Carbon::now(), 'deadline_display' => 'Monday 6:30 LT (12:30 PM)'];
+        $deadlineCarbon = $deadlineInfo['deadline_carbon'] ?? Carbon::now();
+        $deadlineFormatted = $deadlineInfo['deadline_display'] ?? "Monday 6:30 LT (12:30 PM)";
+
+        $this->info("Checking Monday 6:30 LT (12:30 PM) deadline compliance for Week {$week} Performance & Week {$planWeek} Plan ({$month} {$year})...");
 
         $departments = Department::where('active', 1)->with('head')->get();
         $totalDepts = $departments->count();
@@ -50,11 +71,38 @@ class DeadlineCheckCommand extends Command
                 ->where('week_number', $week)
                 ->first();
 
+            $upcomingPlan = WeeklyPlan::where('department_id', $dept->id)
+                ->where('year', $year)
+                ->where('month', $month)
+                ->where('week_number', $planWeek)
+                ->first();
+
+            $upcomingPlanTasks = WeeklyTask::where('department_id', $dept->id)
+                ->where('year', $year)
+                ->where('month', $month)
+                ->where('week_number', $planWeek)
+                ->count();
+
             $status = 'NOT_SUBMITTED';
+            $submittedAt = null;
+
             if ($submission && $submission->submitted_at) {
-                $status = in_array($submission->status, ['ON_TIME', 'LATE']) ? $submission->status : 'ON_TIME';
+                $submittedAt = $submission->submitted_at;
+                if (in_array($submission->status, ['ON_TIME', 'LATE'])) {
+                    $status = $submission->status;
+                } else {
+                    $status = Carbon::parse($submission->submitted_at)->lte($deadlineCarbon) ? 'ON_TIME' : 'LATE';
+                }
             } elseif ($report && $report->submitted_at) {
-                $status = in_array($report->submission_status, ['ON_TIME', 'LATE']) ? $report->submission_status : 'ON_TIME';
+                $submittedAt = $report->submitted_at;
+                if (in_array($report->submission_status, ['ON_TIME', 'LATE'])) {
+                    $status = $report->submission_status;
+                } else {
+                    $status = Carbon::parse($report->submitted_at)->lte($deadlineCarbon) ? 'ON_TIME' : 'LATE';
+                }
+            } elseif ($upcomingPlan && in_array($upcomingPlan->status, ['SUBMITTED', 'LOCKED']) && $upcomingPlanTasks > 0) {
+                $submittedAt = $upcomingPlan->updated_at ?? now();
+                $status = Carbon::parse($submittedAt)->lte($deadlineCarbon) ? 'ON_TIME' : 'LATE';
             }
 
             if ($status === 'ON_TIME') {
@@ -66,6 +114,8 @@ class DeadlineCheckCommand extends Command
                     'done' => $doneTasks,
                     'total' => $totalTasks,
                     'rate' => $rate,
+                    'plan_tasks' => $upcomingPlanTasks,
+                    'submitted_at' => $submittedAt,
                 ];
             } elseif ($status === 'LATE') {
                 $doneTasks = $report->done_tasks ?? 0;
@@ -76,103 +126,108 @@ class DeadlineCheckCommand extends Command
                     'done' => $doneTasks,
                     'total' => $totalTasks,
                     'rate' => $rate,
+                    'plan_tasks' => $upcomingPlanTasks,
+                    'submitted_at' => $submittedAt,
                 ];
             } else {
                 // MISSING / NOT SUBMITTED
                 $missingDepts[] = [
                     'dept' => $dept,
+                    'plan_tasks' => $upcomingPlanTasks,
                 ];
 
-                // Create or update MISSING report record
-                WeeklyReport::updateOrCreate([
-                    'department_id' => $dept->id,
-                    'year' => $year,
-                    'month' => $month,
-                    'week_number' => $week,
-                ], [
-                    'status' => 'DRAFT',
-                    'submission_status' => 'MISSING',
-                    'total_tasks' => 0,
-                    'done_tasks' => 0,
-                    'not_done_tasks' => 0,
-                    'completion_percentage' => 0,
-                    'notes' => 'Weekly performance report not submitted by Monday 12:00 PM cutoff.',
-                ]);
+                if ($target === 'all' || $target === 'heads') {
+                    // Create or update MISSING report record
+                    WeeklyReport::updateOrCreate([
+                        'department_id' => $dept->id,
+                        'year' => $year,
+                        'month' => $month,
+                        'week_number' => $week,
+                    ], [
+                        'status' => 'DRAFT',
+                        'submission_status' => 'MISSING',
+                        'total_tasks' => 0,
+                        'done_tasks' => 0,
+                        'not_done_tasks' => 0,
+                        'completion_percentage' => 0,
+                        'notes' => 'Weekly performance report not submitted by Monday 6:30 LT (12:30 PM) cutoff.',
+                    ]);
 
-                // Create or update MISSING submission record
-                Submission::updateOrCreate([
-                    'department_id' => $dept->id,
-                    'year' => $year,
-                    'month' => $month,
-                    'week_number' => $week,
-                ], [
-                    'status' => 'MISSING',
-                    'approval_status' => 'PENDING',
-                    'deadline_at' => Carbon::now(),
-                    'remarks' => 'Monday 12:00 PM cutoff expired without submission.',
-                ]);
+                    // Create or update MISSING submission record
+                    Submission::updateOrCreate([
+                        'department_id' => $dept->id,
+                        'year' => $year,
+                        'month' => $month,
+                        'week_number' => $week,
+                    ], [
+                        'status' => 'MISSING',
+                        'approval_status' => 'PENDING',
+                        'deadline_at' => $deadlineCarbon,
+                        'remarks' => 'Monday 6:30 LT (12:30 PM) cutoff expired without submission.',
+                    ]);
 
-                // Record Level 1 Escalation
-                Escalation::firstOrCreate([
-                    'department_id' => $dept->id,
-                    'year' => $year,
-                    'month' => $month,
-                    'week_number' => $week,
-                    'escalation_level' => 1,
-                ], [
-                    'missed_weeks_count' => 1,
-                    'channel' => 'TELEGRAM',
-                    'status' => 'OPEN',
-                    'triggered_at' => Carbon::now(),
-                ]);
+                    // Record Level 1 Escalation
+                    Escalation::firstOrCreate([
+                        'department_id' => $dept->id,
+                        'year' => $year,
+                        'month' => $month,
+                        'week_number' => $week,
+                        'escalation_level' => 1,
+                    ], [
+                        'missed_weeks_count' => 1,
+                        'channel' => 'TELEGRAM',
+                        'status' => 'OPEN',
+                        'triggered_at' => Carbon::now(),
+                    ]);
 
-                $this->warn("- Flagged MISSING: {$dept->department_name}");
+                    $this->warn("- Flagged MISSING: {$dept->department_name}");
 
-                // Send Telegram Escalation Alert to Department Head
-                $head = $dept->head;
-                if (!$head && $dept->head_user_id) {
-                    $head = User::find($dept->head_user_id);
-                }
-                if (!$head) {
-                    $head = User::where('department_id', $dept->id)
-                        ->whereHas('role', fn($q) => $q->whereIn('name', ['dept_head', 'department_head']))
-                        ->first();
-                }
-
-                $chatId = null;
-                if ($head && !empty($head->telegram_chat_id) && $head->telegram_chat_id !== '123456789') {
-                    $chatId = trim((string)$head->telegram_chat_id);
-                } elseif ($head) {
-                    $tu = \Illuminate\Support\Facades\DB::table('telegram_users')->where('user_id', $head->id)->where('is_active', 1)->first();
-                    if ($tu && !empty($tu->telegram_user_id) && $tu->telegram_user_id !== '123456789') {
-                        $chatId = trim((string)$tu->telegram_user_id);
+                    // Send Telegram Escalation Alert to Department Head
+                    $head = $dept->head;
+                    if (!$head && $dept->head_user_id) {
+                        $head = User::find($dept->head_user_id);
                     }
-                }
+                    if (!$head) {
+                        $head = User::where('department_id', $dept->id)
+                            ->whereHas('role', fn($q) => $q->whereIn('name', ['dept_head', 'department_head']))
+                            ->first();
+                    }
 
-                if ($telegram->isConfigured() && !empty($chatId)) {
-                    $safeDeptName = htmlspecialchars($dept->department_name, ENT_QUOTES, 'UTF-8');
-                    $safeHeadName = htmlspecialchars($head ? $head->full_name : 'Department Head', ENT_QUOTES, 'UTF-8');
-                    $perfUrl = url('/weekly/performance?week=' . $week . '&year=' . urlencode($year) . '&month=' . urlencode($month));
+                    $chatId = null;
+                    if ($head && !empty($head->telegram_chat_id) && $head->telegram_chat_id !== '123456789') {
+                        $chatId = trim((string)$head->telegram_chat_id);
+                    } elseif ($head) {
+                        $tu = DB::table('telegram_users')->where('user_id', $head->id)->where('is_active', 1)->first();
+                        if ($tu && !empty($tu->telegram_user_id) && $tu->telegram_user_id !== '123456789') {
+                            $chatId = trim((string)$tu->telegram_user_id);
+                        }
+                    }
 
-                    $msg = "🚨 <b>Kaldis Deadline Escalation Alert</b>\n\n"
-                         . "Attention: <b>{$safeHeadName}</b> ({$safeDeptName})\n\n"
-                         . "The weekly submission deadline for <b>{$safeDeptName}</b> ({$month} {$year}, Week {$week}) has expired without a submitted report.\n\n"
-                         . "⚠️ A <b>Level 1 Escalation</b> has been registered in the system.\n"
-                         . "Please evaluate your tasks and submit your execution report immediately.\n\n"
-                         . "☕ <i>Kaldis Coffee PLC — Executive Operations</i>\n"
-                         . "📅 <i>" . format_ethiopian_datetime() . "</i>";
+                    if ($telegram->isConfigured() && !empty($chatId)) {
+                        $safeDeptName = htmlspecialchars($dept->department_name, ENT_QUOTES, 'UTF-8');
+                        $safeHeadName = htmlspecialchars($head ? $head->full_name : 'Department Head', ENT_QUOTES, 'UTF-8');
+                        $perfUrl = url('/weekly/performance?week=' . $week . '&year=' . urlencode($year) . '&month=' . urlencode($month));
 
-                    $replyMarkup = [
-                        'inline_keyboard' => [
-                            [
-                                ['text' => '🌐 Submit Performance Report Now', 'url' => $perfUrl]
+                        $msg = "🚨 <b>Kaldis Deadline Escalation Alert</b>\n\n"
+                             . "Attention: <b>{$safeHeadName}</b> ({$safeDeptName})\n\n"
+                             . "The official weekly submission deadline for <b>{$safeDeptName}</b> (Week {$week} Performance &amp; Week {$planWeek} Plan &bull; {$month} {$year}) expired on <b>Monday 6:30 LT (12:30 PM)</b> without a submitted report.\n\n"
+                             . "⚠️ A <b>Level 1 Escalation</b> has been registered in the system.\n"
+                             . "Please evaluate your tasks and submit your execution report immediately.\n\n"
+                             . "☕ <i>Kaldis Coffee PLC — Executive Operations</i>\n"
+                             . "📅 <i>" . format_ethiopian_datetime() . "</i>";
+
+                        $replyMarkup = [
+                            'inline_keyboard' => [
+                                [
+                                    ['text' => '🌐 Submit Performance Report Now', 'url' => $perfUrl]
+                                ]
                             ]
-                        ]
-                    ];
+                        ];
 
-                    $res = $telegram->sendMessage($chatId, $msg, $replyMarkup);
-                    if (!empty($res['ok'])) {
-                        $escalationsSent++;
+                        $res = $telegram->sendMessage($chatId, $msg, $replyMarkup);
+                        if (!empty($res['ok'])) {
+                            $escalationsSent++;
+                        }
                     }
                 }
             }
@@ -186,7 +241,7 @@ class DeadlineCheckCommand extends Command
 
         // Dispatch Company-Wide Executive Summary Report to General Management (GM)
         $gmSummaryDelivered = 0;
-        if ($telegram->isConfigured()) {
+        if (($target === 'all' || $target === 'gm') && $telegram->isConfigured()) {
             $gmChatIds = [];
 
             // Query GM users
@@ -204,7 +259,7 @@ class DeadlineCheckCommand extends Command
 
             // Also check telegram_users table for linked GM accounts
             try {
-                $linkedGmIds = \Illuminate\Support\Facades\DB::table('telegram_users')
+                $linkedGmIds = DB::table('telegram_users')
                     ->whereIn('user_id', $gmUsers->pluck('id'))
                     ->where('is_active', 1)
                     ->pluck('telegram_user_id')
@@ -235,73 +290,83 @@ class DeadlineCheckCommand extends Command
 
             $gmChatIds = array_unique(array_filter($gmChatIds));
 
-            if (!empty($gmChatIds)) {
-                $execMsg = "📊 <b>Kaldis Executive Weekly Cutoff Report</b>\n";
-                $execMsg .= "📅 <b>Period:</b> Week {$week} &bull; {$month} {$year}\n";
-                $execMsg .= "⏰ <b>Cutoff Evaluation:</b> " . format_ethiopian_datetime() . "\n\n";
+            $cacheKey = "gm_weekly_compliance_report_{$year}_{$month}_{$week}_" . date('Ymd');
+            if ($force || !Cache::has($cacheKey)) {
+                if (!empty($gmChatIds)) {
+                    $execMsg = "📊 <b>Kaldis Executive Weekly Cutoff Report</b>\n";
+                    $execMsg .= "📅 <b>Cycle:</b> Week {$week} Performance &amp; Week {$planWeek} Plan &bull; {$month} {$year}\n";
+                    $execMsg .= "⏰ <b>Submission Cutoff:</b> Monday 6:30 LT (12:30 PM)\n";
+                    $execMsg .= "📢 <b>Evaluation Broadcast:</b> Monday 9:00 LT (3:00 PM)\n\n";
 
-                $execMsg .= "📈 <b>Company Submission Performance:</b>\n";
-                $execMsg .= "• Total Departments: <b>{$totalDepts}</b>\n";
-                $execMsg .= "• 🟢 Submitted On-Time: <b>{$onTimeCount}</b>\n";
-                if ($lateCount > 0) {
-                    $execMsg .= "• 🟡 Submitted Late: <b>{$lateCount}</b>\n";
-                }
-                $execMsg .= "• 🔴 Missing / Delinquent: <b>{$missingCount}</b>\n";
-                $execMsg .= "• 🎯 Submission Compliance: <b>{$complianceRate}%</b>\n\n";
-
-                if (!empty($onTimeDepts)) {
-                    $execMsg .= "🟢 <b>On-Time Submissions:</b>\n";
-                    foreach ($onTimeDepts as $item) {
-                        $safeDept = htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8');
-                        $execMsg .= "• {$safeDept} ({$item['rate']}% completion, {$item['done']}/{$item['total']} tasks)\n";
+                    $execMsg .= "📈 <b>Company Submission Performance:</b>\n";
+                    $execMsg .= "• Total Departments: <b>{$totalDepts}</b>\n";
+                    $execMsg .= "• 🟢 Submitted On-Time: <b>{$onTimeCount}</b>\n";
+                    if ($lateCount > 0) {
+                        $execMsg .= "• 🟡 Submitted Late: <b>{$lateCount}</b>\n";
                     }
-                    $execMsg .= "\n";
-                }
+                    $execMsg .= "• 🔴 Missing / Delinquent: <b>{$missingCount}</b>\n";
+                    $execMsg .= "• 🎯 Submission Compliance: <b>{$complianceRate}%</b>\n\n";
 
-                if (!empty($lateDepts)) {
-                    $execMsg .= "🟡 <b>Late Submissions:</b>\n";
-                    foreach ($lateDepts as $item) {
-                        $safeDept = htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8');
-                        $execMsg .= "• {$safeDept} ({$item['rate']}% completion)\n";
+                    if (!empty($onTimeDepts)) {
+                        $execMsg .= "🟢 <b>ON-TIME SUBMISSIONS (በሰዓቱ ያስገቡ):</b>\n";
+                        foreach ($onTimeDepts as $item) {
+                            $safeDept = htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8');
+                            $planInfo = $item['plan_tasks'] > 0 ? " &bull; W{$planWeek} Plan: {$item['plan_tasks']} tasks" : "";
+                            $execMsg .= "• <b>{$safeDept}</b> — {$item['rate']}% completion ({$item['done']}/{$item['total']} tasks){$planInfo}\n";
+                        }
+                        $execMsg .= "\n";
                     }
-                    $execMsg .= "\n";
-                }
 
-                if (!empty($missingDepts)) {
-                    $execMsg .= "🔴 <b>Delinquent Departments (NOT SUBMITTED):</b>\n";
-                    foreach ($missingDepts as $item) {
-                        $safeDept = htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8');
-                        $headName = $item['dept']->head ? $item['dept']->head->full_name : 'No Head Assigned';
-                        $safeHead = htmlspecialchars($headName, ENT_QUOTES, 'UTF-8');
-                        $execMsg .= "• <b>{$safeDept}</b> ({$safeHead})\n";
+                    if (!empty($lateDepts)) {
+                        $execMsg .= "🟡 <b>LATE SUBMISSIONS (ዘግይተው ያስገቡ):</b>\n";
+                        foreach ($lateDepts as $item) {
+                            $safeDept = htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8');
+                            $lateTimeStr = $item['submitted_at'] ? " &bull; Submitted " . format_ethiopian_time($item['submitted_at'], true) : "";
+                            $execMsg .= "• <b>{$safeDept}</b> — {$item['rate']}% completion{$lateTimeStr}\n";
+                        }
+                        $execMsg .= "\n";
                     }
-                    $execMsg .= "\n";
-                }
 
-                $dashboardUrl = url('/management/dashboard?year=' . urlencode($year) . '&month=' . urlencode($month) . '&week=' . $week);
-                $execMsg .= "☕ <i>Kaldis Coffee PLC — Executive Operations</i>";
+                    if (!empty($missingDepts)) {
+                        $execMsg .= "🔴 <b>NOT SUBMITTED / DELINQUENT (ያላስገቡ / የቀሩ):</b>\n";
+                        foreach ($missingDepts as $item) {
+                            $safeDept = htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8');
+                            $headName = $item['dept']->head ? $item['dept']->head->full_name : 'No Head Assigned';
+                            $safeHead = htmlspecialchars($headName, ENT_QUOTES, 'UTF-8');
+                            $execMsg .= "• <b>{$safeDept}</b> ({$safeHead}) — <i>Missing Week {$week} Perf &amp; Week {$planWeek} Plan</i>\n";
+                        }
+                        $execMsg .= "\n";
+                    }
 
-                $replyMarkup = [
-                    'inline_keyboard' => [
-                        [
-                            ['text' => '🌐 Open GM Executive Dashboard & Vouchers', 'url' => $dashboardUrl]
+                    $dashboardUrl = url('/management/dashboard?year=' . urlencode($year) . '&month=' . urlencode($month) . '&week=' . $week);
+                    $execMsg .= "☕ <i>Kaldis Coffee PLC — Planning &amp; Operational Governance</i>";
+
+                    $replyMarkup = [
+                        'inline_keyboard' => [
+                            [
+                                ['text' => '🌐 Open GM Executive Dashboard & Vouchers', 'url' => $dashboardUrl]
+                            ]
                         ]
-                    ]
-                ];
+                    ];
 
-                foreach ($gmChatIds as $cid) {
-                    $res = $telegram->sendMessage($cid, $execMsg, $replyMarkup);
-                    if (!empty($res['ok'])) {
-                        $gmSummaryDelivered++;
+                    foreach ($gmChatIds as $cid) {
+                        $res = $telegram->sendMessage($cid, $execMsg, $replyMarkup);
+                        if (!empty($res['ok'])) {
+                            $gmSummaryDelivered++;
+                        }
                     }
+
+                    Cache::put($cacheKey, true, now()->addHours(12));
                 }
+            } else {
+                $this->info("GM Executive report already dispatched today for Week {$week}. Use --force to resend.");
             }
         }
 
         AuditLog::log(
             'DEADLINE_CHECK',
             'system',
-            "Evaluated Week {$week} cutoff ({$month} {$year}). On-Time: {$onTimeCount}, Late: {$lateCount}, Missing: {$missingCount}. Head alerts: {$escalationsSent}, GM Executive summaries: {$gmSummaryDelivered}"
+            "Evaluated Week {$week} Perf & Week {$planWeek} Plan cutoff ({$month} {$year}). On-Time: {$onTimeCount}, Late: {$lateCount}, Missing: {$missingCount}. Head alerts: {$escalationsSent}, GM Executive summaries: {$gmSummaryDelivered}"
         );
 
         $this->info("Completed. {$missingCount} departments flagged. Escalations sent: {$escalationsSent}. GM Executive summaries delivered: {$gmSummaryDelivered}.");

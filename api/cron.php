@@ -71,8 +71,8 @@ if ($type === 'weekly' || $type === 'all') {
     $dayOfWeek = (int)date('N'); // 1 = Monday, 7 = Sunday
     $currentTime = date('H:i');
 
-    // Run weekly reminder if Monday morning or forced
-    if ($force || ($dayOfWeek === 1 && $currentTime < '12:00')) {
+    // Run weekly reminder if Monday morning before 12:30 (6:30 LT) or forced
+    if ($force || ($dayOfWeek === 1 && $currentTime < '12:30')) {
         \Illuminate\Support\Facades\Artisan::call('kaldis:weekly-reminder', [
             '--year' => $year,
             '--month' => $month,
@@ -81,12 +81,16 @@ if ($type === 'weekly' || $type === 'all') {
         $results['weekly_reminder'] = trim(\Illuminate\Support\Facades\Artisan::output());
     }
 
-    // Run weekly deadline check if Monday after 12:00 or forced
-    if ($force || ($dayOfWeek === 1 && $currentTime >= '12:00')) {
+    // Run weekly deadline check if Monday after 12:30 (6:30 LT cutoff) or forced
+    // Evaluates On-Time, Late, and Missing reports; GM executive summary dispatches at or after 15:00 (9:00 LT)
+    if ($force || ($dayOfWeek === 1 && $currentTime >= '12:30')) {
+        $target = ($currentTime >= '15:00' || $force) ? 'all' : 'heads';
         \Illuminate\Support\Facades\Artisan::call('kaldis:deadline-check', [
             '--year' => $year,
             '--month' => $month,
             '--week' => $week,
+            '--target' => $target,
+            '--force' => $force,
         ]);
         $results['weekly_deadline_check'] = trim(\Illuminate\Support\Facades\Artisan::output());
     }

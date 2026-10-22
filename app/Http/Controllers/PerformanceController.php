@@ -89,6 +89,10 @@ class PerformanceController extends Controller
             ? Department::where('active', 1)->orderBy('department_name')->get()
             : collect([$department]);
 
+        $cycleDeadline = function_exists('get_weekly_cycle_deadline')
+            ? get_weekly_cycle_deadline($selectedYear, $selectedMonth, $selectedWeek)
+            : null;
+
         return view('weekly.performance', compact(
             'department',
             'tasks',
@@ -108,7 +112,8 @@ class PerformanceController extends Controller
             'allDepartments',
             'selectedYear',
             'selectedMonth',
-            'selectedWeek'
+            'selectedWeek',
+            'cycleDeadline'
         ));
     }
 
@@ -328,13 +333,16 @@ class PerformanceController extends Controller
         $notDoneTasks = $tasks->filter(fn($t) => $t->result->result === 'NOT_DONE')->count();
         $completionRate = round(($doneTasks / $totalTasks) * 100, 2);
 
-        // Determine ON_TIME or LATE compliance based on Monday 12:00 PM cutoff
-        $deadlineDay = kaldis_setting('weekly_deadline_day', 'Monday');
-        $deadlineTimeStr = kaldis_setting('weekly_deadline_time', '12:00');
-        
-        $now = Carbon::now();
-        $deadline = Carbon::parse("this {$deadlineDay} {$deadlineTimeStr}");
-        $compliance = $now->lte($deadline) ? 'ON_TIME' : 'LATE';
+        // Determine ON_TIME or LATE compliance based on Monday 6:30 LT (12:30 PM) cutoff
+        $deadlineInfo = function_exists('get_weekly_cycle_deadline')
+            ? get_weekly_cycle_deadline($validated['year'], $validated['month'], (int)$validated['week_number'])
+            : [
+                'deadline_carbon' => Carbon::now(),
+                'deadline_display' => 'Monday 6:30 LT (12:30 PM)',
+                'compliance' => 'ON_TIME'
+            ];
+        $deadline = $deadlineInfo['deadline_carbon'];
+        $compliance = $deadlineInfo['compliance'];
 
         DB::transaction(function () use ($validated, $totalTasks, $doneTasks, $notDoneTasks, $completionRate, $compliance, $deadline, $user) {
             WeeklyReport::updateOrCreate(
