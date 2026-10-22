@@ -400,6 +400,17 @@ class PerformanceController extends Controller
         $nextWeekOps = $nextWeekTasks->where('plan_type', 'OPERATIONAL')->count();
 
         if ($nextWeekCount > 0) {
+            $planPayload = [
+                'status' => 'SUBMITTED',
+                'created_by' => $user->id,
+            ];
+
+            try {
+                if (\Illuminate\Support\Facades\Schema::hasColumn('weekly_plans', 'notes')) {
+                    $planPayload['notes'] = "Submitted in combined weekly cycle with Week {$validated['week_number']} performance report.";
+                }
+            } catch (\Throwable $e) {}
+
             \App\Models\WeeklyPlan::updateOrCreate(
                 [
                     'department_id' => $deptId,
@@ -407,11 +418,7 @@ class PerformanceController extends Controller
                     'month' => $validated['month'],
                     'week_number' => $nextWeek,
                 ],
-                [
-                    'status' => 'SUBMITTED',
-                    'notes' => "Submitted in combined weekly cycle with Week {$validated['week_number']} performance report.",
-                    'created_by' => $user->id,
-                ]
+                $planPayload
             );
         }
 

@@ -64,6 +64,16 @@ class AppServiceProvider extends ServiceProvider
                 Cache::forever('schema_notifications_type_v2', true);
             }
 
+            // Auto-heal schema for weekly_plans table to add notes column
+            if (!Cache::has('schema_weekly_plans_notes_v1')) {
+                if (Schema::hasTable('weekly_plans')) {
+                    if (!Schema::hasColumn('weekly_plans', 'notes')) {
+                        DB::statement("ALTER TABLE `weekly_plans` ADD COLUMN `notes` TEXT NULL AFTER `status`");
+                    }
+                }
+                Cache::forever('schema_weekly_plans_notes_v1', true);
+            }
+
             // Auto-heal active Telegram credentials & GM chat IDs
             if (!Cache::has('auto_heal_telegram_gm_v2')) {
                 $revoked = ['8370988256:AAE8aG5s2vzEy6PfSH2b-Fiufr_num0A_rY', 'YOUR_BOT_TOKEN_HERE'];

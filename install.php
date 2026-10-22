@@ -228,6 +228,7 @@ if ($action === 'install' && $canInstall) {
             `month` VARCHAR(50) NOT NULL,
             `week_number` TINYINT NOT NULL,
             `status` ENUM('DRAFT', 'SUBMITTED', 'LOCKED') DEFAULT 'DRAFT',
+            `notes` TEXT NULL,
             `created_by` INT NULL,
             `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
             `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -575,7 +576,8 @@ if ($action === 'install' && $canInstall) {
             "ALTER TABLE `users` ADD COLUMN `remember_token` VARCHAR(100) NULL AFTER `password_hash`",
             "ALTER TABLE `monthly_submissions` MODIFY COLUMN `status` VARCHAR(50) NOT NULL DEFAULT 'DRAFT'",
             "ALTER TABLE `monthly_submissions` MODIFY COLUMN `approval_status` VARCHAR(50) NOT NULL DEFAULT 'PENDING'",
-            "ALTER TABLE `monthly_submissions` MODIFY COLUMN `submission_channel` VARCHAR(50) NOT NULL DEFAULT 'WEB'"
+            "ALTER TABLE `monthly_submissions` MODIFY COLUMN `submission_channel` VARCHAR(50) NOT NULL DEFAULT 'WEB'",
+            "ALTER TABLE `weekly_plans` ADD COLUMN `notes` TEXT NULL AFTER `status`"
         ];
         foreach ($columnPatches as $patch) {
             try {

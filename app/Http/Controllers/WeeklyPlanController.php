@@ -199,16 +199,23 @@ class WeeklyPlanController extends Controller
             return back()->withErrors(['submission' => 'Cannot submit an empty weekly plan. Please schedule at least one task first.']);
         }
 
+        $planPayload = [
+            'status' => 'SUBMITTED',
+            'created_by' => $user->id,
+        ];
+
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasColumn('weekly_plans', 'notes') && !empty($validated['notes'])) {
+                $planPayload['notes'] = $validated['notes'];
+            }
+        } catch (\Throwable $e) {}
+
         $weeklyPlan = WeeklyPlan::updateOrCreate([
             'department_id' => $validated['department_id'],
             'year' => $validated['year'],
             'month' => $validated['month'],
             'week_number' => $validated['week_number'],
-        ], [
-            'status' => 'SUBMITTED',
-            'notes' => $validated['notes'] ?? null,
-            'created_by' => $user->id,
-        ]);
+        ], $planPayload);
 
         AuditLog::log(
             'SUBMIT_WEEKLY_PLAN',
