@@ -924,22 +924,16 @@ if (!function_exists('build_weekly_task_scheduled_notification')) {
              . "📋 <b>WEEK {$weekNumber} SCHEDULED TASKS ({$totalTasks} Total)</b>\n"
              . "• <b>Breakdown:</b> {$stratCount} Strategic | {$opsCount} Operational\n\n";
 
-        $displayTasks = $tasks->take(8);
+        $displayTasks = $tasks->take(10);
         $taskNum = 1;
         foreach ($displayTasks as $t) {
-            $pTag = $t->priority ?? 'MEDIUM';
             $tTitle = htmlspecialchars($t->task_title, ENT_QUOTES, 'UTF-8');
-            $tTarget = htmlspecialchars($t->expected_result ?: ($t->task_target ?: 'Completed'), ENT_QUOTES, 'UTF-8');
-            $tResp = htmlspecialchars($t->responsible_person ?: ($t->assigned_to ?: 'Unassigned'), ENT_QUOTES, 'UTF-8');
-
-            $msg .= "{$taskNum}. [{$pTag}] <b>{$tTitle}</b>\n"
-                  . "   🎯 <i>Target:</i> {$tTarget}\n"
-                  . "   👤 <i>Responsible:</i> {$tResp}\n";
+            $msg .= "{$taskNum}. <b>{$tTitle}</b>\n";
             $taskNum++;
         }
 
-        if ($totalTasks > 8) {
-            $remaining = $totalTasks - 8;
+        if ($totalTasks > 10) {
+            $remaining = $totalTasks - 10;
             $msg .= "   <i>... and {$remaining} more task(s) (view Plan Voucher)</i>\n";
         }
 

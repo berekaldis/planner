@@ -183,15 +183,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $displayCount = 0;
             foreach ($plannedTasks as $t) {
-                if ($displayCount >= 8) {
-                    $rem = $taskCount - 8;
+                if ($displayCount >= 10) {
+                    $rem = $taskCount - 10;
                     $notifMessage .= "   <i>... and {$rem} more task(s)</i>\n";
                     break;
                 }
                 $displayCount++;
-                $notifMessage .= "{$displayCount}. [{$t['priority']}] <b>" . htmlspecialchars($t['task_title'], ENT_QUOTES, 'UTF-8') . "</b>\n"
-                               . "   🎯 <i>Target:</i> " . htmlspecialchars($t['expected_result'], ENT_QUOTES, 'UTF-8') . "\n"
-                               . "   👤 <i>Responsible:</i> " . htmlspecialchars($t['responsible_person'], ENT_QUOTES, 'UTF-8') . "\n";
+                $notifMessage .= "{$displayCount}. <b>" . htmlspecialchars($t['task_title'], ENT_QUOTES, 'UTF-8') . "</b>\n";
             }
 
             $notifMessage .= "\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n"

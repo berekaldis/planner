@@ -453,20 +453,15 @@ class PerformanceController extends Controller
                           . "📋 <b>WEEK {$nextWeek} SCHEDULED TASKS ({$nextWeekCount} Total)</b>\n"
                           . "• <b>Breakdown:</b> {$nextWeekStrat} Strategic | {$nextWeekOps} Operational\n\n";
 
-            $displayNext = $nextWeekTasks->take(8);
+            $displayNext = $nextWeekTasks->take(10);
             $tNum = 1;
             foreach ($displayNext as $t) {
-                $pTag = $t->priority ?? 'MEDIUM';
                 $tTitle = htmlspecialchars($t->task_title, ENT_QUOTES, 'UTF-8');
-                $tTarget = htmlspecialchars($t->expected_result ?: ($t->task_target ?: 'Completed'), ENT_QUOTES, 'UTF-8');
-                $tResp = htmlspecialchars($t->responsible_person ?: ($t->assigned_to ?: 'Unassigned'), ENT_QUOTES, 'UTF-8');
-                $notifMessage .= "{$tNum}. [{$pTag}] <b>{$tTitle}</b>\n"
-                               . "   🎯 <i>Target:</i> {$tTarget}\n"
-                               . "   👤 <i>Responsible:</i> {$tResp}\n";
+                $notifMessage .= "{$tNum}. <b>{$tTitle}</b>\n";
                 $tNum++;
             }
-            if ($nextWeekCount > 8) {
-                $remCount = $nextWeekCount - 8;
+            if ($nextWeekCount > 10) {
+                $remCount = $nextWeekCount - 10;
                 $notifMessage .= "   <i>... and {$remCount} more task(s) (view Plan Voucher)</i>\n";
             }
 
