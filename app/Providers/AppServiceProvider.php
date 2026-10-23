@@ -130,6 +130,71 @@ class AppServiceProvider extends ServiceProvider
                 Cache::forever('schema_quarterly_submissions_v1', true);
             }
 
+            // Auto-heal foreign keys on departments to cascade delete transient records
+            if (!Cache::has('auto_heal_dept_cascade_fks_v2')) {
+                $dbName = DB::connection()->getDatabaseName();
+                $tablesToCascade = [
+                    'escalations' => 'department_id',
+                    'submissions' => 'department_id',
+                    'weekly_reports' => 'department_id',
+                    'weekly_plans' => 'department_id',
+                    'weekly_tasks' => 'department_id',
+                    'weekly_task_results' => 'department_id',
+                    'weekly_achievements' => 'department_id',
+                    'weekly_challenges' => 'department_id',
+                    'monthly_plans' => 'department_id',
+                ];
+
+                foreach ($tablesToCascade as $t => $col) {
+                    if (Schema::hasTable($t)) {
+                        $fks = DB::select("
+                            SELECT CONSTRAINT_NAME 
+                            FROM information_schema.KEY_COLUMN_USAGE 
+                            WHERE TABLE_SCHEMA = ? 
+                              AND TABLE_NAME = ? 
+                              AND COLUMN_NAME = ? 
+                              AND REFERENCED_TABLE_NAME = 'departments'
+                        ", [$dbName, $t, $col]);
+
+                        foreach ($fks as $fkRow) {
+                            try {
+                                DB::statement("ALTER TABLE `{$t}` DROP FOREIGN KEY `{$fkRow->CONSTRAINT_NAME}`");
+                            } catch (\Throwable $e) {}
+                        }
+
+                        try {
+                            $cName = "fk_{$t}_{$col}_cascade";
+                            DB::statement("ALTER TABLE `{$t}` ADD CONSTRAINT `{$cName}` FOREIGN KEY (`{$col}`) REFERENCES `departments` (`id`) ON DELETE CASCADE");
+                        } catch (\Throwable $e) {}
+                    }
+                }
+
+                // annual_goals responsible_department_id should be SET NULL
+                if (Schema::hasTable('annual_goals')) {
+                    $fks = DB::select("
+                        SELECT CONSTRAINT_NAME 
+                        FROM information_schema.KEY_COLUMN_USAGE 
+                        WHERE TABLE_SCHEMA = ? 
+                          AND TABLE_NAME = 'annual_goals' 
+                          AND COLUMN_NAME = 'responsible_department_id' 
+                          AND REFERENCED_TABLE_NAME = 'departments'
+                    ", [$dbName]);
+
+                    foreach ($fks as $fkRow) {
+                        try {
+                            DB::statement("ALTER TABLE `annual_goals` DROP FOREIGN KEY `{$fkRow->CONSTRAINT_NAME}`");
+                        } catch (\Throwable $e) {}
+                    }
+
+                    try {
+                        DB::statement("ALTER TABLE `annual_goals` MODIFY COLUMN `responsible_department_id` INT NULL");
+                        DB::statement("ALTER TABLE `annual_goals` ADD CONSTRAINT `fk_annual_goals_resp_dept_setnull` FOREIGN KEY (`responsible_department_id`) REFERENCES `departments` (`id`) ON DELETE SET NULL");
+                    } catch (\Throwable $e) {}
+                }
+
+                Cache::forever('auto_heal_dept_cascade_fks_v2', true);
+            }
+
             // Auto-heal active Telegram credentials & GM chat IDs
             if (!Cache::has('auto_heal_telegram_gm_v2')) {
                 $revoked = ['8370988256:AAE8aG5s2vzEy6PfSH2b-Fiufr_num0A_rY', 'YOUR_BOT_TOKEN_HERE'];

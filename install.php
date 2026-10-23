@@ -156,7 +156,7 @@ if ($action === 'install' && $canInstall) {
             `created_by` INT NULL,
             `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
             `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            FOREIGN KEY (`responsible_department_id`) REFERENCES `departments`(`id`),
+            FOREIGN KEY (`responsible_department_id`) REFERENCES `departments`(`id`) ON DELETE SET NULL,
             FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE SET NULL,
             UNIQUE KEY `uk_goal_year` (`goal_code`, `year`)
         ) ENGINE=InnoDB;
@@ -215,7 +215,7 @@ if ($action === 'install' && $canInstall) {
             `created_by` INT NULL,
             `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
             `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`),
+            FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`) ON DELETE CASCADE,
             FOREIGN KEY (`annual_goal_id`) REFERENCES `annual_goals`(`id`) ON DELETE SET NULL,
             FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE SET NULL
         ) ENGINE=InnoDB;
@@ -232,7 +232,7 @@ if ($action === 'install' && $canInstall) {
             `created_by` INT NULL,
             `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
             `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`),
+            FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`) ON DELETE CASCADE,
             FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE SET NULL,
             UNIQUE KEY `uk_dept_week` (`department_id`, `year`, `month`, `week_number`)
         ) ENGINE=InnoDB;
@@ -261,7 +261,7 @@ if ($action === 'install' && $canInstall) {
             `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             FOREIGN KEY (`weekly_plan_id`) REFERENCES `weekly_plans`(`id`) ON DELETE CASCADE,
             FOREIGN KEY (`monthly_plan_id`) REFERENCES `monthly_plans`(`id`) ON DELETE SET NULL,
-            FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`),
+            FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`) ON DELETE CASCADE,
             FOREIGN KEY (`annual_goal_id`) REFERENCES `annual_goals`(`id`) ON DELETE SET NULL,
             FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE SET NULL
         ) ENGINE=InnoDB;
@@ -293,7 +293,7 @@ if ($action === 'install' && $canInstall) {
             `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
             `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             FOREIGN KEY (`weekly_task_id`) REFERENCES `weekly_tasks`(`id`) ON DELETE CASCADE,
-            FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`),
+            FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`) ON DELETE CASCADE,
             FOREIGN KEY (`completed_by`) REFERENCES `users`(`id`) ON DELETE SET NULL,
             FOREIGN KEY (`not_done_reason_id`) REFERENCES `reason_categories`(`id`) ON DELETE SET NULL,
             UNIQUE KEY `uk_task_result` (`weekly_task_id`)
@@ -311,7 +311,7 @@ if ($action === 'install' && $canInstall) {
             `created_by` INT NULL,
             `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
             `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`),
+            FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`) ON DELETE CASCADE,
             FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE SET NULL
         ) ENGINE=InnoDB;
 
@@ -328,7 +328,7 @@ if ($action === 'install' && $canInstall) {
             `created_by` INT NULL,
             `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
             `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`),
+            FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`) ON DELETE CASCADE,
             FOREIGN KEY (`related_weekly_task_id`) REFERENCES `weekly_tasks`(`id`) ON DELETE SET NULL,
             FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE SET NULL
         ) ENGINE=InnoDB;
@@ -354,7 +354,7 @@ if ($action === 'install' && $canInstall) {
             `approval_status` ENUM('PENDING', 'APPROVED', 'REVISION_REQUESTED') DEFAULT 'PENDING',
             `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
             `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`),
+            FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`) ON DELETE CASCADE,
             FOREIGN KEY (`submitted_by`) REFERENCES `users`(`id`) ON DELETE SET NULL,
             UNIQUE KEY `uk_dept_report_period` (`department_id`, `year`, `month`, `week_number`)
         ) ENGINE=InnoDB;
@@ -376,7 +376,7 @@ if ($action === 'install' && $canInstall) {
             `remarks` TEXT NULL,
             `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
             `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`),
+            FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`) ON DELETE CASCADE,
             FOREIGN KEY (`submitted_by`) REFERENCES `users`(`id`) ON DELETE SET NULL,
             UNIQUE KEY `uk_submission_period` (`department_id`, `year`, `month`, `week_number`)
         ) ENGINE=InnoDB;
@@ -527,7 +527,7 @@ if ($action === 'install' && $canInstall) {
             `resolved_at` DATETIME NULL,
             `resolved_by` INT NULL,
             `resolution_notes` TEXT NULL,
-            FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`),
+            FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`) ON DELETE CASCADE,
             FOREIGN KEY (`resolved_by`) REFERENCES `users`(`id`) ON DELETE SET NULL
         ) ENGINE=InnoDB;
 

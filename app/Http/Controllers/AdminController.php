@@ -16,6 +16,7 @@ use App\Models\WeeklyTask;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdminController extends Controller
@@ -111,11 +112,21 @@ class AdminController extends Controller
         }
 
         $username = $user->username;
-        $user->delete();
 
-        AuditLog::log('DELETE_USER', 'admin', "Deleted user account {$username}", $id);
+        try {
+            DB::transaction(function () use ($user) {
+                // Clear any department head reference
+                DB::table('departments')->where('head_user_id', $user->id)->update(['head_user_id' => null]);
+                $user->delete();
+            });
 
-        return back()->with('success', "User account {$username} deleted successfully.");
+            AuditLog::log('DELETE_USER', 'admin', "Deleted user account {$username}", $id);
+            return back()->with('success', "User account {$username} deleted successfully.");
+        } catch (\Throwable $e) {
+            $user->update(['is_active' => 0]);
+            AuditLog::log('DEACTIVATE_USER', 'admin', "Deactivated user account {$username} due to existing linked records", $id);
+            return back()->with('warning', "User account '{$username}' is referenced by system records and has been safely set to INACTIVE instead of deleted.");
+        }
     }
 
     public function departments()
@@ -191,21 +202,52 @@ class AdminController extends Controller
     {
         $dept = Department::findOrFail($id);
 
-        $hasUsers = $dept->users()->count() > 0;
-        $hasPlans = $dept->monthlyPlans()->count() > 0;
+        // Check if department has operational historical data
+        $hasUsers = DB::table('users')->where('department_id', $dept->id)->exists();
+        $hasMonthlyPlans = DB::table('monthly_plans')->where('department_id', $dept->id)->exists();
+        $hasWeeklyTasks = DB::table('weekly_tasks')->where('department_id', $dept->id)->exists();
+        $hasWeeklyReports = DB::table('weekly_reports')->where('department_id', $dept->id)->exists();
+        $hasSubmissions = DB::table('submissions')->where('department_id', $dept->id)->exists();
+        $hasQuarterly = Schema::hasTable('quarterly_submissions') && DB::table('quarterly_submissions')->where('department_id', $dept->id)->exists();
 
-        if ($hasUsers || $hasPlans) {
+        $hasHistoricalData = $hasUsers || $hasMonthlyPlans || $hasWeeklyTasks || $hasWeeklyReports || $hasSubmissions || $hasQuarterly;
+
+        if ($hasHistoricalData) {
             $dept->update(['active' => 0]);
-            AuditLog::log('DEACTIVATE_DEPARTMENT', 'department', "Deactivated department {$dept->department_name} due to existing records");
-            return back()->with('warning', "Department '{$dept->department_name}' has linked users or plans and was set to INACTIVE instead of deleted.");
+            AuditLog::log('DEACTIVATE_DEPARTMENT', 'department', "Deactivated department {$dept->department_name} ({$dept->department_code}) due to existing operational records", $dept->id);
+            return back()->with('warning', "Department '{$dept->department_name}' has linked operational records (plans, tasks, or user accounts) and was safely set to INACTIVE instead of hard-deleted to preserve organizational audit trails.");
         }
 
-        $dept->annualGoals()->detach();
-        $dept->delete();
+        try {
+            DB::transaction(function () use ($dept) {
+                // Clean up any automated transient background logs or unassigned escalations
+                DB::table('escalations')->where('department_id', $dept->id)->delete();
+                if (Schema::hasTable('notifications')) {
+                    DB::table('notifications')->where('department_id', $dept->id)->delete();
+                }
+                if (Schema::hasTable('monthly_strategy_activations')) {
+                    DB::table('monthly_strategy_activations')->where('department_id', $dept->id)->delete();
+                }
+                if (Schema::hasTable('telegram_messages')) {
+                    DB::table('telegram_messages')->where('department_id', $dept->id)->update(['department_id' => null]);
+                }
+                if (Schema::hasTable('telegram_users')) {
+                    DB::table('telegram_users')->where('department_id', $dept->id)->update(['department_id' => null]);
+                }
+                DB::table('annual_goals')->where('responsible_department_id', $dept->id)->update(['responsible_department_id' => null]);
+                
+                $dept->annualGoals()->detach();
+                $dept->delete();
+            });
 
-        AuditLog::log('DELETE_DEPARTMENT', 'department', "Deleted department {$dept->department_name}");
-
-        return back()->with('success', "Department deleted successfully.");
+            AuditLog::log('DELETE_DEPARTMENT', 'department', "Permanently deleted department {$dept->department_name} ({$dept->department_code})", $dept->id);
+            return back()->with('success', "Department '{$dept->department_name}' was successfully deleted.");
+        } catch (\Throwable $e) {
+            // Safety fallback: if any unexpected foreign key constraint fails, mark inactive instead of crashing
+            $dept->update(['active' => 0]);
+            AuditLog::log('DEACTIVATE_DEPARTMENT', 'department', "Deactivated department {$dept->department_name} due to constraint protection: " . $e->getMessage(), $dept->id);
+            return back()->with('warning', "Department '{$dept->department_name}' is referenced by related database records and was safely marked INACTIVE.");
+        }
     }
 
     public function settings()
