@@ -135,7 +135,7 @@ class AdminController extends Controller
             'head_user_id' => 'nullable|exists:users,id',
             'active' => 'nullable',
             'annual_goal_ids' => 'nullable|array',
-            'annual_goal_ids.*' => 'exists:annual_strategy_goals,id',
+            'annual_goal_ids.*' => 'exists:annual_goals,id',
         ]);
 
         $active = in_array($request->input('active', '1'), ['1', 1, 'ACTIVE', true], true) ? 1 : 0;
@@ -166,7 +166,7 @@ class AdminController extends Controller
             'head_user_id' => 'nullable|exists:users,id',
             'active' => 'nullable',
             'annual_goal_ids' => 'nullable|array',
-            'annual_goal_ids.*' => 'exists:annual_strategy_goals,id',
+            'annual_goal_ids.*' => 'exists:annual_goals,id',
         ]);
 
         $active = in_array($request->input('active', '1'), ['1', 1, 'ACTIVE', true], true) ? 1 : 0;
