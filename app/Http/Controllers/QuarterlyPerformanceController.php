@@ -100,9 +100,10 @@ class QuarterlyPerformanceController extends Controller
             ")
             ->first();
 
-        $allDepartments = $user->canAccessAllDepartments()
+        $departments = $user->canAccessAllDepartments()
             ? Department::where('active', 1)->orderBy('department_name')->get()
             : collect([$department]);
+        $allDepartments = $departments;
 
         return view('performance.quarterly', compact(
             'department',
