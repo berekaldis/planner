@@ -84,6 +84,52 @@ class AppServiceProvider extends ServiceProvider
                 Cache::forever('schema_weekly_deadline_time_1230_v1', true);
             }
 
+            // Auto-heal schema for quarterly_submissions and monthly_plans performance columns
+            if (!Cache::has('schema_quarterly_submissions_v1')) {
+                if (!Schema::hasTable('quarterly_submissions')) {
+                    DB::statement("CREATE TABLE IF NOT EXISTS `quarterly_submissions` (
+                        `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                        `department_id` BIGINT UNSIGNED NOT NULL,
+                        `year` VARCHAR(50) NOT NULL,
+                        `quarter` VARCHAR(10) NOT NULL,
+                        `months` VARCHAR(255) NOT NULL,
+                        `total_plans` INT NOT NULL DEFAULT 0,
+                        `done_plans` INT NOT NULL DEFAULT 0,
+                        `not_done_plans` INT NOT NULL DEFAULT 0,
+                        `completion_percentage` DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+                        `status` VARCHAR(50) NOT NULL DEFAULT 'DRAFT',
+                        `approval_status` VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+                        `submission_channel` VARCHAR(50) NOT NULL DEFAULT 'WEB',
+                        `submitted_by` BIGINT UNSIGNED NULL,
+                        `submitted_at` DATETIME NULL,
+                        `executive_summary` TEXT NULL,
+                        `challenges` TEXT NULL,
+                        `next_quarter_priorities` TEXT NULL,
+                        `gm_feedback` TEXT NULL,
+                        `gm_feedback_at` DATETIME NULL,
+                        `gm_reviewed_by` BIGINT UNSIGNED NULL,
+                        `created_at` TIMESTAMP NULL,
+                        `updated_at` TIMESTAMP NULL,
+                        UNIQUE KEY `uk_dept_quarterly_period` (`department_id`, `year`, `quarter`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+                }
+                if (Schema::hasTable('monthly_plans')) {
+                    if (!Schema::hasColumn('monthly_plans', 'performance_status')) {
+                        DB::statement("ALTER TABLE `monthly_plans` ADD COLUMN `performance_status` VARCHAR(50) NOT NULL DEFAULT 'PENDING' AFTER `notes`");
+                    }
+                    if (!Schema::hasColumn('monthly_plans', 'actual_result')) {
+                        DB::statement("ALTER TABLE `monthly_plans` ADD COLUMN `actual_result` TEXT NULL AFTER `performance_status`");
+                    }
+                    if (!Schema::hasColumn('monthly_plans', 'achievement_percentage')) {
+                        DB::statement("ALTER TABLE `monthly_plans` ADD COLUMN `achievement_percentage` INT NOT NULL DEFAULT 0 AFTER `actual_result`");
+                    }
+                    if (!Schema::hasColumn('monthly_plans', 'completion_notes')) {
+                        DB::statement("ALTER TABLE `monthly_plans` ADD COLUMN `completion_notes` TEXT NULL AFTER `achievement_percentage`");
+                    }
+                }
+                Cache::forever('schema_quarterly_submissions_v1', true);
+            }
+
             // Auto-heal active Telegram credentials & GM chat IDs
             if (!Cache::has('auto_heal_telegram_gm_v2')) {
                 $revoked = ['8370988256:AAE8aG5s2vzEy6PfSH2b-Fiufr_num0A_rY', 'YOUR_BOT_TOKEN_HERE'];

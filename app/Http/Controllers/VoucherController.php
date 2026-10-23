@@ -6,6 +6,7 @@ use App\Models\AuditLog;
 use App\Models\Department;
 use App\Models\MonthlyPlan;
 use App\Models\MonthlySubmission;
+use App\Models\QuarterlySubmission;
 use App\Models\Submission;
 use App\Models\WeeklyAchievement;
 use App\Models\WeeklyChallenge;
@@ -165,6 +166,69 @@ class VoucherController extends Controller
             'selectedMonth',
             'selectedWeek',
             'voucherType'
+        ));
+    }
+
+    /**
+     * Render the official Quarterly Performance Report Voucher
+     */
+    public function quarterly(Request $request)
+    {
+        $user = Auth::user();
+        $deptId = (int)$request->query('department_id', $user->department_id ?: 1);
+
+        if (!$user->canAccessAllDepartments() && $user->department_id != $deptId) {
+            $deptId = $user->department_id;
+        }
+
+        $department = Department::with('head')->findOrFail($deptId);
+
+        $selectedYear = $request->query('year', kaldis_setting('current_planning_year', config('kaldis.current_planning_year')));
+        $quarters = get_ethiopian_quarters();
+        $selectedQuarter = $request->query('quarter', get_current_planning_quarter());
+        if (!array_key_exists($selectedQuarter, $quarters)) {
+            $selectedQuarter = 'Q1';
+        }
+        $quarterInfo = $quarters[$selectedQuarter];
+        $quarterMonths = $quarterInfo['months'];
+
+        $plans = MonthlyPlan::with('annualGoal')
+            ->where('department_id', $deptId)
+            ->where('year', $selectedYear)
+            ->whereIn('month', $quarterMonths)
+            ->orderByRaw("FIELD(month, '" . implode("','", $quarterMonths) . "')")
+            ->orderBy('plan_type', 'desc')
+            ->orderBy('id')
+            ->get();
+
+        $submission = QuarterlySubmission::with(['submitter', 'reviewer'])
+            ->where('department_id', $deptId)
+            ->where('year', $selectedYear)
+            ->where('quarter', $selectedQuarter)
+            ->first();
+
+        $totalPlans = $plans->count();
+        $donePlans = $plans->where('performance_status', 'DONE')->count();
+        $partialPlans = $plans->where('performance_status', 'PARTIAL')->count();
+        $notDonePlans = $plans->where('performance_status', 'NOT_DONE')->count();
+
+        $allDepartments = $user->canAccessAllDepartments()
+            ? Department::where('active', 1)->orderBy('department_name')->get()
+            : collect([$department]);
+
+        return view('vouchers.quarterly', compact(
+            'department',
+            'plans',
+            'submission',
+            'quarterInfo',
+            'quarterMonths',
+            'selectedYear',
+            'selectedQuarter',
+            'totalPlans',
+            'donePlans',
+            'partialPlans',
+            'notDonePlans',
+            'allDepartments'
         ));
     }
 }

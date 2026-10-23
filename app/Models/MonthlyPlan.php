@@ -23,6 +23,10 @@ class MonthlyPlan extends Model
         'dependency',
         'responsible_person',
         'notes',
+        'performance_status',
+        'actual_result',
+        'achievement_percentage',
+        'completion_notes',
         'active',
         'created_by',
     ];
@@ -41,6 +45,7 @@ class MonthlyPlan extends Model
     {
         return [
             'target_percentage' => 'decimal:2',
+            'achievement_percentage' => 'integer',
         ];
     }
 

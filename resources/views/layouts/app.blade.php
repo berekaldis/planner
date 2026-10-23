@@ -772,38 +772,59 @@
                                 <i class="fas fa-chevron-right sidebar-chevron"></i>
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('performance.quarterly*') ? 'active' : '' }}" href="{{ route('performance.quarterly') }}" 
+                               data-bs-toggle="tooltip" data-bs-placement="right" title="Quarterly Performance">
+                                <span class="nav-icon-wrap icon-performance"><i class="fas fa-layer-group"></i></span>
+                                <span class="nav-text">Quarterly Performance</span>
+                                <i class="fas fa-chevron-right sidebar-chevron"></i>
+                            </a>
+                        </li>
                     </ul>
 
-                    @if(auth()->user()->isSuperAdmin() || auth()->user()->isGM())
-                        <!-- Administration -->
+                    @if(auth()->user()->isSuperAdmin() || auth()->user()->isGM() || auth()->user()->isHROfficer())
+                        <!-- Governance & Reports -->
+                        <div class="sidebar-heading">Reports &amp; Governance</div>
+                        <ul class="nav flex-column mb-3">
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('admin.reports*') ? 'active' : '' }}" href="{{ route('admin.reports') }}" 
+                                   data-bs-toggle="tooltip" data-bs-placement="right" title="Reports &amp; Tracking">
+                                    <span class="nav-icon-wrap icon-performance"><i class="fas fa-chart-pie"></i></span>
+                                    <span class="nav-text">Reports &amp; Tracking</span>
+                                    <i class="fas fa-chevron-right sidebar-chevron"></i>
+                                </a>
+                            </li>
+                        </ul>
+                    @endif
+
+                    @if(auth()->user()->isSuperAdmin())
+                        <!-- System Administration -->
                         <div class="sidebar-heading">System Administration</div>
                         <ul class="nav flex-column mb-3">
-                            @if(auth()->user()->isSuperAdmin())
-                                <li class="nav-item">
-                                    <a class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}" href="{{ route('admin.dashboard') }}" 
-                                       data-bs-toggle="tooltip" data-bs-placement="right" title="Admin Overview">
-                                        <span class="nav-icon-wrap icon-admin"><i class="fas fa-gauge-high"></i></span>
-                                        <span class="nav-text">Admin Overview</span>
-                                        <i class="fas fa-chevron-right sidebar-chevron"></i>
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link {{ request()->routeIs('admin.users*') ? 'active' : '' }}" href="{{ route('admin.users') }}" 
-                                       data-bs-toggle="tooltip" data-bs-placement="right" title="User Accounts">
-                                        <span class="nav-icon-wrap icon-admin"><i class="fas fa-users-gear"></i></span>
-                                        <span class="nav-text">User Accounts</span>
-                                        <i class="fas fa-chevron-right sidebar-chevron"></i>
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link {{ request()->routeIs('admin.departments*') ? 'active' : '' }}" href="{{ route('admin.departments') }}" 
-                                       data-bs-toggle="tooltip" data-bs-placement="right" title="Departments">
-                                        <span class="nav-icon-wrap icon-admin"><i class="fas fa-sitemap"></i></span>
-                                        <span class="nav-text">Departments</span>
-                                        <i class="fas fa-chevron-right sidebar-chevron"></i>
-                                    </a>
-                                </li>
-                            @endif
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}" href="{{ route('admin.dashboard') }}" 
+                                   data-bs-toggle="tooltip" data-bs-placement="right" title="Admin Overview">
+                                    <span class="nav-icon-wrap icon-admin"><i class="fas fa-gauge-high"></i></span>
+                                    <span class="nav-text">Admin Overview</span>
+                                    <i class="fas fa-chevron-right sidebar-chevron"></i>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('admin.users*') ? 'active' : '' }}" href="{{ route('admin.users') }}" 
+                                   data-bs-toggle="tooltip" data-bs-placement="right" title="User Accounts">
+                                    <span class="nav-icon-wrap icon-admin"><i class="fas fa-users-gear"></i></span>
+                                    <span class="nav-text">User Accounts</span>
+                                    <i class="fas fa-chevron-right sidebar-chevron"></i>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('admin.departments*') ? 'active' : '' }}" href="{{ route('admin.departments') }}" 
+                                   data-bs-toggle="tooltip" data-bs-placement="right" title="Departments">
+                                    <span class="nav-icon-wrap icon-admin"><i class="fas fa-sitemap"></i></span>
+                                    <span class="nav-text">Departments</span>
+                                    <i class="fas fa-chevron-right sidebar-chevron"></i>
+                                </a>
+                            </li>
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('admin.settings*') ? 'active' : '' }}" href="{{ route('admin.settings') }}" 
                                    data-bs-toggle="tooltip" data-bs-placement="right" title="System Settings">
@@ -820,24 +841,14 @@
                                     <i class="fas fa-chevron-right sidebar-chevron"></i>
                                 </a>
                             </li>
-                            @if(auth()->user()->isSuperAdmin())
-                                <li class="nav-item">
-                                    <a class="nav-link {{ request()->routeIs('admin.audit*') ? 'active' : '' }}" href="{{ route('admin.audit') }}" 
-                                       data-bs-toggle="tooltip" data-bs-placement="right" title="Audit Trail">
-                                        <span class="nav-icon-wrap icon-admin"><i class="fas fa-fingerprint"></i></span>
-                                        <span class="nav-text">Audit Trail</span>
-                                        <i class="fas fa-chevron-right sidebar-chevron"></i>
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link {{ request()->routeIs('admin.reports*') ? 'active' : '' }}" href="{{ route('admin.reports') }}" 
-                                       data-bs-toggle="tooltip" data-bs-placement="right" title="Reports & Tracking">
-                                        <span class="nav-icon-wrap icon-admin"><i class="fas fa-file-invoice"></i></span>
-                                        <span class="nav-text">Reports &amp; Tracking</span>
-                                        <i class="fas fa-chevron-right sidebar-chevron"></i>
-                                    </a>
-                                </li>
-                            @endif
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('admin.audit*') ? 'active' : '' }}" href="{{ route('admin.audit') }}" 
+                                   data-bs-toggle="tooltip" data-bs-placement="right" title="Audit Trail">
+                                    <span class="nav-icon-wrap icon-admin"><i class="fas fa-fingerprint"></i></span>
+                                    <span class="nav-text">Audit Trail</span>
+                                    <i class="fas fa-chevron-right sidebar-chevron"></i>
+                                </a>
+                            </li>
                         </ul>
                     @endif
                 </div>

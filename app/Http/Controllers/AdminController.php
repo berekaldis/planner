@@ -5,11 +5,18 @@ namespace App\Http\Controllers;
 use App\Models\AnnualGoal;
 use App\Models\AuditLog;
 use App\Models\Department;
+use App\Models\MonthlyPlan;
+use App\Models\MonthlySubmission;
+use App\Models\QuarterlySubmission;
 use App\Models\Role;
+use App\Models\Submission;
 use App\Models\SystemSetting;
 use App\Models\User;
+use App\Models\WeeklyTask;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdminController extends Controller
 {
@@ -97,7 +104,7 @@ class AdminController extends Controller
     public function destroyUser($id)
     {
         $user = User::findOrFail($id);
-        
+
         // Prevent deleting oneself
         if ($user->id === auth()->id()) {
             return back()->with('error', 'You cannot delete your own account.');
@@ -380,12 +387,307 @@ class AdminController extends Controller
         return view('admin.audit', compact('logs'));
     }
 
+    /**
+     * Reports & Tracking Hub with Company-Wide Compliance & Metrics
+     */
     public function reports(Request $request)
     {
         $selectedYear = $request->query('year', kaldis_setting('current_planning_year', config('kaldis.current_planning_year')));
         $selectedMonth = $request->query('month', kaldis_setting('current_planning_month', config('kaldis.current_planning_month')));
-        $departments = Department::where('active', 1)->orderBy('department_name')->get();
+        $quarters = get_ethiopian_quarters();
+        $selectedQuarter = $request->query('quarter', get_quarter_by_month($selectedMonth));
+        if (!array_key_exists($selectedQuarter, $quarters)) {
+            $selectedQuarter = 'Q1';
+        }
 
-        return view('admin.reports', compact('departments', 'selectedYear', 'selectedMonth'));
+        $departments = Department::where('active', 1)->orderBy('department_name')->get();
+        $deptIds = $departments->pluck('id')->toArray();
+
+        // 1. Monthly Submissions by department
+        $monthlySubmissions = MonthlySubmission::where('year', $selectedYear)
+            ->where('month', $selectedMonth)
+            ->whereIn('department_id', $deptIds)
+            ->get()
+            ->keyBy('department_id');
+
+        // 2. Monthly Plans count by department
+        $monthlyPlansCount = MonthlyPlan::where('year', $selectedYear)
+            ->where('month', $selectedMonth)
+            ->whereIn('department_id', $deptIds)
+            ->selectRaw('department_id, plan_type, COUNT(*) as count')
+            ->groupBy('department_id', 'plan_type')
+            ->get()
+            ->groupBy('department_id');
+
+        // 3. Weekly tasks aggregated for selectedMonth & year
+        $weeklyTaskStats = DB::table('weekly_tasks as wt')
+            ->leftJoin('weekly_task_results as wtr', 'wt.id', '=', 'wtr.weekly_task_id')
+            ->where('wt.year', $selectedYear)
+            ->where('wt.month', $selectedMonth)
+            ->whereIn('wt.department_id', $deptIds)
+            ->selectRaw("
+                wt.department_id,
+                COUNT(wt.id) as total_tasks,
+                SUM(CASE WHEN wtr.result = 'DONE' THEN 1 ELSE 0 END) as done_tasks,
+                SUM(CASE WHEN wtr.result = 'NOT_DONE' THEN 1 ELSE 0 END) as not_done_tasks
+            ")
+            ->groupBy('wt.department_id')
+            ->get()
+            ->keyBy('department_id');
+
+        // 4. Weekly submissions count (how many weeks submitted for this month)
+        $weeklySubmissionsCount = Submission::where('year', $selectedYear)
+            ->where('month', $selectedMonth)
+            ->whereIn('department_id', $deptIds)
+            ->selectRaw('department_id, COUNT(*) as submitted_weeks')
+            ->groupBy('department_id')
+            ->get()
+            ->keyBy('department_id');
+
+        // 5. Quarterly submissions for selectedQuarter
+        $quarterlySubmissions = QuarterlySubmission::where('year', $selectedYear)
+            ->where('quarter', $selectedQuarter)
+            ->whereIn('department_id', $deptIds)
+            ->get()
+            ->keyBy('department_id');
+
+        $complianceRows = [];
+        $totalMonthlySubmitted = 0;
+        $totalWeeklyTasksAll = 0;
+        $doneWeeklyTasksAll = 0;
+        $totalQuarterlySubmitted = 0;
+
+        foreach ($departments as $dept) {
+            $mSub = $monthlySubmissions->get($dept->id);
+            $plansCollection = $monthlyPlansCount->get($dept->id, collect());
+            $stratCount = $plansCollection->where('plan_type', 'STRATEGY')->sum('count');
+            $opsCount = $plansCollection->where('plan_type', 'OPERATIONAL')->sum('count');
+            $totalMPlans = $stratCount + $opsCount;
+
+            $wStat = $weeklyTaskStats->get($dept->id);
+            $wTotal = $wStat ? (int)$wStat->total_tasks : 0;
+            $wDone = $wStat ? (int)$wStat->done_tasks : 0;
+            $wNotDone = $wStat ? (int)$wStat->not_done_tasks : 0;
+            $wRate = $wTotal > 0 ? round(($wDone / $wTotal) * 100, 1) : 0;
+
+            $wSub = $weeklySubmissionsCount->get($dept->id);
+            $weeksSubmitted = $wSub ? (int)$wSub->submitted_weeks : 0;
+
+            $qSub = $quarterlySubmissions->get($dept->id);
+
+            if ($mSub && $mSub->submitted_at) {
+                $totalMonthlySubmitted++;
+            }
+            if ($qSub && $qSub->status === 'SUBMITTED') {
+                $totalQuarterlySubmitted++;
+            }
+            $totalWeeklyTasksAll += $wTotal;
+            $doneWeeklyTasksAll += $wDone;
+
+            $complianceRows[] = [
+                'department' => $dept,
+                'monthly_submission' => $mSub,
+                'monthly_plans_total' => $totalMPlans,
+                'monthly_strat_count' => $stratCount,
+                'monthly_ops_count' => $opsCount,
+                'weekly_tasks_total' => $wTotal,
+                'weekly_done' => $wDone,
+                'weekly_not_done' => $wNotDone,
+                'weekly_rate' => $wRate,
+                'weeks_submitted' => $weeksSubmitted,
+                'quarterly_submission' => $qSub,
+            ];
+        }
+
+        $overallWeeklyRate = $totalWeeklyTasksAll > 0 ? round(($doneWeeklyTasksAll / $totalWeeklyTasksAll) * 100, 1) : 0;
+
+        return view('admin.reports', compact(
+            'departments',
+            'complianceRows',
+            'selectedYear',
+            'selectedMonth',
+            'selectedQuarter',
+            'quarters',
+            'totalMonthlySubmitted',
+            'totalQuarterlySubmitted',
+            'totalWeeklyTasksAll',
+            'overallWeeklyRate'
+        ));
+    }
+
+    /**
+     * Export Comprehensive Compliance & Performance Report to Excel (UTF-8 CSV format)
+     */
+    public function exportExcel(Request $request): StreamedResponse
+    {
+        $selectedYear = $request->query('year', kaldis_setting('current_planning_year', config('kaldis.current_planning_year')));
+        $selectedMonth = $request->query('month', kaldis_setting('current_planning_month', config('kaldis.current_planning_month')));
+        $quarters = get_ethiopian_quarters();
+        $selectedQuarter = $request->query('quarter', get_quarter_by_month($selectedMonth));
+        if (!array_key_exists($selectedQuarter, $quarters)) {
+            $selectedQuarter = 'Q1';
+        }
+
+        $departments = Department::where('active', 1)->orderBy('department_name')->get();
+        $deptIds = $departments->pluck('id')->toArray();
+
+        $monthlySubmissions = MonthlySubmission::where('year', $selectedYear)
+            ->where('month', $selectedMonth)
+            ->whereIn('department_id', $deptIds)
+            ->get()
+            ->keyBy('department_id');
+
+        $monthlyPlansCount = MonthlyPlan::where('year', $selectedYear)
+            ->where('month', $selectedMonth)
+            ->whereIn('department_id', $deptIds)
+            ->selectRaw('department_id, plan_type, COUNT(*) as count')
+            ->groupBy('department_id', 'plan_type')
+            ->get()
+            ->groupBy('department_id');
+
+        $weeklyTaskStats = DB::table('weekly_tasks as wt')
+            ->leftJoin('weekly_task_results as wtr', 'wt.id', '=', 'wtr.weekly_task_id')
+            ->where('wt.year', $selectedYear)
+            ->where('wt.month', $selectedMonth)
+            ->whereIn('wt.department_id', $deptIds)
+            ->selectRaw("
+                wt.department_id,
+                COUNT(wt.id) as total_tasks,
+                SUM(CASE WHEN wtr.result = 'DONE' THEN 1 ELSE 0 END) as done_tasks,
+                SUM(CASE WHEN wtr.result = 'NOT_DONE' THEN 1 ELSE 0 END) as not_done_tasks
+            ")
+            ->groupBy('wt.department_id')
+            ->get()
+            ->keyBy('department_id');
+
+        $weeklySubmissionsCount = Submission::where('year', $selectedYear)
+            ->where('month', $selectedMonth)
+            ->whereIn('department_id', $deptIds)
+            ->selectRaw('department_id, COUNT(*) as submitted_weeks')
+            ->groupBy('department_id')
+            ->get()
+            ->keyBy('department_id');
+
+        $quarterlySubmissions = QuarterlySubmission::where('year', $selectedYear)
+            ->where('quarter', $selectedQuarter)
+            ->whereIn('department_id', $deptIds)
+            ->get()
+            ->keyBy('department_id');
+
+        $filename = "Kaldis_Company_Compliance_and_Performance_{$selectedMonth}_{$selectedYear}.csv";
+
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0',
+        ];
+
+        $callback = function () use (
+            $departments,
+            $selectedYear,
+            $selectedMonth,
+            $selectedQuarter,
+            $quarters,
+            $monthlySubmissions,
+            $monthlyPlansCount,
+            $weeklyTaskStats,
+            $weeklySubmissionsCount,
+            $quarterlySubmissions
+        ) {
+            $file = fopen('php://output', 'w');
+            // Write UTF-8 BOM for Microsoft Excel
+            fputs($file, "\xEF\xBB\xBF");
+
+            // Report Header
+            fputcsv($file, ['KALDIS COFFEE PLC - STRATEGIC PLANNING & PERFORMANCE MANAGEMENT SYSTEM']);
+            fputcsv($file, ['REPORTS & TRACKING - COMPANY-WIDE PERFORMANCE & COMPLIANCE SCORECARD']);
+            fputcsv($file, ['Planning Year', $selectedYear]);
+            fputcsv($file, ['Monthly Scope', $selectedMonth]);
+            fputcsv($file, ['Quarterly Scope', $quarters[$selectedQuarter]['name'] . ' [' . implode(', ', $quarters[$selectedQuarter]['months']) . ']']);
+            fputcsv($file, ['Generated On', now()->format('Y-m-d H:i:s')]);
+            fputcsv($file, ['Generated By', auth()->user()->full_name ?? auth()->user()->username]);
+            fputcsv($file, []);
+
+            // Summary Table Headers
+            fputcsv($file, [
+                'Department Code',
+                'Department Name',
+                'Monthly Plan Package Status',
+                'Monthly Submission Timing',
+                'Total Monthly Plans',
+                'Strategy Plans',
+                'Operational Plans',
+                'Monthly GM Approval',
+                'Weekly Tasks Scheduled',
+                'Weekly Tasks Done',
+                'Weekly Tasks Not Done',
+                'Weekly Execution Rate %',
+                'Weekly Reports Submitted',
+                'Quarter (' . $selectedQuarter . ') Submission Status',
+                'Quarterly Completion Rate %',
+                'Quarterly GM Approval',
+                'Overall Compliance Rating',
+            ]);
+
+            foreach ($departments as $dept) {
+                $mSub = $monthlySubmissions->get($dept->id);
+                $plans = $monthlyPlansCount->get($dept->id, collect());
+                $strat = $plans->where('plan_type', 'STRATEGY')->sum('count');
+                $ops = $plans->where('plan_type', 'OPERATIONAL')->sum('count');
+                $totalM = $strat + $ops;
+
+                $wStat = $weeklyTaskStats->get($dept->id);
+                $wTotal = $wStat ? (int)$wStat->total_tasks : 0;
+                $wDone = $wStat ? (int)$wStat->done_tasks : 0;
+                $wNotDone = $wStat ? (int)$wStat->not_done_tasks : 0;
+                $wRate = $wTotal > 0 ? round(($wDone / $wTotal) * 100, 1) : 0;
+
+                $wSub = $weeklySubmissionsCount->get($dept->id);
+                $weeksSub = $wSub ? (int)$wSub->submitted_weeks : 0;
+
+                $qSub = $quarterlySubmissions->get($dept->id);
+
+                $mStatus = $mSub && $mSub->submitted_at ? 'SUBMITTED' : ($totalM > 0 ? 'DRAFT' : 'NOT_STARTED');
+                $mTiming = $mSub && $mSub->submitted_at ? ($mSub->status ?: 'ON_TIME') : 'N/A';
+                $mAppr = $mSub ? ($mSub->approval_status ?: 'PENDING') : 'N/A';
+
+                $qStatus = $qSub ? $qSub->status : 'NOT_SUBMITTED';
+                $qScore = $qSub ? ($qSub->completion_percentage . '%') : 'N/A';
+                $qAppr = $qSub ? ($qSub->approval_status ?: 'PENDING') : 'N/A';
+
+                $complianceRating = 'HIGH COMPLIANT';
+                if ($mStatus !== 'SUBMITTED' || $weeksSub < 2) {
+                    $complianceRating = 'ACTION REQUIRED';
+                } elseif ($wRate < 60) {
+                    $complianceRating = 'PARTIAL COMPLIANT';
+                }
+
+                fputcsv($file, [
+                    $dept->department_code,
+                    $dept->department_name,
+                    $mStatus,
+                    $mTiming,
+                    $totalM,
+                    $strat,
+                    $ops,
+                    $mAppr,
+                    $wTotal,
+                    $wDone,
+                    $wNotDone,
+                    $wRate . '%',
+                    $weeksSub . ' Weeks',
+                    $qStatus,
+                    $qScore,
+                    $qAppr,
+                    $complianceRating,
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }

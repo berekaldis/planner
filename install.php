@@ -403,6 +403,36 @@ if ($action === 'install' && $canInstall) {
             UNIQUE KEY `uk_dept_monthly_period` (`department_id`, `year`, `month`)
         ) ENGINE=InnoDB;
 
+        -- 14c. Quarterly Submissions Tracker
+        CREATE TABLE IF NOT EXISTS `quarterly_submissions` (
+            `id` INT AUTO_INCREMENT PRIMARY KEY,
+            `department_id` INT NOT NULL,
+            `year` VARCHAR(50) NOT NULL,
+            `quarter` VARCHAR(10) NOT NULL,
+            `months` VARCHAR(255) NOT NULL,
+            `total_plans` INT NOT NULL DEFAULT 0,
+            `done_plans` INT NOT NULL DEFAULT 0,
+            `not_done_plans` INT NOT NULL DEFAULT 0,
+            `completion_percentage` DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+            `status` VARCHAR(50) NOT NULL DEFAULT 'DRAFT',
+            `approval_status` VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+            `submission_channel` VARCHAR(50) NOT NULL DEFAULT 'WEB',
+            `submitted_by` INT NULL,
+            `submitted_at` DATETIME NULL,
+            `executive_summary` TEXT NULL,
+            `challenges` TEXT NULL,
+            `next_quarter_priorities` TEXT NULL,
+            `gm_feedback` TEXT NULL,
+            `gm_feedback_at` DATETIME NULL,
+            `gm_reviewed_by` INT NULL,
+            `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+            `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`) ON DELETE CASCADE,
+            FOREIGN KEY (`submitted_by`) REFERENCES `users`(`id`) ON DELETE SET NULL,
+            FOREIGN KEY (`gm_reviewed_by`) REFERENCES `users`(`id`) ON DELETE SET NULL,
+            UNIQUE KEY `uk_dept_quarterly_period` (`department_id`, `year`, `quarter`)
+        ) ENGINE=InnoDB;
+
         -- 15. Submission Status Change Logs
         CREATE TABLE IF NOT EXISTS `submission_status_logs` (
             `id` INT AUTO_INCREMENT PRIMARY KEY,
@@ -578,6 +608,10 @@ if ($action === 'install' && $canInstall) {
             "ALTER TABLE `monthly_submissions` MODIFY COLUMN `approval_status` VARCHAR(50) NOT NULL DEFAULT 'PENDING'",
             "ALTER TABLE `monthly_submissions` MODIFY COLUMN `submission_channel` VARCHAR(50) NOT NULL DEFAULT 'WEB'",
             "ALTER TABLE `weekly_plans` ADD COLUMN `notes` TEXT NULL AFTER `status`",
+            "ALTER TABLE `monthly_plans` ADD COLUMN `performance_status` VARCHAR(50) NOT NULL DEFAULT 'PENDING' AFTER `notes`",
+            "ALTER TABLE `monthly_plans` ADD COLUMN `actual_result` TEXT NULL AFTER `performance_status`",
+            "ALTER TABLE `monthly_plans` ADD COLUMN `achievement_percentage` INT NOT NULL DEFAULT 0 AFTER `actual_result`",
+            "ALTER TABLE `monthly_plans` ADD COLUMN `completion_notes` TEXT NULL AFTER `achievement_percentage`",
             "UPDATE `system_settings` SET `setting_value` = '12:30' WHERE `setting_key` = 'weekly_deadline_time' AND `setting_value` IN ('12:00', '12:00:00')"
         ];
         foreach ($columnPatches as $patch) {

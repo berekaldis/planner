@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MonthlyPlanController;
 use App\Http\Controllers\PerformanceController;
+use App\Http\Controllers\QuarterlyPerformanceController;
 use App\Http\Controllers\StrategyController;
 use App\Http\Controllers\TelegramController;
 use App\Http\Controllers\VoucherController;
@@ -67,9 +68,19 @@ Route::middleware('auth')->group(function () {
     Route::post('/weekly/submit', [PerformanceController::class, 'submitReport'])->name('weekly.report.submit');
     Route::post('/weekly/feedback', [PerformanceController::class, 'saveWeeklyFeedback'])->name('weekly.feedback');
 
+    // Bulk Quarterly Performance Submission Module (All 3 Months)
+    Route::prefix('performance/quarterly')->name('performance.quarterly')->group(function () {
+        Route::get('/', [QuarterlyPerformanceController::class, 'index']);
+        Route::post('/save-evaluation', [QuarterlyPerformanceController::class, 'saveEvaluation'])->name('.save_evaluation');
+        Route::post('/submit', [QuarterlyPerformanceController::class, 'submitQuarter'])->name('.submit');
+        Route::post('/feedback', [QuarterlyPerformanceController::class, 'saveFeedback'])->name('.feedback');
+        Route::get('/export', [QuarterlyPerformanceController::class, 'exportExcel'])->name('.export');
+    });
+
     // Vouchers (Official Printable & Document Layouts)
     Route::get('/monthly/voucher', [VoucherController::class, 'monthly'])->name('monthly.voucher');
     Route::get('/weekly/voucher', [VoucherController::class, 'weekly'])->name('weekly.voucher');
+    Route::get('/quarterly/voucher', [VoucherController::class, 'quarterly'])->name('quarterly.voucher');
 
     // Scorecards & Organization Performance
     Route::get('/performance/weekly', [PerformanceController::class, 'weeklyScorecard'])->name('performance.weekly');
@@ -78,8 +89,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/performance/achievements', [PerformanceController::class, 'achievementsFeed'])->name('performance.achievements');
     Route::get('/performance/challenges', [PerformanceController::class, 'challengesFeed'])->name('performance.challenges');
 
-    // Telegram Bot Integration & Live Status
-    Route::prefix('telegram')->name('telegram.')->group(function () {
+    // Telegram Bot Integration & Live Status (Strictly Super Admin & IT Admin)
+    Route::middleware('role:SUPER_ADMIN,IT_ADMIN')->prefix('telegram')->name('telegram.')->group(function () {
         Route::get('/status', [TelegramController::class, 'status'])->name('status');
         Route::post('/test-connection', [TelegramController::class, 'testConnection'])->name('test');
         Route::post('/update-token', [TelegramController::class, 'updateToken'])->name('update_token');
@@ -91,7 +102,13 @@ Route::middleware('auth')->group(function () {
         Route::any('/run-automation', [TelegramController::class, 'runAutomation'])->name('run_automation');
     });
 
-    // Super Admin Area
+    // Executive & Governance Reports (Accessible to Super Admin, IT Admin, GM, and HR)
+    Route::middleware('role:SUPER_ADMIN,IT_ADMIN,GM_MANAGEMENT,GM,GENERAL_MANAGER,HR')->prefix('admin')->name('admin.')->group(function () {
+        Route::get('/reports', [AdminController::class, 'reports'])->name('reports');
+        Route::get('/reports/export', [AdminController::class, 'exportExcel'])->name('reports.export');
+    });
+
+    // Super Admin Area (Strictly Super Administrator)
     Route::middleware('role:SUPER_ADMIN')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
         Route::get('/users', [AdminController::class, 'users'])->name('users');
@@ -105,6 +122,5 @@ Route::middleware('auth')->group(function () {
         Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
         Route::post('/settings', [AdminController::class, 'updateSettings'])->name('settings.update');
         Route::get('/audit-logs', [AdminController::class, 'auditLogs'])->name('audit');
-        Route::get('/reports', [AdminController::class, 'reports'])->name('reports');
     });
 });

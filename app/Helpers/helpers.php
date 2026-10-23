@@ -1017,5 +1017,71 @@ if (!function_exists('build_weekly_task_scheduled_notification')) {
     }
 }
 
+if (!function_exists('get_ethiopian_quarters')) {
+    function get_ethiopian_quarters(): array
+    {
+        return [
+            'Q1' => [
+                'code' => 'Q1',
+                'name' => 'Quarter 1 (1ኛ ሩብ ዓመት)',
+                'label' => 'Q1 - 1st Quarter',
+                'months' => ['Meskerem', 'Tikimt', 'Hidar'],
+                'months_am' => ['መስከረም', 'ጥቅምት', 'ኅዳር'],
+                'description' => 'Meskerem, Tikimt, Hidar',
+            ],
+            'Q2' => [
+                'code' => 'Q2',
+                'name' => 'Quarter 2 (2ኛ ሩብ ዓመት)',
+                'label' => 'Q2 - 2nd Quarter',
+                'months' => ['Tahsas', 'Tir', 'Yakatit'],
+                'months_am' => ['ታኅሣሥ', 'ጥር', 'የካቲት'],
+                'description' => 'Tahsas, Tir, Yakatit',
+            ],
+            'Q3' => [
+                'code' => 'Q3',
+                'name' => 'Quarter 3 (3ኛ ሩብ ዓመት)',
+                'label' => 'Q3 - 3rd Quarter',
+                'months' => ['Megabit', 'Miazia', 'Ginbot'],
+                'months_am' => ['መጋቢት', 'ሚያዝያ', 'ግንቦት'],
+                'description' => 'Megabit, Miazia, Ginbot',
+            ],
+            'Q4' => [
+                'code' => 'Q4',
+                'name' => 'Quarter 4 (4ኛ ሩብ ዓመት)',
+                'label' => 'Q4 - 4th Quarter',
+                'months' => ['Sene', 'Hamle', 'Nehase'],
+                'months_am' => ['ሰኔ', 'ሐምሌ', 'ነሐሴ'],
+                'description' => 'Sene, Hamle, Nehase',
+            ],
+        ];
+    }
+}
+
+if (!function_exists('get_quarter_by_month')) {
+    function get_quarter_by_month(?string $month): string
+    {
+        $norm = normalize_ethiopian_month($month);
+        $quarters = get_ethiopian_quarters();
+        foreach ($quarters as $code => $info) {
+            if (in_array($norm, $info['months'], true)) {
+                return $code;
+            }
+        }
+        return 'Q1';
+    }
+}
+
+if (!function_exists('get_current_planning_quarter')) {
+    function get_current_planning_quarter(): string
+    {
+        $currentMonth = kaldis_setting('current_planning_month', config('kaldis.current_planning_month', 'AUTO'));
+        if ($currentMonth === 'AUTO' || empty($currentMonth)) {
+            $currentMonth = get_current_ethiopian_month();
+        }
+        return get_quarter_by_month($currentMonth);
+    }
+}
+
+
 
 
