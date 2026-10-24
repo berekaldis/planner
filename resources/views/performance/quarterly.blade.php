@@ -37,7 +37,21 @@
     border-left: 4px solid #3B82F6;
     padding: 0.85rem 1.25rem;
     border-radius: 6px;
-    margin-bottom: 1rem;
+    margin-bottom: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+.month-section-header:hover {
+    background: #F1F5F9;
+    border-left-color: #1D4ED8;
+}
+.month-section-header .chevron-icon {
+    display: inline-block;
+    transition: transform 0.25s ease;
+}
+.month-section-header.collapsed .chevron-icon {
+    transform: rotate(-90deg);
 }
 .plan-eval-row {
     background: #ffffff;
@@ -261,15 +275,21 @@
 
     <!-- Month-by-Month Plan Evaluations -->
     <div class="card border-0 shadow-sm mb-4 bg-white">
-        <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <div class="card-header bg-white py-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
             <div>
                 <h6 class="fw-bold text-dark mb-0">
                     <i class="fas fa-list-check text-primary me-2"></i> Monthly Plan Execution Across {{ $quarterInfo['name'] }}
                 </h6>
                 <small class="text-muted">Evaluate and rate each monthly plan for {{ implode(', ', $quarterMonths) }}</small>
             </div>
-            <div>
-                <span class="badge bg-light text-dark border">{{ $totalPlans }} Plans Total</span>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-light text-dark border me-1">{{ $totalPlans }} Plans Total</span>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleAllMonths(true)" title="Expand all months">
+                    <i class="fas fa-angles-down me-1"></i> Expand All
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleAllMonths(false)" title="Collapse all months">
+                    <i class="fas fa-angles-up me-1"></i> Collapse All
+                </button>
             </div>
         </div>
 
@@ -277,23 +297,39 @@
             @forelse($quarterMonths as $monthName)
                 @php
                     $mPlans = $plansByMonth[$monthName] ?? collect();
+                    $mDone = $mPlans->where('performance_status', 'DONE')->count();
+                    $mSlug = \Illuminate\Support\Str::slug($monthName);
                 @endphp
                 <div class="mb-4">
-                    <div class="month-section-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div class="month-section-header d-flex flex-wrap justify-content-between align-items-center gap-2"
+                         data-bs-toggle="collapse"
+                         data-bs-target="#month-collapse-{{ $mSlug }}"
+                         aria-expanded="true"
+                         aria-controls="month-collapse-{{ $mSlug }}"
+                         id="heading-{{ $mSlug }}"
+                         title="Click to Expand or Collapse {{ $monthName }}">
                         <div class="d-flex align-items-center gap-2">
+                            <i class="fas fa-chevron-down text-primary chevron-icon me-1"></i>
                             <span class="fw-bold text-dark fs-6">
-                                <i class="fas fa-calendar-day text-primary me-2"></i> Month: {{ $monthName }}
+                                <i class="fas fa-calendar-day text-primary me-1"></i> Month: {{ $monthName }}
                             </span>
-                            <span class="badge bg-white text-dark border">{{ $mPlans->count() }} Plans</span>
+                            <span class="badge bg-white text-dark border ms-1">{{ $mPlans->count() }} Plans</span>
+                            @if($mPlans->count() > 0)
+                                <span class="badge {{ $mDone == $mPlans->count() ? 'bg-success text-white' : 'bg-success-subtle text-success' }} small">
+                                    <i class="fas fa-check-circle me-1"></i>{{ $mDone }}/{{ $mPlans->count() }} Done
+                                </span>
+                            @endif
                         </div>
-                        <div>
+                        <div onclick="event.stopPropagation()">
                             <button type="button" class="btn btn-sm btn-primary shadow-sm" onclick="openAddPlanModal('{{ $monthName }}')">
                                 <i class="fas fa-plus-circle me-1"></i> Add {{ $monthName }} Plan &amp; Performance
                             </button>
                         </div>
                     </div>
 
-                    @forelse($mPlans as $plan)
+                    <div class="collapse show month-collapse-body" id="month-collapse-{{ $mSlug }}">
+                        <div class="pt-1">
+                            @forelse($mPlans as $plan)
                         @php
                             $pStatus = $plan->performance_status ?: 'PENDING';
                             $rowClass = match($pStatus) {
@@ -398,6 +434,8 @@
                             </button>
                         </div>
                     @endforelse
+                        </div>
+                    </div>
                 </div>
             @empty
                 <div class="text-center py-5 text-muted">
@@ -673,5 +711,36 @@ function updatePlanCardStatus(planId, status) {
         card.classList.add('status-pending');
     }
 }
+
+function toggleAllMonths(expand) {
+    const bodies = document.querySelectorAll('.month-collapse-body');
+    bodies.forEach(body => {
+        const bsCollapse = bootstrap.Collapse.getOrCreateInstance(body, { toggle: false });
+        if (expand) {
+            bsCollapse.show();
+        } else {
+            bsCollapse.hide();
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.month-collapse-body').forEach(el => {
+        el.addEventListener('show.bs.collapse', function() {
+            const header = document.querySelector('[data-bs-target="#' + this.id + '"]');
+            if (header) {
+                header.classList.remove('collapsed');
+                header.setAttribute('aria-expanded', 'true');
+            }
+        });
+        el.addEventListener('hide.bs.collapse', function() {
+            const header = document.querySelector('[data-bs-target="#' + this.id + '"]');
+            if (header) {
+                header.classList.add('collapsed');
+                header.setAttribute('aria-expanded', 'false');
+            }
+        });
+    });
+});
 </script>
 @endsection
