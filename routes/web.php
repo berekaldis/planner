@@ -71,6 +71,8 @@ Route::middleware('auth')->group(function () {
     // Bulk Quarterly Performance Submission Module (All 3 Months)
     Route::prefix('performance/quarterly')->name('performance.quarterly')->group(function () {
         Route::get('/', [QuarterlyPerformanceController::class, 'index']);
+        Route::post('/add-plan', [QuarterlyPerformanceController::class, 'addPlan'])->name('.add_plan');
+        Route::delete('/plan/{id}', [QuarterlyPerformanceController::class, 'deletePlan'])->name('.delete_plan');
         Route::post('/save-evaluation', [QuarterlyPerformanceController::class, 'saveEvaluation'])->name('.save_evaluation');
         Route::post('/submit', [QuarterlyPerformanceController::class, 'submitQuarter'])->name('.submit');
         Route::post('/feedback', [QuarterlyPerformanceController::class, 'saveFeedback'])->name('.feedback');

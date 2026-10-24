@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AnnualGoal;
 use App\Models\AuditLog;
 use App\Models\Department;
 use App\Models\MonthlyPlan;
@@ -31,8 +32,7 @@ class QuarterlyPerformanceController extends Controller
 
         $selectedYear = $request->query('year', kaldis_setting('current_planning_year', config('kaldis.current_planning_year')));
         $quarters = get_ethiopian_quarters();
-        $defaultQuarter = get_current_planning_quarter();
-        $selectedQuarter = $request->query('quarter', $defaultQuarter);
+        $selectedQuarter = $request->query('quarter', 'Q1');
 
         if (!array_key_exists($selectedQuarter, $quarters)) {
             $selectedQuarter = 'Q1';
@@ -57,6 +57,16 @@ class QuarterlyPerformanceController extends Controller
             ->where('year', $selectedYear)
             ->where('quarter', $selectedQuarter)
             ->first();
+
+        // Active annual strategy goals available for this department
+        $annualGoals = AnnualGoal::where('status', 'ACTIVE')
+            ->where('year', $selectedYear)
+            ->where(function ($query) use ($deptId) {
+                $query->where('responsible_department_id', $deptId)
+                      ->orWhereNull('responsible_department_id');
+            })
+            ->orderBy('goal_code')
+            ->get();
 
         // Calculate performance metrics across the 3 months
         $totalPlans = $plans->count();
@@ -109,6 +119,7 @@ class QuarterlyPerformanceController extends Controller
             'department',
             'departments',
             'allDepartments',
+            'annualGoals',
             'selectedYear',
             'selectedQuarter',
             'quarters',
@@ -125,6 +136,94 @@ class QuarterlyPerformanceController extends Controller
             'avgCompletionRate',
             'weeklyStats'
         ));
+    }
+
+    /**
+     * Add a Monthly Plan & Performance evaluation directly within the Quarterly module
+     */
+    public function addPlan(Request $request)
+    {
+        $user = Auth::user();
+        $deptId = (int)$request->input('department_id', $user->department_id);
+
+        if (!$user->canAccessAllDepartments() && $user->department_id != $deptId) {
+            abort(403, 'Unauthorized to add plans for other departments.');
+        }
+
+        $validated = $request->validate([
+            'department_id' => 'required|exists:departments,id',
+            'year' => 'required|string',
+            'month' => 'required|string',
+            'plan_type' => 'required|in:STRATEGY,OPERATIONAL',
+            'annual_goal_id' => 'nullable|exists:annual_goals,id',
+            'title' => 'required|string|max:255',
+            'monthly_target' => 'required|string|max:255',
+            'definition_of_done' => 'nullable|string',
+            'responsible_person' => 'nullable|string|max:100',
+            'priority' => 'nullable|in:HIGH,MEDIUM,LOW',
+            'performance_status' => 'required|in:DONE,PARTIAL,NOT_DONE,PENDING',
+            'achievement_percentage' => 'nullable|integer|min:0|max:100',
+            'actual_result' => 'nullable|string',
+            'completion_notes' => 'nullable|string',
+        ]);
+
+        if ($validated['plan_type'] === 'STRATEGY' && empty($validated['annual_goal_id'])) {
+            return back()->withErrors(['annual_goal_id' => 'Strategy plans must be linked to an Annual Strategy Goal.'])->withInput();
+        }
+
+        $pct = $validated['achievement_percentage'];
+        if ($pct === null || $pct === '') {
+            $pct = match ($validated['performance_status']) {
+                'DONE' => 100,
+                'PARTIAL' => 50,
+                default => 0,
+            };
+        }
+
+        $plan = MonthlyPlan::create([
+            'department_id' => $deptId,
+            'year' => $validated['year'],
+            'month' => $validated['month'],
+            'plan_type' => $validated['plan_type'],
+            'annual_goal_id' => $validated['plan_type'] === 'STRATEGY' ? $validated['annual_goal_id'] : null,
+            'title' => $validated['title'],
+            'description' => $validated['title'],
+            'monthly_target' => $validated['monthly_target'],
+            'definition_of_done' => $validated['definition_of_done'] ?: $validated['monthly_target'],
+            'responsible_person' => $validated['responsible_person'] ?: ($user->full_name ?? 'Department Head'),
+            'priority' => $validated['priority'] ?? 'HIGH',
+            'performance_status' => $validated['performance_status'],
+            'achievement_percentage' => (int)$pct,
+            'actual_result' => $validated['actual_result'] ?: null,
+            'completion_notes' => $validated['completion_notes'] ?: null,
+            'active' => 1,
+            'created_by' => $user->id,
+        ]);
+
+        AuditLog::log('CREATE_QUARTERLY_MONTHLY_PLAN', 'monthly_plans', "Added {$validated['month']} plan #{$plan->id} with status {$validated['performance_status']} ({$pct}%)", $plan->id);
+
+        return back()->with('success', "Plan '{$plan->title}' for {$validated['month']} was added successfully with {$validated['performance_status']} status ({$pct}%).");
+    }
+
+    /**
+     * Delete a Monthly Plan from the Quarterly Module
+     */
+    public function deletePlan(Request $request, $id)
+    {
+        $user = Auth::user();
+        $plan = MonthlyPlan::findOrFail($id);
+
+        if (!$user->canAccessAllDepartments() && $user->department_id != $plan->department_id) {
+            abort(403, 'Unauthorized to delete this plan.');
+        }
+
+        $month = $plan->month;
+        $title = $plan->title;
+        $plan->delete();
+
+        AuditLog::log('DELETE_QUARTERLY_MONTHLY_PLAN', 'monthly_plans', "Deleted plan #{$id} ({$month} - {$title})", $id);
+
+        return back()->with('success', "Plan '{$title}' for {$month} was removed successfully.");
     }
 
     /**

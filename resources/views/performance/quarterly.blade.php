@@ -132,7 +132,7 @@
                 <span class="badge bg-primary-subtle text-primary"><i class="fas fa-list-check"></i> 3 Months</span>
             </div>
             <div class="fs-3 fw-bold text-dark">{{ $totalPlans }}</div>
-            <div class="text-muted small">Meskerem - Hidar (or cycle)</div>
+            <div class="text-muted small">{{ $quarterMonths[0] }} - {{ $quarterMonths[2] }}</div>
         </div>
     </div>
 
@@ -279,12 +279,17 @@
                     $mPlans = $plansByMonth[$monthName] ?? collect();
                 @endphp
                 <div class="mb-4">
-                    <div class="month-section-header d-flex justify-content-between align-items-center">
-                        <div>
+                    <div class="month-section-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div class="d-flex align-items-center gap-2">
                             <span class="fw-bold text-dark fs-6">
                                 <i class="fas fa-calendar-day text-primary me-2"></i> Month: {{ $monthName }}
                             </span>
-                            <span class="badge bg-white text-dark border ms-2">{{ $mPlans->count() }} Plans</span>
+                            <span class="badge bg-white text-dark border">{{ $mPlans->count() }} Plans</span>
+                        </div>
+                        <div>
+                            <button type="button" class="btn btn-sm btn-primary shadow-sm" onclick="openAddPlanModal('{{ $monthName }}')">
+                                <i class="fas fa-plus-circle me-1"></i> Add {{ $monthName }} Plan &amp; Performance
+                            </button>
                         </div>
                     </div>
 
@@ -302,16 +307,21 @@
                             <div class="row g-3">
                                 <!-- Plan Metadata & Title -->
                                 <div class="col-lg-5">
-                                    <div class="d-flex align-items-center gap-2 mb-1">
-                                        <span class="badge bg-light text-secondary border">#MP-{{ str_pad($plan->id, 4, '0', STR_PAD_LEFT) }}</span>
-                                        <span class="badge {{ $plan->plan_type === 'STRATEGY' ? 'bg-purple-subtle text-purple border' : 'bg-blue-subtle text-blue border' }}" style="font-size: 0.72rem;">
-                                            {{ $plan->plan_type }}
-                                        </span>
-                                        @if($plan->annualGoal)
-                                            <span class="text-primary small fw-semibold text-truncate" style="max-width: 200px;" title="{{ $plan->annualGoal->code }}: {{ $plan->annualGoal->title }}">
-                                                <i class="fas fa-bullseye me-1"></i> {{ $plan->annualGoal->code }}
+                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-light text-secondary border">#MP-{{ str_pad($plan->id, 4, '0', STR_PAD_LEFT) }}</span>
+                                            <span class="badge {{ $plan->plan_type === 'STRATEGY' ? 'bg-purple-subtle text-purple border' : 'bg-blue-subtle text-blue border' }}" style="font-size: 0.72rem;">
+                                                {{ $plan->plan_type }}
                                             </span>
-                                        @endif
+                                            @if($plan->annualGoal)
+                                                <span class="text-primary small fw-semibold text-truncate" style="max-width: 180px;" title="{{ $plan->annualGoal->code }}: {{ $plan->annualGoal->title }}">
+                                                    <i class="fas fa-bullseye me-1"></i> {{ $plan->annualGoal->code }}
+                                                </span>
+                                            @endif
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-danger border-0 p-0 px-2" onclick="confirmDeletePlan({{ $plan->id }}, '{{ addslashes($plan->title) }}')" title="Delete this plan">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
                                     </div>
                                     <h6 class="fw-bold text-dark mb-1">{{ $plan->title }}</h6>
                                     @if(!empty($plan->monthly_target))
@@ -377,8 +387,15 @@
                             </div>
                         </div>
                     @empty
-                        <div class="p-3 text-center text-muted bg-light rounded border border-dashed mb-3">
-                            <i class="fas fa-calendar-xmark me-1"></i> No monthly plans created for {{ $monthName }}.
+                        <div class="p-4 text-center bg-light rounded border border-dashed mb-3">
+                            <div class="mb-2 text-primary fs-3">
+                                <i class="fas fa-calendar-plus"></i>
+                            </div>
+                            <div class="fw-bold text-dark mb-1">No monthly plans recorded for {{ $monthName }} yet</div>
+                            <div class="text-muted small mb-3">Add your department's planned targets and performance results for {{ $monthName }}.</div>
+                            <button type="button" class="btn btn-sm btn-primary px-3 shadow-sm" onclick="openAddPlanModal('{{ $monthName }}')">
+                                <i class="fas fa-plus-circle me-1"></i> Add {{ $monthName }} Plan &amp; Performance
+                            </button>
                         </div>
                     @endforelse
                 </div>
@@ -442,7 +459,194 @@
     </div>
 </form>
 
+<!-- Hidden form for deleting a plan -->
+<form id="deletePlanForm" method="POST" action="" style="display:none;">
+    @csrf
+    @method('DELETE')
+</form>
+
+<!-- Add Monthly Plan & Performance Modal -->
+<div class="modal fade" id="addPlanModal" tabindex="-1" aria-labelledby="addPlanModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form method="POST" action="{{ route('performance.quarterly.add_plan') }}" id="modalAddPlanForm">
+                @csrf
+                <input type="hidden" name="department_id" value="{{ $department->id }}">
+                <input type="hidden" name="year" value="{{ $selectedYear }}">
+                
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold" id="addPlanModalLabel">
+                        <i class="fas fa-layer-group text-warning me-2"></i> Add Monthly Plan &amp; Performance Evaluation
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-dark">Ethiopian Month <span class="text-danger">*</span></label>
+                            <select name="month" id="modalPlanMonth" class="form-select form-select-sm" required>
+                                @foreach($quarterMonths as $m)
+                                    <option value="{{ $m }}">{{ $m }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-dark">Plan Category / Type <span class="text-danger">*</span></label>
+                            <select name="plan_type" id="modalPlanType" class="form-select form-select-sm" onchange="toggleModalGoalSelect(this.value)" required>
+                                <option value="OPERATIONAL">OPERATIONAL (Core Departmental Deliverable)</option>
+                                <option value="STRATEGY">STRATEGY (Aligned to 58 Annual Goals)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Strategy Goal Link (Dynamic) -->
+                    <div class="mb-3" id="modalGoalContainer" style="display: none;">
+                        <label class="form-label small fw-bold text-primary">
+                            <i class="fas fa-bullseye me-1"></i> Link to Annual Strategic Goal <span class="text-danger">*</span>
+                        </label>
+                        <select name="annual_goal_id" id="modalAnnualGoalId" class="form-select form-select-sm">
+                            <option value="">-- Select Annual Strategic Goal --</option>
+                            @foreach($annualGoals as $g)
+                                <option value="{{ $g->id }}">{{ $g->code }} - {{ $g->title }}</option>
+                            @endforeach
+                        </select>
+                        <div class="form-text small">Select the strategic priority this monthly deliverable fulfills.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-dark">Monthly Plan Title / Key Activity <span class="text-danger">*</span></label>
+                        <input type="text" name="title" id="modalPlanTitle" class="form-control form-control-sm" placeholder="e.g. Conduct branch equipment maintenance & calibration" required>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-dark">Planned Monthly Target <span class="text-danger">*</span></label>
+                            <input type="text" name="monthly_target" id="modalPlanTarget" class="form-control form-control-sm" placeholder="e.g. 25 retail branches serviced" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-dark">Definition of Done (DoD)</label>
+                            <input type="text" name="definition_of_done" id="modalPlanDoD" class="form-control form-control-sm" placeholder="e.g. Signed maintenance checklist for each branch">
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-dark">Responsible Person / Lead</label>
+                            <input type="text" name="responsible_person" id="modalPlanResp" class="form-control form-control-sm" value="{{ auth()->user()->full_name ?: auth()->user()->username }}" placeholder="Lead name or title">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-dark">Priority</label>
+                            <select name="priority" class="form-select form-select-sm">
+                                <option value="HIGH" selected>HIGH</option>
+                                <option value="MEDIUM">MEDIUM</option>
+                                <option value="LOW">LOW</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <hr class="my-3">
+                    <h6 class="fw-bold text-dark mb-2">
+                        <i class="fas fa-chart-line text-success me-1"></i> Performance Evaluation Results
+                    </h6>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-dark">Performance Status <span class="text-danger">*</span></label>
+                            <select name="performance_status" id="modalPerfStatus" class="form-select form-select-sm" onchange="syncModalPct(this.value)" required>
+                                <option value="DONE" selected>DONE (100% Completed)</option>
+                                <option value="PARTIAL">PARTIAL (Partially Achieved)</option>
+                                <option value="NOT_DONE">NOT DONE (0% Achieved)</option>
+                                <option value="PENDING">PENDING EVALUATION</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-dark">Achievement %</label>
+                            <div class="input-group input-group-sm">
+                                <input type="number" name="achievement_percentage" id="modalAchievePct" class="form-control" min="0" max="100" value="100">
+                                <span class="input-group-text">%</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-dark">Actual Quantitative Output</label>
+                            <input type="text" name="actual_result" id="modalActualResult" class="form-control form-control-sm" placeholder="e.g. 25/25 branches serviced">
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label small fw-bold text-dark">Execution Remarks &amp; Completion Notes</label>
+                        <textarea name="completion_notes" id="modalNotes" rows="2" class="form-control form-control-sm" placeholder="Add operational notes, milestones reached, or explanations..."></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-success fw-bold px-3">
+                        <i class="fas fa-check-circle me-1"></i> Save Plan &amp; Performance
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
+function openAddPlanModal(month) {
+    if (month) {
+        const monthSelect = document.getElementById('modalPlanMonth');
+        if (monthSelect) {
+            monthSelect.value = month;
+        }
+    }
+    document.getElementById('modalPlanTitle').value = '';
+    document.getElementById('modalPlanTarget').value = '';
+    document.getElementById('modalPlanDoD').value = '';
+    document.getElementById('modalActualResult').value = '';
+    document.getElementById('modalNotes').value = '';
+    document.getElementById('modalPerfStatus').value = 'DONE';
+    document.getElementById('modalAchievePct').value = 100;
+
+    const typeSelect = document.getElementById('modalPlanType');
+    typeSelect.value = 'OPERATIONAL';
+    toggleModalGoalSelect('OPERATIONAL');
+
+    const modalEl = document.getElementById('addPlanModal');
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+}
+
+function toggleModalGoalSelect(val) {
+    const container = document.getElementById('modalGoalContainer');
+    const goalSelect = document.getElementById('modalAnnualGoalId');
+    if (val === 'STRATEGY') {
+        container.style.display = 'block';
+        goalSelect.setAttribute('required', 'required');
+    } else {
+        container.style.display = 'none';
+        goalSelect.removeAttribute('required');
+        goalSelect.value = '';
+    }
+}
+
+function syncModalPct(status) {
+    const pctInput = document.getElementById('modalAchievePct');
+    if (status === 'DONE') {
+        pctInput.value = 100;
+    } else if (status === 'PARTIAL') {
+        pctInput.value = 50;
+    } else if (status === 'NOT_DONE') {
+        pctInput.value = 0;
+    }
+}
+
+function confirmDeletePlan(planId, title) {
+    if (confirm('Are you sure you want to delete this monthly plan?\n\n"' + title + '"')) {
+        const form = document.getElementById('deletePlanForm');
+        form.action = "{{ url('performance/quarterly/plan') }}/" + planId;
+        form.submit();
+    }
+}
+
 function updatePlanCardStatus(planId, status) {
     const card = document.getElementById('plan-card-' + planId);
     const pctInput = document.getElementById('achieve-pct-' + planId);

@@ -33,6 +33,9 @@ if (!function_exists('normalize_ethiopian_month')) {
             'hidare' => 'Hidar',
             'magabit' => 'Megabit',
             'miyazya' => 'Miazia',
+            'nehace' => 'Nehase',
+            'nehasse' => 'Nehase',
+            'pagume' => 'Pagumen',
         ];
         $lower = strtolower($m);
         return $map[$lower] ?? ucfirst($lower);
@@ -1025,33 +1028,33 @@ if (!function_exists('get_ethiopian_quarters')) {
                 'code' => 'Q1',
                 'name' => 'Quarter 1 (1ኛ ሩብ ዓመት)',
                 'label' => 'Q1 - 1st Quarter',
-                'months' => ['Meskerem', 'Tikimt', 'Hidar'],
-                'months_am' => ['መስከረም', 'ጥቅምት', 'ኅዳር'],
-                'description' => 'Meskerem, Tikimt, Hidar',
+                'months' => ['Hamle', 'Nehase', 'Meskerem'],
+                'months_am' => ['ሐምሌ', 'ነሐሴ', 'መስከረም'],
+                'description' => 'Hamle, Nehase, Meskerem',
             ],
             'Q2' => [
                 'code' => 'Q2',
                 'name' => 'Quarter 2 (2ኛ ሩብ ዓመት)',
                 'label' => 'Q2 - 2nd Quarter',
-                'months' => ['Tahsas', 'Tir', 'Yakatit'],
-                'months_am' => ['ታኅሣሥ', 'ጥር', 'የካቲት'],
-                'description' => 'Tahsas, Tir, Yakatit',
+                'months' => ['Tikimt', 'Hidar', 'Tahsas'],
+                'months_am' => ['ጥቅምት', 'ኅዳር', 'ታኅሣሥ'],
+                'description' => 'Tikimt, Hidar, Tahsas',
             ],
             'Q3' => [
                 'code' => 'Q3',
                 'name' => 'Quarter 3 (3ኛ ሩብ ዓመት)',
                 'label' => 'Q3 - 3rd Quarter',
-                'months' => ['Megabit', 'Miazia', 'Ginbot'],
-                'months_am' => ['መጋቢት', 'ሚያዝያ', 'ግንቦት'],
-                'description' => 'Megabit, Miazia, Ginbot',
+                'months' => ['Tir', 'Yakatit', 'Megabit'],
+                'months_am' => ['ጥር', 'የካቲት', 'መጋቢት'],
+                'description' => 'Tir, Yakatit, Megabit',
             ],
             'Q4' => [
                 'code' => 'Q4',
                 'name' => 'Quarter 4 (4ኛ ሩብ ዓመት)',
                 'label' => 'Q4 - 4th Quarter',
-                'months' => ['Sene', 'Hamle', 'Nehase'],
-                'months_am' => ['ሰኔ', 'ሐምሌ', 'ነሐሴ'],
-                'description' => 'Sene, Hamle, Nehase',
+                'months' => ['Miazia', 'Ginbot', 'Sene'],
+                'months_am' => ['ሚያዝያ', 'ግንቦት', 'ሰኔ'],
+                'description' => 'Miazia, Ginbot, Sene',
             ],
         ];
     }
@@ -1061,6 +1064,9 @@ if (!function_exists('get_quarter_by_month')) {
     function get_quarter_by_month(?string $month): string
     {
         $norm = normalize_ethiopian_month($month);
+        if ($norm === 'Pagumen' || $norm === 'Pagume') {
+            return 'Q1';
+        }
         $quarters = get_ethiopian_quarters();
         foreach ($quarters as $code => $info) {
             if (in_array($norm, $info['months'], true)) {
