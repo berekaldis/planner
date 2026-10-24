@@ -35,9 +35,140 @@
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
 
     <!-- Kaldis Design System Core Stylesheet with Cache Busting -->
-    <link href="{{ asset('assets/css/style.css') }}?v=2.2.0" rel="stylesheet">
+    <link href="{{ asset('assets/css/style.css') }}?v=2.2.1" rel="stylesheet">
 
     <style>
+        /* ══════════════════════════════════════════════════════════
+           KALDIS BRAND SIDEBAR THEME (#347D28) & ENHANCED SCROLLBAR
+           ══════════════════════════════════════════════════════════ */
+        :root {
+            --kaldis-sidebar-bg: #347D28 !important;
+        }
+
+        .kaldis-sidebar,
+        [data-bs-theme="dark"] .kaldis-sidebar {
+            background: #347D28 !important;
+            background-image: 
+                radial-gradient(ellipse 95% 55% at 50% -10%, rgba(255, 255, 255, 0.12) 0%, transparent 68%),
+                radial-gradient(ellipse 80% 40% at 50% 100%, rgba(0, 0, 0, 0.20) 0%, transparent 65%),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(0, 0, 0, 0.12) 100%) !important;
+            border-right: 1px solid rgba(0, 0, 0, 0.15) !important;
+            box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15) !important;
+        }
+
+        .sidebar-inner-wrapper {
+            height: 100% !important;
+            min-height: 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            overflow: hidden !important;
+        }
+
+        /* Enhanced Sidebar Nav Scroll & Highly Visible Scrollbar */
+        .sidebar-nav-scroll {
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            min-height: 0 !important;
+            flex: 1 1 auto !important;
+            padding: 0.35rem 0.75rem 3rem 0.75rem !important;
+            scrollbar-width: thin !important;
+            scrollbar-color: rgba(255, 255, 255, 0.45) rgba(0, 0, 0, 0.15) !important;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .sidebar-nav-scroll::-webkit-scrollbar {
+            width: 6px !important;
+        }
+
+        .sidebar-nav-scroll::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.12) !important;
+            border-radius: 8px !important;
+        }
+
+        .sidebar-nav-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.40) !important;
+            border-radius: 8px !important;
+            border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        }
+
+        .sidebar-nav-scroll::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.75) !important;
+        }
+
+        /* Typography & Nav Items On #347D28 */
+        .kaldis-sidebar .sidebar-heading {
+            color: rgba(255, 255, 255, 0.70) !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.12em !important;
+        }
+
+        .kaldis-sidebar .sidebar-heading::after {
+            background: rgba(255, 255, 255, 0.20) !important;
+        }
+
+        .kaldis-sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.92) !important;
+            font-weight: 500 !important;
+            margin: 2px 0 !important;
+        }
+
+        .kaldis-sidebar .nav-link:hover {
+            background: rgba(255, 255, 255, 0.16) !important;
+            color: #FFFFFF !important;
+        }
+
+        .kaldis-sidebar .nav-link.active {
+            background: rgba(0, 0, 0, 0.24) !important;
+            color: #FFFFFF !important;
+            font-weight: 700 !important;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+        }
+
+        .kaldis-sidebar .nav-link.active::before {
+            background: #FBBF24 !important;
+            box-shadow: 0 0 10px rgba(251, 191, 36, 0.75) !important;
+        }
+
+        .kaldis-sidebar .nav-link.active .nav-icon-wrap {
+            background: #F59E0B !important;
+            color: #FFFFFF !important;
+        }
+
+        .kaldis-sidebar .nav-link.active .sidebar-chevron {
+            color: #FBBF24 !important;
+        }
+
+        .sidebar-search-box .input-group {
+            background: rgba(0, 0, 0, 0.18) !important;
+            border: 1px solid rgba(255, 255, 255, 0.22) !important;
+        }
+
+        .sidebar-search-box input {
+            color: #FFFFFF !important;
+        }
+
+        .sidebar-search-box input::placeholder {
+            color: rgba(255, 255, 255, 0.55) !important;
+        }
+
+        .sidebar-search-box .input-group-text {
+            color: rgba(255, 255, 255, 0.65) !important;
+        }
+
+        .sidebar-user-section {
+            background: rgba(0, 0, 0, 0.22) !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.16) !important;
+        }
+
+        .sidebar-user-card:hover {
+            background: rgba(255, 255, 255, 0.12) !important;
+        }
+
+        .sidebar-edge-toggle {
+            background: #347D28 !important;
+            border: 1px solid rgba(255, 255, 255, 0.25) !important;
+            color: #FFFFFF !important;
+        }
         /* ══════════════════════════════════════════════════════════
            EXACT MATCH FOR USER SCREENSHOT (media_1791907933701.png)
            SHADCN / RADIX STYLE SEARCHABLE SELECT POP-OVER

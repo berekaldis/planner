@@ -301,10 +301,10 @@
                     $mSlug = \Illuminate\Support\Str::slug($monthName);
                 @endphp
                 <div class="mb-4">
-                    <div class="month-section-header d-flex flex-wrap justify-content-between align-items-center gap-2"
+                    <div class="month-section-header collapsed d-flex flex-wrap justify-content-between align-items-center gap-2"
                          data-bs-toggle="collapse"
                          data-bs-target="#month-collapse-{{ $mSlug }}"
-                         aria-expanded="true"
+                         aria-expanded="false"
                          aria-controls="month-collapse-{{ $mSlug }}"
                          id="heading-{{ $mSlug }}"
                          title="Click to Expand or Collapse {{ $monthName }}">
@@ -327,7 +327,7 @@
                         </div>
                     </div>
 
-                    <div class="collapse show month-collapse-body" id="month-collapse-{{ $mSlug }}">
+                    <div class="collapse month-collapse-body" id="month-collapse-{{ $mSlug }}">
                         <div class="pt-1">
                             @forelse($mPlans as $plan)
                         @php
