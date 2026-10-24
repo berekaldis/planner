@@ -8,15 +8,12 @@
     @keyframes kaldisLogoFloat {
         0% {
             transform: translateY(0px) rotate(0deg);
-            box-shadow: 0 10px 25px -4px rgba(217, 119, 6, 0.28), 0 6px 12px -4px rgba(0, 0, 0, 0.08);
         }
         50% {
-            transform: translateY(-12px) rotate(0.8deg);
-            box-shadow: 0 24px 38px -6px rgba(217, 119, 6, 0.38), 0 12px 18px -4px rgba(0, 0, 0, 0.12);
+            transform: translateY(-8px) rotate(0.8deg);
         }
         100% {
             transform: translateY(0px) rotate(0deg);
-            box-shadow: 0 10px 25px -4px rgba(217, 119, 6, 0.28), 0 6px 12px -4px rgba(0, 0, 0, 0.08);
         }
     }
 
@@ -24,30 +21,36 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 10px;
-        border-radius: 50%;
+        padding: 0;
+        border-radius: 50% !important;
         background: transparent !important;
-        border: 3.5px solid rgba(217, 119, 6, 0.35);
+        background-color: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
         animation: kaldisLogoFloat 4.2s ease-in-out infinite;
-        transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.3s ease, box-shadow 0.3s ease;
+        transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
         cursor: pointer;
     }
 
     .kaldis-floating-logo-wrap:hover {
-        transform: scale(1.1) translateY(-14px);
-        border-color: #d97706;
-        box-shadow: 0 28px 45px -8px rgba(217, 119, 6, 0.45);
+        transform: scale(1.08) translateY(-8px);
     }
 
     .kaldis-overview-logo {
-        width: 110px;
-        height: 110px;
-        object-fit: contain;
-        transition: transform 0.35s ease;
+        width: 116px;
+        height: 116px;
+        border-radius: 50% !important;
+        object-fit: cover;
+        display: block;
+        background: transparent !important;
+        background-color: transparent !important;
+        box-shadow: 0 10px 25px -4px rgba(0, 0, 0, 0.18), 0 4px 10px -2px rgba(217, 119, 6, 0.25);
+        transition: transform 0.35s ease, box-shadow 0.35s ease;
     }
 
     .kaldis-floating-logo-wrap:hover .kaldis-overview-logo {
-        transform: rotate(-3deg) scale(1.04);
+        transform: rotate(-3deg) scale(1.03);
+        box-shadow: 0 18px 35px -6px rgba(0, 0, 0, 0.22), 0 8px 18px -4px rgba(217, 119, 6, 0.35);
     }
 
     .overview-action-card {
@@ -96,7 +99,8 @@
                 <div class="kaldis-floating-logo-wrap" title="Kaldis Coffee PLC">
                     <img src="{{ asset('assets/images/logo.png') }}" 
                          alt="Kaldis Coffee PLC" 
-                         class="kaldis-overview-logo"
+                         class="kaldis-overview-logo rounded-circle"
+                         style="background: transparent !important;"
                          onerror="this.src='{{ asset('images/logo.png') }}'">
                 </div>
             </div>

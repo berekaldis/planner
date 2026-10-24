@@ -28,6 +28,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/', [DashboardController::class, 'overview'])->name('dashboard');
     Route::get('/overview', [DashboardController::class, 'overview'])->name('overview');
 
+    // User Profile & Password Management
+    Route::get('/password/change', [AuthController::class, 'showChangePassword'])->name('password.change');
+    Route::post('/password/change', [AuthController::class, 'updatePassword'])->name('password.update');
+
     // Dashboards & Executive Views
     Route::get('/management/dashboard', [DashboardController::class, 'gm'])->name('dashboard.gm');
     Route::get('/management/plans', [DashboardController::class, 'gm'])->name('management.plans');

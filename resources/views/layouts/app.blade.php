@@ -716,6 +716,13 @@
                             </div>
                         </li>
                         <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item d-flex align-items-center" href="{{ route('password.change') }}" data-bs-toggle="modal" data-bs-target="#quickChangePasswordModal">
+                                <i class="fas fa-key me-2 text-warning" style="width: 16px;"></i>
+                                <span>Change Password</span>
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
                         @if(auth()->user()->isSuperAdmin())
                             <li><a class="dropdown-item" href="{{ route('admin.settings') }}"><i class="fas fa-sliders me-2 text-muted"></i> System Settings</a></li>
                             <li><a class="dropdown-item" href="{{ route('admin.audit') }}"><i class="fas fa-history me-2 text-muted"></i> Audit Trail</a></li>
@@ -1175,6 +1182,124 @@
                 }
             });
         }
+    </script>
+    <!-- Quick Change Password Modal -->
+    <div class="modal fade" id="quickChangePasswordModal" tabindex="-1" aria-labelledby="quickChangePasswordModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+                <div class="modal-header border-bottom-0 pb-0 pt-4 px-4">
+                    <div class="d-flex align-items-center gap-2.5">
+                        <div class="p-2 bg-warning-subtle text-warning rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="fas fa-key fs-5"></i>
+                        </div>
+                        <div>
+                            <h5 class="modal-title fw-bold text-dark mb-0" id="quickChangePasswordModalLabel">Change Password</h5>
+                            <small class="text-muted">Logged in as <strong>{{ auth()->user()->username ?? '' }}</strong></small>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST" action="{{ route('password.update') }}" id="modalChangePasswordForm">
+                    @csrf
+                    <div class="modal-body p-4">
+                        <div class="mb-3">
+                            <label for="modal_current_password" class="form-label fw-semibold text-dark small">
+                                Current Password <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-lock"></i></span>
+                                <input type="password" id="modal_current_password" name="current_password" class="form-control border-start-0 border-end-0" required placeholder="Enter current password" autocomplete="current-password">
+                                <button type="button" class="btn btn-outline-secondary border-start-0 toggle-modal-pwd" data-target="modal_current_password" tabindex="-1">
+                                    <i class="far fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="modal_new_password" class="form-label fw-semibold text-dark small">
+                                New Password <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-shield-alt"></i></span>
+                                <input type="password" id="modal_new_password" name="new_password" class="form-control border-start-0 border-end-0" minlength="6" required placeholder="Enter new password (min. 6 chars)" autocomplete="new-password">
+                                <button type="button" class="btn btn-outline-secondary border-start-0 toggle-modal-pwd" data-target="modal_new_password" tabindex="-1">
+                                    <i class="far fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-text small" style="font-size: 0.75rem;">Minimum 6 characters; different from current.</div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label for="modal_new_password_confirmation" class="form-label fw-semibold text-dark small">
+                                Confirm New Password <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-check-double"></i></span>
+                                <input type="password" id="modal_new_password_confirmation" name="new_password_confirmation" class="form-control border-start-0 border-end-0" required placeholder="Re-enter new password" autocomplete="new-password">
+                                <button type="button" class="btn btn-outline-secondary border-start-0 toggle-modal-pwd" data-target="modal_new_password_confirmation" tabindex="-1">
+                                    <i class="far fa-eye"></i>
+                                </button>
+                            </div>
+                            <div id="modalPasswordMatchHint" class="form-text small d-none" style="font-size: 0.75rem;"></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top-0 pt-0 pb-4 px-4 d-flex justify-content-between align-items-center">
+                        <a href="{{ route('password.change') }}" class="small text-decoration-none text-muted">
+                            <i class="fas fa-arrow-up-right-from-square me-1"></i> Full page view
+                        </a>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-light border btn-sm px-3 rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-success btn-sm px-4 rounded-pill fw-semibold shadow-xs">
+                                <i class="fas fa-floppy-disk me-1"></i> Update Password
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('.toggle-modal-pwd').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const targetId = this.getAttribute('data-target');
+                    const input = document.getElementById(targetId);
+                    const icon = this.querySelector('i');
+                    if (input) {
+                        if (input.type === 'password') {
+                            input.type = 'text';
+                            icon.classList.remove('fa-eye');
+                            icon.classList.add('fa-eye-slash');
+                        } else {
+                            input.type = 'password';
+                            icon.classList.remove('fa-eye-slash');
+                            icon.classList.add('fa-eye');
+                        }
+                    }
+                });
+            });
+
+            const mNew = document.getElementById('modal_new_password');
+            const mConf = document.getElementById('modal_new_password_confirmation');
+            const mHint = document.getElementById('modalPasswordMatchHint');
+            if (mNew && mConf && mHint) {
+                function checkModalMatch() {
+                    if (!mConf.value) {
+                        mHint.classList.add('d-none');
+                        return;
+                    }
+                    mHint.classList.remove('d-none');
+                    if (mNew.value === mConf.value) {
+                        mHint.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i> Passwords match</span>';
+                    } else {
+                        mHint.innerHTML = '<span class="text-danger"><i class="fas fa-triangle-exclamation me-1"></i> Passwords do not match</span>';
+                    }
+                }
+                mNew.addEventListener('input', checkModalMatch);
+                mConf.addEventListener('input', checkModalMatch);
+            }
+        });
     </script>
     @yield('scripts')
 </body>
