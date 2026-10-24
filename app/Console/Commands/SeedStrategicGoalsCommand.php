@@ -1102,14 +1102,14 @@ class SeedStrategicGoalsCommand extends Command
                     'created_at' => now(),
                 ]);
 
-                // Seed monthly activations across all months for owner departments
+                // Seed monthly activations across all months for owner departments (default INACTIVE/UN-ACTIVE)
                 foreach ($ethiopianMonths as $m) {
                     DB::table('monthly_strategy_activations')->insert([
                         'annual_goal_id' => $goalId,
                         'department_id' => $dId,
                         'year' => $planningYear,
                         'month' => $m,
-                        'active' => 'YES',
+                        'active' => 'NO',
                         'activated_by' => $adminId,
                         'activated_at' => now(),
                         'updated_by' => $adminId,
