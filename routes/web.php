@@ -50,6 +50,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/monthly/plans', [MonthlyPlanController::class, 'index'])->name('monthly.plans');
     Route::post('/monthly/plans', [MonthlyPlanController::class, 'store'])->name('monthly.plans.store');
     Route::post('/monthly/submit-package', [MonthlyPlanController::class, 'submitPackage'])->name('monthly.plans.submit_package');
+    Route::post('/monthly/delay-reason', [MonthlyPlanController::class, 'submitDelayReason'])->name('monthly.delay_reason');
     Route::post('/monthly/feedback', [MonthlyPlanController::class, 'saveFeedback'])->name('monthly.feedback');
     Route::delete('/monthly/plans/{id}', [MonthlyPlanController::class, 'destroy'])->name('monthly.plans.destroy');
 
@@ -58,6 +59,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/weekly/tasks', [WeeklyPlanController::class, 'index'])->name('weekly.tasks');
     Route::post('/weekly/tasks', [WeeklyPlanController::class, 'storeTask'])->name('weekly.tasks.store');
     Route::post('/weekly/plans/submit', [WeeklyPlanController::class, 'submitPlan'])->name('weekly.plans.submit');
+    Route::post('/weekly/plans/delay-reason', [WeeklyPlanController::class, 'submitDelayReason'])->name('weekly.plans.delay_reason');
     Route::delete('/weekly/tasks/{id}', [WeeklyPlanController::class, 'destroyTask'])->name('weekly.tasks.destroy');
 
     // Weekly Performance Execution
@@ -70,7 +72,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/weekly/challenges', [PerformanceController::class, 'saveChallenge'])->name('weekly.challenges.store');
     Route::delete('/weekly/challenges/{id}', [PerformanceController::class, 'deleteChallenge'])->name('weekly.challenges.destroy');
     Route::post('/weekly/submit', [PerformanceController::class, 'submitReport'])->name('weekly.report.submit');
+    Route::post('/weekly/performance/delay-reason', [PerformanceController::class, 'submitDelayReason'])->name('weekly.performance.delay_reason');
     Route::post('/weekly/feedback', [PerformanceController::class, 'saveWeeklyFeedback'])->name('weekly.feedback');
+
+    // Delay Reason GM Approval (GM & Super Admin)
+    Route::post('/management/delay-approval', [DashboardController::class, 'reviewDelayReason'])->name('management.delay_approval');
 
     // Bulk Quarterly Performance Submission Module (All 3 Months)
     Route::prefix('performance/quarterly')->name('performance.quarterly')->group(function () {

@@ -147,11 +147,21 @@
 
                         <!-- Monthly Plan Package -->
                         <td>
-                            @if($mSub && $mSub->submitted_at)
+                            @if($mSub && ($mSub->submitted_at || $mSub->isDelayApproved()))
                                 <div class="d-flex align-items-center gap-1 mb-1">
-                                    <span class="badge {{ $mSub->status === 'ON_TIME' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-warning-subtle text-warning border border-warning-subtle' }}">
-                                        {{ $mSub->status === 'ON_TIME' ? '✓ On-Time' : '⚠ Late' }}
-                                    </span>
+                                    @if($mSub->isDelayApproved())
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle" title="{{ $mSub->delay_reason ?? 'Excused by GM' }}">
+                                            <i class="fas fa-shield-alt me-1"></i> Delay Approved
+                                        </span>
+                                    @elseif($mSub->isDelayPending())
+                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle" title="{{ $mSub->delay_reason }}">
+                                            <i class="fas fa-hourglass-half me-1"></i> Delay Pending
+                                        </span>
+                                    @else
+                                        <span class="badge {{ $mSub->status === 'ON_TIME' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-warning-subtle text-warning border border-warning-subtle' }}">
+                                            {{ $mSub->status === 'ON_TIME' ? '✓ On-Time' : '⚠ Late' }}
+                                        </span>
+                                    @endif
                                     <span class="badge bg-light text-dark border">{{ $row['monthly_plans_total'] }} Plans</span>
                                 </div>
                                 <div class="text-muted" style="font-size: 0.75rem;">

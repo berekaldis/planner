@@ -9,10 +9,13 @@
         <h4 class="fw-bold text-dark mb-1">Monthly Plans</h4>
         <p class="text-muted small mb-0">{{ $department->department_name }} &bull; {{ $selectedMonth }} {{ $selectedYear }}</p>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex flex-wrap gap-2">
         <a href="{{ route('monthly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth]) }}" class="btn btn-outline-dark btn-sm" target="_blank" title="Open Official Monthly Plan Voucher">
             <i class="fas fa-file-invoice me-1"></i> View Official Voucher
         </a>
+        <button type="button" class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#monthlyDelayReasonModal" title="Submit delay reason to GM if late or requesting extension">
+            <i class="fas fa-clock me-1"></i> Delay Reason
+        </button>
         <button type="button" class="btn {{ $submission ? 'btn-outline-success' : 'btn-success' }} btn-sm" data-bs-toggle="modal" data-bs-target="#submitPackageModal">
             <i class="fas {{ $submission ? 'fa-redo' : 'fa-paper-plane' }} me-1"></i> {{ $submission ? 'Re-Submit to GM' : 'Submit to GM' }}
         </button>
@@ -26,14 +29,56 @@
 </div>
 
 <!-- Monthly Submission Status Banner -->
-@if($submission && in_array($submission->status, ['ON_TIME', 'LATE', 'SUBMITTED']))
+@if($submission && ($submission->isDelayApproved() || $submission->status === 'DELAY_APPROVED'))
+    <div class="alert alert-info border-0 shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <i class="fas fa-shield-alt text-primary fs-5"></i>
+                <strong class="text-dark">Delay Approved by General Manager</strong>
+                {!! format_submission_status_badge('DELAY_APPROVED', 'APPROVED', $submission->delay_reason) !!}
+                @if(!empty($submission->approval_status))
+                    <span class="badge {{ $submission->approval_status === 'APPROVED' ? 'bg-success' : 'bg-secondary' }}">
+                        GM: {{ $submission->approval_status }}
+                    </span>
+                @endif
+            </div>
+            <div class="small text-muted">
+                Your delay justification has been officially approved. In accordance with executive rules, this package is excused and <strong>NOT</strong> recorded as Not Submitted.
+            </div>
+            @if(!empty($submission->delay_reason))
+                <div class="small text-dark mt-1"><strong>Department Justification:</strong> {{ $submission->delay_reason }}</div>
+            @endif
+            @if(!empty($submission->delay_gm_notes))
+                <div class="small text-primary mt-0.5"><strong>GM Remarks:</strong> {{ $submission->delay_gm_notes }}</div>
+            @endif
+        </div>
+        <div class="small text-muted text-nowrap">
+            Approved on {{ $submission->delay_approved_at ? format_ethiopian_datetime($submission->delay_approved_at) : '' }}
+        </div>
+    </div>
+@elseif($submission && $submission->isDelayPending())
+    <div class="alert alert-warning border-0 shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <i class="fas fa-hourglass-half text-warning fs-5"></i>
+                <strong class="text-dark">Delay Justification Submitted (Pending GM Decision)</strong>
+                {!! format_submission_status_badge($submission->status, 'PENDING', $submission->delay_reason) !!}
+            </div>
+            <div class="small text-muted">
+                Your delay justification has been forwarded to the General Manager. While pending review, you may continue updating your plans.
+            </div>
+            <div class="small text-dark mt-1"><strong>Submitted Justification:</strong> {{ $submission->delay_reason }}</div>
+        </div>
+        <div class="small text-muted text-nowrap">
+            Updated {{ $submission->updated_at ? format_ethiopian_datetime($submission->updated_at) : '' }}
+        </div>
+    </div>
+@elseif($submission && in_array($submission->status, ['ON_TIME', 'LATE', 'SUBMITTED']))
     <div class="alert alert-success border-0 shadow-sm d-flex justify-content-between align-items-center mb-3">
         <div>
             <i class="fas fa-check-circle me-2 text-success"></i>
             <strong>Plan Package Submitted:</strong> Monthly plans for {{ $selectedMonth }} {{ $selectedYear }} have been officially submitted to GM.
-            <span class="badge {{ $submission->status === 'ON_TIME' ? 'bg-success' : 'bg-warning text-dark' }} ms-2">
-                {{ $submission->status }}
-            </span>
+            {!! format_submission_status_badge($submission->status, $submission->delay_status, $submission->delay_reason) !!}
             @if(!empty($submission->approval_status))
                 <span class="badge {{ $submission->approval_status === 'APPROVED' ? 'bg-success' : ($submission->approval_status === 'REVISION_REQUESTED' ? 'bg-danger' : 'bg-secondary') }} ms-1">
                     GM: {{ $submission->approval_status }}
@@ -44,17 +89,6 @@
             Submitted on {{ $submission->submitted_at ? format_ethiopian_datetime($submission->submitted_at) : '' }}
         </div>
     </div>
-    @if(!empty($submission->gm_feedback))
-        <div class="card border-primary mb-4 shadow-sm">
-            <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
-                <span class="fw-bold small"><i class="fas fa-comment-dots me-1"></i> Executive Review Comments from General Manager</span>
-                <span class="small opacity-75">{{ $submission->gm_feedback_at ? format_ethiopian_datetime($submission->gm_feedback_at) : '' }}</span>
-            </div>
-            <div class="card-body bg-light py-2 px-3 small">
-                <p class="mb-0 text-dark">{{ $submission->gm_feedback }}</p>
-            </div>
-        </div>
-    @endif
 @else
     <div class="alert alert-warning border-0 shadow-sm d-flex justify-content-between align-items-center mb-3">
         <div>
@@ -63,6 +97,18 @@
         </div>
         <div class="small text-muted">
             Submission Deadline: <strong>{{ $deadlineInfo['deadline_formatted'] ?? 'Day 26 of Preceding Month' }}</strong>
+        </div>
+    </div>
+@endif
+
+@if($submission && !empty($submission->gm_feedback))
+    <div class="card border-primary mb-4 shadow-sm">
+        <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
+            <span class="fw-bold small"><i class="fas fa-comment-dots me-1"></i> Executive Review Comments from General Manager</span>
+            <span class="small opacity-75">{{ $submission->gm_feedback_at ? format_ethiopian_datetime($submission->gm_feedback_at) : '' }}</span>
+        </div>
+        <div class="card-body bg-light py-2 px-3 small">
+            <p class="mb-0 text-dark">{{ $submission->gm_feedback }}</p>
         </div>
     </div>
 @endif
@@ -361,8 +407,15 @@
                     </div>
 
                     <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">
+                            <i class="fas fa-clock text-warning me-1"></i> Delay Reason / Justification (If submitting late or requesting extension)
+                        </label>
+                        <textarea name="delay_reason" class="form-control" rows="2" placeholder="If submitting after Day 26 (17:00), explain the operational justification. If approved by GM, this plan will NOT be marked as Not Submitted.">{{ $submission->delay_reason ?? '' }}</textarea>
+                    </div>
+
+                    <div class="mb-3">
                         <label class="form-label small fw-semibold text-secondary">Department Remarks / Notes to GM (Optional)</label>
-                        <textarea name="notes" class="form-control" rows="3" placeholder="Add executive summary notes, key focus areas, or remarks for the General Manager..."></textarea>
+                        <textarea name="notes" class="form-control" rows="2" placeholder="Add executive summary notes, key focus areas, or remarks for the General Manager..."></textarea>
                     </div>
                 </div>
 
@@ -370,6 +423,68 @@
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-sm btn-success" {{ $monthlyPlans->isEmpty() ? 'disabled' : '' }}>
                         <i class="fas fa-check-circle me-1"></i> Transmit Package to GM
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Submit Monthly Plan Delay Reason -->
+<div class="modal fade" id="monthlyDelayReasonModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" action="{{ route('monthly.delay_reason') }}">
+                @csrf
+                <input type="hidden" name="department_id" value="{{ $department->id }}">
+                <input type="hidden" name="year" value="{{ $selectedYear }}">
+                <input type="hidden" name="month" value="{{ $selectedMonth }}">
+
+                <div class="modal-header bg-warning bg-opacity-10 border-bottom border-warning border-opacity-25">
+                    <h5 class="modal-title fw-bold text-dark fs-6">
+                        <i class="fas fa-clock text-warning me-2"></i> Submit Delay Reason to General Management
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    <div class="alert alert-info py-2 px-3 small mb-3 border-0">
+                        <i class="fas fa-shield-alt text-primary me-1"></i>
+                        <strong>Executive Governance Rule:</strong> If your department has a justifiable delay reason and the <strong>General Manager Approves</strong>, your monthly plan will <strong>NOT</strong> be recorded as "Not Submitted", "Missing", or penalized in compliance audits.
+                    </div>
+
+                    <div class="bg-light p-3 rounded-3 mb-3 border small">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Department:</span>
+                            <span class="fw-bold text-dark">{{ $department->department_name }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Target Month:</span>
+                            <span class="fw-semibold text-dark">{{ $selectedMonth }} {{ $selectedYear }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Current Delay Status:</span>
+                            <span>{!! format_submission_status_badge($submission->status ?? null, $submission->delay_status ?? null, $submission->delay_reason ?? null) !!}</span>
+                        </div>
+                        @if($submission && !empty($submission->delay_gm_notes))
+                            <div class="pt-2 border-top mt-2 text-primary">
+                                <strong>Last GM Remarks:</strong> {{ $submission->delay_gm_notes }}
+                            </div>
+                        @endif
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">
+                            Detailed Reason for Delay / Extension Request <span class="text-danger">*</span>
+                        </label>
+                        <textarea name="delay_reason" class="form-control" rows="4" required placeholder="State why the monthly plan package cannot be submitted by Day 26 (17:00), estimated date of completion, and operational constraints...">{{ $submission->delay_reason ?? '' }}</textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-sm btn-warning fw-semibold">
+                        <i class="fas fa-paper-plane me-1"></i> Submit Justification to GM
                     </button>
                 </div>
             </form>

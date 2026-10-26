@@ -196,8 +196,9 @@ class DashboardController extends Controller
 
         $onTimeSubmissions = $submissions->where('status', 'ON_TIME')->count();
         $lateSubmissions = $submissions->where('status', 'LATE')->count();
-        $missingSubmissions = $submissions->where('status', 'MISSING')->count();
-        $submittedDeptIds = $submissions->whereIn('status', ['ON_TIME', 'LATE'])->pluck('department_id')->toArray();
+        $delayApprovedSubmissions = $submissions->filter(fn($s) => $s->status === 'DELAY_APPROVED' || $s->delay_status === 'APPROVED')->count();
+        $missingSubmissions = $submissions->filter(fn($s) => $s->status === 'MISSING' && $s->delay_status !== 'APPROVED')->count();
+        $submittedDeptIds = $submissions->filter(fn($s) => in_array($s->status, ['ON_TIME', 'LATE', 'DELAY_APPROVED']) || $s->delay_status === 'APPROVED')->pluck('department_id')->unique()->toArray();
         $waitingSubmissions = max(0, $totalDepartments - count($submittedDeptIds));
 
         // Root cause breakdown
@@ -283,6 +284,32 @@ class DashboardController extends Controller
             ->get()
             ->keyBy('department_id');
 
+        $weeklyPlans = \App\Models\WeeklyPlan::with('tasks')
+            ->where('year', $selectedYear)
+            ->where('month', $selectedMonth)
+            ->where('week_number', $selectedWeek)
+            ->get()
+            ->keyBy('department_id');
+
+        $pendingMonthlyDelays = MonthlySubmission::where('year', $selectedYear)
+            ->where('month', $selectedMonth)
+            ->where('delay_status', 'PENDING')
+            ->count();
+
+        $pendingWeeklyPlanDelays = \App\Models\WeeklyPlan::where('year', $selectedYear)
+            ->where('month', $selectedMonth)
+            ->where('week_number', $selectedWeek)
+            ->where('delay_status', 'PENDING')
+            ->count();
+
+        $pendingWeeklyReportDelays = WeeklyReport::where('year', $selectedYear)
+            ->where('month', $selectedMonth)
+            ->where('week_number', $selectedWeek)
+            ->where('delay_status', 'PENDING')
+            ->count();
+
+        $totalPendingDelays = $pendingMonthlyDelays + $pendingWeeklyPlanDelays + $pendingWeeklyReportDelays;
+
         // Stepper Phase logic
         $currentPhase = 1;
         if ($activeStrategiesCount > 0 && $totalMonthlyPlans > 0 && $totalTasks > 0) {
@@ -305,6 +332,7 @@ class DashboardController extends Controller
             'pendingTasks',
             'onTimeSubmissions',
             'lateSubmissions',
+            'delayApprovedSubmissions',
             'waitingSubmissions',
             'missingSubmissions',
             'rootCauses',
@@ -314,8 +342,278 @@ class DashboardController extends Controller
             'allMonthlyPlans',
             'weeklySubmissions',
             'weeklyReports',
+            'weeklyPlans',
+            'pendingMonthlyDelays',
+            'pendingWeeklyPlanDelays',
+            'pendingWeeklyReportDelays',
+            'totalPendingDelays',
             'currentPhase'
         ));
+    }
+
+    public function reviewDelayReason(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user->isGM() && !$user->isSuperAdmin()) {
+            abort(403, 'Only General Management can review and approve delay reasons.');
+        }
+
+        $validated = $request->validate([
+            'type' => 'required|string|in:MONTHLY,monthly,WEEKLY_PLAN,weekly_plan,WEEKLY_PERFORMANCE,weekly_performance,QUARTERLY,quarterly',
+            'action' => 'required|string|in:APPROVE,approve,REJECT,reject',
+            'id' => 'nullable|integer',
+            'department_id' => 'nullable|integer',
+            'year' => 'nullable|string',
+            'month' => 'nullable|string',
+            'week_number' => 'nullable|integer',
+            'notes' => 'nullable|string|max:1000',
+        ]);
+
+        $type = strtoupper($validated['type']);
+        $action = strtoupper($validated['action']);
+        $notes = $validated['notes'] ?? null;
+        $isApproved = $action === 'APPROVE';
+        $statusValue = $isApproved ? 'APPROVED' : 'REJECTED';
+
+        $department = null;
+        $periodLabel = '';
+
+        if ($type === 'MONTHLY') {
+            $submission = null;
+            if (!empty($validated['id'])) {
+                $submission = MonthlySubmission::find($validated['id']);
+            }
+            if (!$submission && !empty($validated['department_id'])) {
+                $submission = MonthlySubmission::where('department_id', $validated['department_id'])
+                    ->where('year', $validated['year'] ?? kaldis_setting('current_planning_year', config('kaldis.current_planning_year')))
+                    ->where('month', $validated['month'] ?? kaldis_setting('current_planning_month', config('kaldis.current_planning_month')))
+                    ->first();
+            }
+
+            if (!$submission && !empty($validated['department_id'])) {
+                $submission = MonthlySubmission::create([
+                    'department_id' => $validated['department_id'],
+                    'year' => $validated['year'] ?? kaldis_setting('current_planning_year', config('kaldis.current_planning_year')),
+                    'month' => $validated['month'] ?? kaldis_setting('current_planning_month', config('kaldis.current_planning_month')),
+                    'status' => $isApproved ? 'DELAY_APPROVED' : 'MISSING',
+                    'delay_status' => $statusValue,
+                    'delay_approved_by' => $user->id,
+                    'delay_approved_at' => now(),
+                    'delay_gm_notes' => $notes,
+                ]);
+            }
+
+            if (!$submission) {
+                return back()->with('error', 'Monthly submission record not found.');
+            }
+
+            $submission->delay_status = $statusValue;
+            $submission->delay_approved_by = $user->id;
+            $submission->delay_approved_at = now();
+            $submission->delay_gm_notes = $notes;
+            if ($isApproved) {
+                $submission->status = 'DELAY_APPROVED';
+                if (!$submission->submitted_at) {
+                    $submission->submitted_at = now();
+                }
+            } else {
+                if ($submission->status === 'DELAY_APPROVED') {
+                    $submission->status = 'LATE';
+                }
+            }
+            $submission->save();
+
+            $department = $submission->department ?: Department::find($submission->department_id);
+            $periodLabel = "{$submission->month} {$submission->year}";
+        } elseif ($type === 'WEEKLY_PLAN') {
+            $plan = null;
+            if (!empty($validated['id'])) {
+                $plan = \App\Models\WeeklyPlan::find($validated['id']);
+            }
+            if (!$plan && !empty($validated['department_id'])) {
+                $plan = \App\Models\WeeklyPlan::where('department_id', $validated['department_id'])
+                    ->where('year', $validated['year'] ?? kaldis_setting('current_planning_year', config('kaldis.current_planning_year')))
+                    ->where('month', $validated['month'] ?? kaldis_setting('current_planning_month', config('kaldis.current_planning_month')))
+                    ->where('week_number', $validated['week_number'] ?? 1)
+                    ->first();
+            }
+
+            if (!$plan && !empty($validated['department_id'])) {
+                $plan = \App\Models\WeeklyPlan::create([
+                    'department_id' => $validated['department_id'],
+                    'year' => $validated['year'] ?? kaldis_setting('current_planning_year', config('kaldis.current_planning_year')),
+                    'month' => $validated['month'] ?? kaldis_setting('current_planning_month', config('kaldis.current_planning_month')),
+                    'week_number' => $validated['week_number'] ?? 1,
+                    'status' => $isApproved ? 'SUBMITTED' : 'DRAFT',
+                    'submission_status' => $isApproved ? 'DELAY_APPROVED' : 'LATE',
+                    'submitted_at' => now(),
+                    'delay_status' => $statusValue,
+                    'delay_approved_by' => $user->id,
+                    'delay_approved_at' => now(),
+                    'delay_gm_notes' => $notes,
+                ]);
+            }
+
+            if (!$plan) {
+                return back()->with('error', 'Weekly plan record not found.');
+            }
+
+            $plan->delay_status = $statusValue;
+            $plan->delay_approved_by = $user->id;
+            $plan->delay_approved_at = now();
+            $plan->delay_gm_notes = $notes;
+            if ($isApproved) {
+                $plan->submission_status = 'DELAY_APPROVED';
+                if ($plan->status !== 'APPROVED') {
+                    $plan->status = 'SUBMITTED';
+                }
+                if (!$plan->submitted_at) {
+                    $plan->submitted_at = now();
+                }
+            } else {
+                if ($plan->submission_status === 'DELAY_APPROVED') {
+                    $plan->submission_status = 'LATE';
+                }
+            }
+            $plan->save();
+
+            $department = $plan->department ?: Department::find($plan->department_id);
+            $periodLabel = "{$plan->month} {$plan->year} (Week {$plan->week_number} Plan)";
+        } elseif ($type === 'WEEKLY_PERFORMANCE') {
+            $deptId = $validated['department_id'] ?? null;
+            $year = $validated['year'] ?? kaldis_setting('current_planning_year', config('kaldis.current_planning_year'));
+            $month = $validated['month'] ?? kaldis_setting('current_planning_month', config('kaldis.current_planning_month'));
+            $week = $validated['week_number'] ?? 1;
+
+            if (!empty($validated['id'])) {
+                $wRep = WeeklyReport::find($validated['id']);
+                if ($wRep) {
+                    $deptId = $wRep->department_id;
+                    $year = $wRep->year;
+                    $month = $wRep->month;
+                    $week = $wRep->week_number;
+                } else {
+                    $wSub = Submission::find($validated['id']);
+                    if ($wSub) {
+                        $deptId = $wSub->department_id;
+                        $year = $wSub->year;
+                        $month = $wSub->month;
+                        $week = $wSub->week_number;
+                    }
+                }
+            }
+
+            if (!$deptId) {
+                return back()->with('error', 'Weekly performance record not found.');
+            }
+
+            $submission = Submission::firstOrNew([
+                'department_id' => $deptId,
+                'year' => $year,
+                'month' => $month,
+                'week_number' => $week,
+            ]);
+
+            $report = WeeklyReport::firstOrNew([
+                'department_id' => $deptId,
+                'year' => $year,
+                'month' => $month,
+                'week_number' => $week,
+            ]);
+
+            $submission->delay_status = $statusValue;
+            $submission->delay_approved_by = $user->id;
+            $submission->delay_approved_at = now();
+            $submission->delay_gm_notes = $notes;
+            if ($isApproved) {
+                $submission->status = 'DELAY_APPROVED';
+                if (!$submission->submitted_at) {
+                    $submission->submitted_at = now();
+                }
+            } else {
+                if ($submission->status === 'DELAY_APPROVED') {
+                    $submission->status = 'LATE';
+                }
+            }
+            $submission->save();
+
+            $report->delay_status = $statusValue;
+            $report->delay_approved_by = $user->id;
+            $report->delay_approved_at = now();
+            $report->delay_gm_notes = $notes;
+            if ($isApproved) {
+                $report->submission_status = 'DELAY_APPROVED';
+                if ($report->status !== 'APPROVED') {
+                    $report->status = 'SUBMITTED';
+                }
+                if (!$report->submitted_at) {
+                    $report->submitted_at = now();
+                }
+            } else {
+                if ($report->submission_status === 'DELAY_APPROVED') {
+                    $report->submission_status = 'LATE';
+                }
+            }
+            $report->save();
+
+            $department = Department::find($deptId);
+            $periodLabel = "{$month} {$year} (Week {$week} Performance)";
+        }
+
+        // Send In-App and Telegram notification to Department Head
+        $head = $department ? $department->head : null;
+        if (!$head && $department && $department->head_user_id) {
+            $head = \App\Models\User::find($department->head_user_id);
+        }
+
+        $typeDisplayName = match($type) {
+            'MONTHLY' => 'Monthly Plan Package',
+            'WEEKLY_PLAN' => 'Weekly Task Schedule',
+            'WEEKLY_PERFORMANCE' => 'Weekly Performance Report',
+            default => 'Submission'
+        };
+
+        if ($head && $department) {
+            $actionLabel = $isApproved ? 'Approved' : 'Rejected';
+            $msgTitle = "Delay Request {$actionLabel}: {$typeDisplayName}";
+            $msgBody = "General Management has {$actionLabel} your delay justification for {$periodLabel}."
+                . ($notes ? " GM Notes: {$notes}" : "")
+                . ($isApproved ? " In accordance with executive rules, this submission is NOT recorded as Not Submitted." : "");
+
+            \Illuminate\Support\Facades\DB::table('notifications')->insert([
+                'user_id' => $head->id,
+                'department_id' => $department->id,
+                'title' => $msgTitle,
+                'message' => $msgBody,
+                'notification_type' => 'APPROVAL',
+                'created_at' => now(),
+            ]);
+
+            $telegram = app(\App\Services\TelegramService::class);
+            if ($telegram && $telegram->isConfigured() && !empty($head->telegram_chat_id) && $head->telegram_chat_id !== '123456789') {
+                $icon = $isApproved ? '✅' : '❌';
+                $tgMsg = "{$icon} <b>Kaldis Executive Notice: Delay Request {$actionLabel}</b>\n\n"
+                    . "Dear <b>{$head->full_name}</b> ({$department->department_name}),\n\n"
+                    . "Your delay justification for <b>{$typeDisplayName}</b> ({$periodLabel}) has been <b>" . strtoupper($actionLabel) . "</b> by General Management.\n\n"
+                    . ($isApproved ? "🟢 <b>Governance Status:</b> Excused on-time submission. This will <b>NOT</b> be marked or penalized as Not Submitted.\n" : "🔴 <b>Governance Status:</b> Please finalize and submit immediately.\n")
+                    . ($notes ? "💬 <b>GM Remarks:</b> <i>{$notes}</i>\n\n" : "\n")
+                    . "☕ <i>Kaldis Coffee PLC — Office of the General Manager</i>";
+
+                $telegram->sendMessage($head->telegram_chat_id, $tgMsg);
+            }
+        }
+
+        AuditLog::log(
+            'REVIEW_DELAY_REASON',
+            'management',
+            "GM {$action} delay reason for Dept " . ($department->department_code ?? 'DEPT') . " ({$typeDisplayName} - {$periodLabel})"
+        );
+
+        $feedbackMsg = $isApproved
+            ? "Delay request APPROVED for " . ($department ? $department->department_name : 'department') . ". It is officially recorded as DELAY APPROVED and will NOT be counted as Not Submitted."
+            : "Delay request REJECTED for " . ($department ? $department->department_name : 'department') . ".";
+
+        return back()->with('success', $feedbackMsg);
     }
 
     public function remind(Request $request)

@@ -517,7 +517,7 @@ class AdminController extends Controller
 
             $qSub = $quarterlySubmissions->get($dept->id);
 
-            if ($mSub && $mSub->submitted_at) {
+            if ($mSub && ($mSub->submitted_at || $mSub->isDelayApproved())) {
                 $totalMonthlySubmitted++;
             }
             if ($qSub && $qSub->status === 'SUBMITTED') {
@@ -691,8 +691,12 @@ class AdminController extends Controller
 
                 $qSub = $quarterlySubmissions->get($dept->id);
 
-                $mStatus = $mSub && $mSub->submitted_at ? 'SUBMITTED' : ($totalM > 0 ? 'DRAFT' : 'NOT_STARTED');
-                $mTiming = $mSub && $mSub->submitted_at ? ($mSub->status ?: 'ON_TIME') : 'N/A';
+                $mStatus = ($mSub && ($mSub->submitted_at || $mSub->isDelayApproved())) ? 'SUBMITTED' : ($totalM > 0 ? 'DRAFT' : 'NOT_STARTED');
+                if ($mSub && $mSub->isDelayApproved()) {
+                    $mTiming = 'DELAY APPROVED (Excused by GM)';
+                } else {
+                    $mTiming = $mSub && $mSub->submitted_at ? ($mSub->status ?: 'ON_TIME') : 'N/A';
+                }
                 $mAppr = $mSub ? ($mSub->approval_status ?: 'PENDING') : 'N/A';
 
                 $qStatus = $qSub ? $qSub->status : 'NOT_SUBMITTED';

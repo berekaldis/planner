@@ -89,9 +89,7 @@
                         </td>
                         <td class="text-center">
                             @if($m['submission'])
-                                <span class="badge {{ $m['submission']->compliance_status === 'ON_TIME' ? 'bg-success' : ($m['submission']->compliance_status === 'LATE' ? 'bg-warning text-dark' : 'bg-danger') }}">
-                                    {{ $m['submission']->compliance_status }}
-                                </span>
+                                {!! format_submission_status_badge($m['submission']->compliance_status, $m['submission']->delay_status, $m['submission']->delay_reason) !!}
                             @else
                                 <span class="badge bg-secondary-subtle text-secondary border">WAITING</span>
                             @endif

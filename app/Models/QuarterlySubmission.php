@@ -28,6 +28,11 @@ class QuarterlySubmission extends Model
         'gm_feedback',
         'gm_feedback_at',
         'gm_reviewed_by',
+        'delay_reason',
+        'delay_status',
+        'delay_approved_by',
+        'delay_approved_at',
+        'delay_gm_notes',
     ];
 
     protected function casts(): array
@@ -39,6 +44,7 @@ class QuarterlySubmission extends Model
             'not_done_plans' => 'integer',
             'submitted_at' => 'datetime',
             'gm_feedback_at' => 'datetime',
+            'delay_approved_at' => 'datetime',
         ];
     }
 
@@ -57,8 +63,22 @@ class QuarterlySubmission extends Model
         return $this->belongsTo(User::class, 'gm_reviewed_by');
     }
 
+    public function delayApprover()
+    {
+        return $this->belongsTo(User::class, 'delay_approved_by');
+    }
+
+    public function isDelayApproved(): bool
+    {
+        return $this->delay_status === 'APPROVED' || $this->status === 'DELAY_APPROVED';
+    }
+
     public function getStatusBadgeAttribute(): string
     {
+        if ($this->isDelayApproved()) {
+            return '<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="fas fa-check-double me-1"></i> Delay Approved (On-Time)</span>';
+        }
+
         return match ($this->status) {
             'SUBMITTED' => '<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="fas fa-check-circle me-1"></i> Submitted</span>',
             'LATE' => '<span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1"><i class="fas fa-clock me-1"></i> Late</span>',

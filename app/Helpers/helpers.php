@@ -563,6 +563,41 @@ if (!function_exists('get_weekly_cycle_deadline')) {
     }
 }
 
+if (!function_exists('format_submission_status_badge')) {
+    /**
+     * Generate uniform HTML badge for submission timing and delay approval status.
+     */
+    function format_submission_status_badge(?string $status, ?string $delayStatus = null, ?string $delayReason = null): string
+    {
+        $statusUpper = strtoupper((string)$status);
+        $delayUpper = strtoupper((string)$delayStatus);
+        $escapedReason = htmlspecialchars($delayReason ?? '', ENT_QUOTES, 'UTF-8');
+
+        if ($delayUpper === 'APPROVED' || $statusUpper === 'DELAY_APPROVED') {
+            $title = $escapedReason ? "Delay Approved by General Manager: {$escapedReason}" : "Delay Approved by General Manager (Excused On-Time)";
+            return '<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" title="' . $title . '"><i class="fas fa-check-double me-1"></i> Delay Approved</span>';
+        }
+
+        if ($delayUpper === 'PENDING') {
+            $title = $escapedReason ? "Delay Request Pending GM Review: {$escapedReason}" : "Delay Request Pending GM Review";
+            return '<span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1" title="' . $title . '"><i class="fas fa-hourglass-half me-1"></i> Delay Pending</span>';
+        }
+
+        if ($delayUpper === 'REJECTED') {
+            $title = $escapedReason ? "Delay Request Rejected by GM: {$escapedReason}" : "Delay Request Rejected by GM";
+            return '<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1" title="' . $title . '"><i class="fas fa-circle-xmark me-1"></i> Delay Rejected</span>';
+        }
+
+        return match ($statusUpper) {
+            'ON_TIME', 'SUBMITTED' => '<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="fas fa-check-circle me-1"></i> On-Time</span>',
+            'LATE' => '<span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1"><i class="fas fa-clock me-1"></i> Late</span>',
+            'MISSING', 'NOT_SUBMITTED' => '<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1"><i class="fas fa-circle-exclamation me-1"></i> Not Submitted</span>',
+            'WAITING' => '<span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1"><i class="fas fa-clock me-1"></i> Waiting</span>',
+            default => '<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1"><i class="fas fa-file-pen me-1"></i> Draft</span>',
+        };
+    }
+}
+
 if (!function_exists('notify_gm_submission')) {
     function notify_gm_submission(string $title, string $message, ?int $deptId = null, ?string $voucherUrl = null, ?array $customReplyMarkup = null): array
     {

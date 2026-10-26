@@ -55,6 +55,7 @@ class DeadlineCheckCommand extends Command
 
         $onTimeDepts = [];
         $lateDepts = [];
+        $delayApprovedDepts = [];
         $missingDepts = [];
         $escalationsSent = 0;
 
@@ -86,7 +87,14 @@ class DeadlineCheckCommand extends Command
             $status = 'NOT_SUBMITTED';
             $submittedAt = null;
 
-            if ($submission && $submission->submitted_at) {
+            $isDelayApproved = ($submission && $submission->isDelayApproved())
+                || ($report && $report->isDelayApproved())
+                || ($upcomingPlan && $upcomingPlan->isDelayApproved());
+
+            if ($isDelayApproved) {
+                $status = 'DELAY_APPROVED';
+                $submittedAt = $submission->submitted_at ?? ($report->submitted_at ?? ($upcomingPlan->submitted_at ?? now()));
+            } elseif ($submission && $submission->submitted_at) {
                 $submittedAt = $submission->submitted_at;
                 if (in_array($submission->status, ['ON_TIME', 'LATE'])) {
                     $status = $submission->status;
@@ -105,7 +113,22 @@ class DeadlineCheckCommand extends Command
                 $status = Carbon::parse($submittedAt)->lte($deadlineCarbon) ? 'ON_TIME' : 'LATE';
             }
 
-            if ($status === 'ON_TIME') {
+            if ($status === 'DELAY_APPROVED') {
+                $doneTasks = $report->done_tasks ?? 0;
+                $totalTasks = $report->total_tasks ?? 0;
+                $rate = $report->completion_percentage ?? 0;
+                $delayReason = $submission->delay_reason ?? ($report->delay_reason ?? ($upcomingPlan->delay_reason ?? 'Approved by GM'));
+                $delayApprovedDepts[] = [
+                    'dept' => $dept,
+                    'done' => $doneTasks,
+                    'total' => $totalTasks,
+                    'rate' => $rate,
+                    'plan_tasks' => $upcomingPlanTasks,
+                    'submitted_at' => $submittedAt,
+                    'delay_reason' => $delayReason,
+                ];
+                $this->info("✓ Excused (Delay Approved by GM): {$dept->department_name}");
+            } elseif ($status === 'ON_TIME') {
                 $doneTasks = $report->done_tasks ?? 0;
                 $totalTasks = $report->total_tasks ?? 0;
                 $rate = $report->completion_percentage ?? 0;
@@ -235,8 +258,9 @@ class DeadlineCheckCommand extends Command
 
         $onTimeCount = count($onTimeDepts);
         $lateCount = count($lateDepts);
+        $delayApprovedCount = count($delayApprovedDepts);
         $missingCount = count($missingDepts);
-        $submittedCount = $onTimeCount + $lateCount;
+        $submittedCount = $onTimeCount + $lateCount + $delayApprovedCount;
         $complianceRate = $totalDepts > 0 ? round(($submittedCount / $totalDepts) * 100, 1) : 0;
 
         // Dispatch Company-Wide Executive Summary Report to General Management (GM)
@@ -304,6 +328,9 @@ class DeadlineCheckCommand extends Command
                     if ($lateCount > 0) {
                         $execMsg .= "• 🟡 Submitted Late: <b>{$lateCount}</b>\n";
                     }
+                    if ($delayApprovedCount > 0) {
+                        $execMsg .= "• 🔵 Delay Approved (Excused): <b>{$delayApprovedCount}</b>\n";
+                    }
                     $execMsg .= "• 🔴 Missing / Delinquent: <b>{$missingCount}</b>\n";
                     $execMsg .= "• 🎯 Submission Compliance: <b>{$complianceRate}%</b>\n\n";
 
@@ -313,6 +340,16 @@ class DeadlineCheckCommand extends Command
                             $safeDept = htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8');
                             $planInfo = $item['plan_tasks'] > 0 ? " &bull; W{$planWeek} Plan: {$item['plan_tasks']} tasks" : "";
                             $execMsg .= "• <b>{$safeDept}</b> — {$item['rate']}% completion ({$item['done']}/{$item['total']} tasks){$planInfo}\n";
+                        }
+                        $execMsg .= "\n";
+                    }
+
+                    if (!empty($delayApprovedDepts)) {
+                        $execMsg .= "🔵 <b>DELAY APPROVED BY GM (በዋና ስራ አስኪያጅ የተፈቀደ):</b>\n";
+                        foreach ($delayApprovedDepts as $item) {
+                            $safeDept = htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8');
+                            $planInfo = $item['plan_tasks'] > 0 ? " &bull; W{$planWeek} Plan: {$item['plan_tasks']} tasks" : "";
+                            $execMsg .= "• <b>{$safeDept}</b> — {$item['rate']}% completion ({$item['done']}/{$item['total']} tasks){$planInfo} &bull; <i>Excused by GM</i>\n";
                         }
                         $execMsg .= "\n";
                     }
@@ -366,7 +403,7 @@ class DeadlineCheckCommand extends Command
         AuditLog::log(
             'DEADLINE_CHECK',
             'system',
-            "Evaluated Week {$week} Perf & Week {$planWeek} Plan cutoff ({$month} {$year}). On-Time: {$onTimeCount}, Late: {$lateCount}, Missing: {$missingCount}. Head alerts: {$escalationsSent}, GM Executive summaries: {$gmSummaryDelivered}"
+            "Evaluated Week {$week} Perf & Week {$planWeek} Plan cutoff ({$month} {$year}). On-Time: {$onTimeCount}, Late: {$lateCount}, Delay Approved: {$delayApprovedCount}, Missing: {$missingCount}. Head alerts: {$escalationsSent}, GM Executive summaries: {$gmSummaryDelivered}"
         );
 
         $this->info("Completed. {$missingCount} departments flagged. Escalations sent: {$escalationsSent}. GM Executive summaries delivered: {$gmSummaryDelivered}.");

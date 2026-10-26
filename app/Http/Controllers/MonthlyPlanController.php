@@ -102,6 +102,7 @@ class MonthlyPlanController extends Controller
             'year' => 'required|string',
             'month' => 'required|string',
             'notes' => 'nullable|string',
+            'delay_reason' => 'nullable|string|max:1000',
         ]);
 
         $plans = MonthlyPlan::where('department_id', $deptId)
@@ -118,29 +119,53 @@ class MonthlyPlanController extends Controller
         $totalPlans = $plans->count();
 
         // Check Monthly Plan Submission Deadline (Governance Rule: Due Day 26 of PRECEDING Ethiopian month)
-        // Example: Hidar plan package is due on Tikimt 26 at 17:00.
         $deadlineInfo = get_monthly_plan_deadline_info($validated['month'], $validated['year']);
         $status = $deadlineInfo['status'];
         $deadlineAt = $deadlineInfo['deadline_carbon'];
 
-        \App\Models\MonthlySubmission::updateOrCreate([
-            'department_id' => $deptId,
-            'year' => $validated['year'],
-            'month' => $validated['month'],
-        ], [
+        // Check existing submission to preserve or honor approved delay
+        $existingSub = \App\Models\MonthlySubmission::where('department_id', $deptId)
+            ->where('year', $validated['year'])
+            ->where('month', $validated['month'])
+            ->first();
+
+        $delayReason = $validated['delay_reason'] ?? ($existingSub->delay_reason ?? null);
+        $delayStatus = $existingSub->delay_status ?? null;
+
+        if ($existingSub && ($existingSub->delay_status === 'APPROVED' || $existingSub->status === 'DELAY_APPROVED')) {
+            $status = 'DELAY_APPROVED';
+            $delayStatus = 'APPROVED';
+        } elseif ($status === 'LATE' && !empty($delayReason) && $delayStatus !== 'APPROVED') {
+            $delayStatus = 'PENDING';
+        }
+
+        $subPayload = [
             'deadline_at' => $deadlineAt,
             'submitted_at' => now(),
             'status' => $status,
             'submitted_by' => $user->id,
             'remarks' => $validated['notes'] ?? "Submitted package of {$totalPlans} monthly plans ({$stratCount} Strategy, {$opsCount} Operational).",
-        ]);
+        ];
+
+        if (!empty($delayReason)) {
+            $subPayload['delay_reason'] = $delayReason;
+            $subPayload['delay_status'] = $delayStatus ?: 'PENDING';
+        }
+
+        \App\Models\MonthlySubmission::updateOrCreate([
+            'department_id' => $deptId,
+            'year' => $validated['year'],
+            'month' => $validated['month'],
+        ], $subPayload);
 
         AuditLog::log('SUBMIT_MONTHLY_PLANS', 'monthly_plans', "Submitted monthly plan package for {$validated['month']} {$validated['year']} ({$status})");
 
         // Notify GM & Department Head with Official Monthly Plan Voucher
         $dept = Department::find($deptId);
-        $statusEmoji = ($status === 'ON_TIME') ? '🟢 [ON-TIME]' : '🟡 [LATE]';
-        $statusBadge = ($status === 'ON_TIME') ? '🟢 ON-TIME SUBMISSION' : '🟡 LATE SUBMISSION';
+        $statusEmoji = ($status === 'ON_TIME' || $status === 'DELAY_APPROVED') ? '🟢 [ON-TIME]' : '🟡 [LATE]';
+        $statusBadge = ($status === 'DELAY_APPROVED')
+            ? '🟢 DELAY APPROVED (EXCUSED ON-TIME)'
+            : (($status === 'ON_TIME') ? '🟢 ON-TIME SUBMISSION' : '🟡 LATE SUBMISSION');
         $deptCode = htmlspecialchars($dept->department_code ?? "Dept #{$deptId}", ENT_QUOTES, 'UTF-8');
         $deptName = htmlspecialchars($dept->department_name ?? 'Department', ENT_QUOTES, 'UTF-8');
 
@@ -172,6 +197,58 @@ class MonthlyPlanController extends Controller
         notify_both_gm_and_head($deptId, $notifTitle, $notifMessage, $voucherUrl, $replyMarkup);
 
         return back()->with('success', "Monthly Plan package submitted successfully to General Management! Timing Status: {$status} (Deadline: {$deadlineInfo['deadline_formatted']}).");
+    }
+
+    public function submitDelayReason(Request $request)
+    {
+        $user = Auth::user();
+        $deptId = (int)$request->input('department_id', $user->department_id);
+
+        if (!$user->canAccessAllDepartments() && $user->department_id != $deptId) {
+            abort(403, 'Unauthorized department.');
+        }
+
+        $validated = $request->validate([
+            'department_id' => 'required|exists:departments,id',
+            'year' => 'required|string',
+            'month' => 'required|string',
+            'delay_reason' => 'required|string|max:1000',
+        ]);
+
+        $deadlineInfo = get_monthly_plan_deadline_info($validated['month'], $validated['year']);
+        $deadlineAt = $deadlineInfo['deadline_carbon'];
+
+        $existingSub = \App\Models\MonthlySubmission::where('department_id', $deptId)
+            ->where('year', $validated['year'])
+            ->where('month', $validated['month'])
+            ->first();
+
+        $delayStatus = ($existingSub && $existingSub->delay_status === 'APPROVED') ? 'APPROVED' : 'PENDING';
+        $status = ($delayStatus === 'APPROVED') ? 'DELAY_APPROVED' : ($existingSub->status ?? 'DRAFT');
+
+        \App\Models\MonthlySubmission::updateOrCreate([
+            'department_id' => $deptId,
+            'year' => $validated['year'],
+            'month' => $validated['month'],
+        ], [
+            'deadline_at' => $existingSub->deadline_at ?? $deadlineAt,
+            'delay_reason' => $validated['delay_reason'],
+            'delay_status' => $delayStatus,
+            'status' => $status,
+            'submission_channel' => $existingSub->submission_channel ?? 'WEB',
+        ]);
+
+        AuditLog::log('SUBMIT_DELAY_REASON', 'monthly_plans', "Submitted delay reason for Monthly Plan ({$validated['month']} {$validated['year']}): {$validated['delay_reason']}");
+
+        $dept = Department::find($deptId);
+        $notifTitle = "⏳ Monthly Plan Delay Reason: {$dept->department_code}";
+        $notifMessage = "<b>{$dept->department_name}</b> has submitted a <b>Delay Reason</b> for their Monthly Plan (<b>{$validated['month']} {$validated['year']}</b>):\n\n"
+                      . "📝 <b>Reason:</b> <i>" . htmlspecialchars($validated['delay_reason'], ENT_QUOTES, 'UTF-8') . "</i>\n\n"
+                      . "👉 Please review and approve/reject on the GM Management Dashboard.";
+        $gmUrl = route('dashboard.gm', ['year' => $validated['year'], 'month' => $validated['month']]);
+        notify_both_gm_and_head($deptId, $notifTitle, $notifMessage, $gmUrl);
+
+        return back()->with('success', 'Delay reason submitted successfully to General Management for approval.');
     }
 
     public function saveFeedback(Request $request)

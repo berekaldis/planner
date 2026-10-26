@@ -92,6 +92,23 @@
     </div>
 </div>
 
+@if(($totalPendingDelays ?? 0) > 0)
+    <div class="alert alert-warning border-0 shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-bell text-warning fs-5"></i>
+                <strong class="text-dark fs-6">{{ $totalPendingDelays }} Department Delay Request{{ $totalPendingDelays > 1 ? 's' : '' }} Pending GM Decision</strong>
+            </div>
+            <div class="small text-muted mt-1">
+                Department heads have requested delay justification for Monthly Plans ({{ $pendingMonthlyDelays }}), Weekly Task Schedules ({{ $pendingWeeklyPlanDelays }}), or Weekly Performance Reports ({{ $pendingWeeklyReportDelays }}). If approved, their submissions will <strong>NOT</strong> be recorded as Not Submitted.
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <span class="badge bg-warning text-dark px-3 py-2 fs-6">{{ $totalPendingDelays }} Pending Review</span>
+        </div>
+    </div>
+@endif
+
 <!-- Metric Overview Cards -->
 <div class="row g-3 mb-4">
     <div class="col-xl-3 col-sm-6">
@@ -147,9 +164,12 @@
             <div class="d-flex justify-content-between align-items-start">
                 <div>
                     <span class="text-muted small fw-semibold text-uppercase">Submissions</span>
-                    <h3 class="fw-bold my-1 text-dark">{{ $onTimeSubmissions + $lateSubmissions }} <span class="text-muted fs-6 fw-normal">/ {{ $totalDepartments }}</span></h3>
+                    <h3 class="fw-bold my-1 text-dark">{{ $onTimeSubmissions + $lateSubmissions + ($delayApprovedSubmissions ?? 0) }} <span class="text-muted fs-6 fw-normal">/ {{ $totalDepartments }}</span></h3>
                     <div class="small text-muted">
                         <span class="text-success fw-semibold">{{ $onTimeSubmissions }} On Time</span> &bull; 
+                        @if(($delayApprovedSubmissions ?? 0) > 0)
+                            <span class="text-primary fw-semibold">{{ $delayApprovedSubmissions }} Excused</span> &bull; 
+                        @endif
                         <span class="text-warning fw-semibold">{{ $waitingSubmissions }} Pending</span>
                     </div>
                 </div>
@@ -251,7 +271,12 @@
             <ul class="nav nav-pills react-nav-pills small" id="gmExecutiveTabs" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="tab-weekly-reports" data-bs-toggle="pill" data-bs-target="#content-weekly-reports" type="button" role="tab" aria-controls="content-weekly-reports" aria-selected="true">
-                        <i class="fas fa-calendar-check me-1"></i> Weekly Reports (Week {{ $selectedWeek }})
+                        <i class="fas fa-calendar-check me-1"></i> Weekly Performance (Week {{ $selectedWeek }})
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-weekly-plans" data-bs-toggle="pill" data-bs-target="#content-weekly-plans" type="button" role="tab" aria-controls="content-weekly-plans" aria-selected="false">
+                        <i class="fas fa-tasks me-1"></i> Weekly Task Schedules (Week {{ $selectedWeek }})
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
@@ -313,8 +338,15 @@
                                     $wSub = $weeklySubmissions[$dept->id] ?? null;
                                     $wRep = $weeklyReports[$dept->id] ?? null;
                                     
+                                    $isDelayApproved = ($wSub && $wSub->isDelayApproved()) || ($wRep && $wRep->isDelayApproved()) || ($wSub && $wSub->status === 'DELAY_APPROVED');
+                                    $isDelayPending = ($wSub && $wSub->isDelayPending()) || ($wRep && $wRep->isDelayPending());
+                                    $delayReason = $wSub->delay_reason ?? ($wRep->delay_reason ?? null);
+                                    $delayGmNotes = $wSub->delay_gm_notes ?? ($wRep->delay_gm_notes ?? null);
+
                                     $status = 'NOT_SUBMITTED';
-                                    if ($wSub && $wSub->submitted_at) {
+                                    if ($isDelayApproved) {
+                                        $status = 'DELAY_APPROVED';
+                                    } elseif ($wSub && $wSub->submitted_at) {
                                         $status = $wSub->status ?: 'ON_TIME';
                                     } elseif ($wRep && $wRep->submitted_at) {
                                         $status = $wRep->submission_status ?: 'ON_TIME';
@@ -332,7 +364,17 @@
                                         <small class="text-muted" style="font-size: 0.72rem;">{{ $dept->head->email ?? '' }}</small>
                                     </td>
                                     <td class="text-center">
-                                        @if($status === 'ON_TIME')
+                                        @if($status === 'DELAY_APPROVED')
+                                            <span class="badge bg-primary px-2.5 py-1.5" title="{{ $delayReason ?? 'Excused by GM' }}">
+                                                <i class="fas fa-shield-alt me-1"></i> DELAY APPROVED
+                                            </span>
+                                            <small class="d-block text-muted" style="font-size: 0.7rem;">Excused by GM</small>
+                                        @elseif($isDelayPending)
+                                            <span class="badge bg-warning text-dark px-2.5 py-1.5" title="{{ $delayReason }}">
+                                                <i class="fas fa-hourglass-half me-1"></i> DELAY PENDING
+                                            </span>
+                                            <small class="d-block text-warning fw-semibold" style="font-size: 0.7rem;">Needs GM Review</small>
+                                        @elseif($status === 'ON_TIME')
                                             <span class="badge bg-success px-2.5 py-1.5"><i class="fas fa-check-circle me-1"></i> ON-TIME</span>
                                             @if($wSub && $wSub->submitted_at)
                                                 <small class="d-block text-muted" style="font-size: 0.7rem;">{{ $wSub->submitted_at->format('M d, H:i') }}</small>
@@ -376,12 +418,28 @@
                                         </span>
                                     </td>
                                     <td class="text-end pe-3">
-                                        <div class="d-flex justify-content-end gap-1">
+                                        <div class="d-flex justify-content-end align-items-center gap-1">
+                                            @if($isDelayPending || !empty($delayReason))
+                                                <button type="button" 
+                                                        class="btn btn-xs {{ $isDelayPending ? 'btn-warning text-dark fw-bold' : 'btn-outline-primary' }}"
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#reviewDelayModal"
+                                                        data-type="WEEKLY_PERFORMANCE"
+                                                        data-dept-id="{{ $dept->id }}"
+                                                        data-dept-name="{{ $dept->department_name }}"
+                                                        data-period="Week {{ $selectedWeek }} Performance ({{ $selectedMonth }} {{ $selectedYear }})"
+                                                        data-reason="{{ e($delayReason ?? '') }}"
+                                                        data-status="{{ $wSub->delay_status ?? ($wRep->delay_status ?? 'PENDING') }}"
+                                                        data-notes="{{ e($delayGmNotes ?? '') }}"
+                                                        title="Review Delay Justification">
+                                                    <i class="fas fa-clock me-1"></i> {{ $isDelayPending ? 'Review Delay' : 'Delay Decision' }}
+                                                </button>
+                                            @endif
                                             <a href="{{ route('weekly.voucher', ['department_id' => $dept->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" 
                                                class="btn btn-xs btn-kaldis shadow-sm" title="Open Official Performance Voucher">
                                                 <i class="fas fa-receipt me-1"></i> View Voucher
                                             </a>
-                                            @if($status === 'NOT_SUBMITTED')
+                                            @if($status === 'NOT_SUBMITTED' && !$isDelayPending)
                                                 <form method="POST" action="{{ route('management.remind') }}" class="d-inline" onsubmit="return confirm('Send Telegram reminder to {{ $dept->department_name }} Department Head?');">
                                                     @csrf
                                                     <input type="hidden" name="department_id" value="{{ $dept->id }}">
@@ -390,6 +448,141 @@
                                                     <input type="hidden" name="week" value="{{ $selectedWeek }}">
                                                     <input type="hidden" name="type" value="WEEKLY">
                                                     <button type="submit" class="btn btn-xs btn-outline-danger" title="Send Telegram Escalation Reminder">
+                                                        <i class="fab fa-telegram-plane"></i> Remind
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ─────────────────────────────────────────────────────────────
+                 TAB: WEEKLY TASK SCHEDULES (BY DEPT)
+                 ───────────────────────────────────────────────────────────── -->
+            <div class="tab-pane fade" id="content-weekly-plans" role="tabpanel" aria-labelledby="tab-weekly-plans">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Department</th>
+                                <th>Department Head</th>
+                                <th class="text-center">Schedule Status</th>
+                                <th class="text-center">Tasks Scheduled</th>
+                                <th class="text-center">Strategy / Operational</th>
+                                <th class="text-center">Plan Status</th>
+                                <th class="text-end pe-3">Official Voucher &amp; Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($departmentPerformances as $dp)
+                                @php
+                                    $dept = $dp['department'];
+                                    $wPlan = $weeklyPlans[$dept->id] ?? null;
+                                    $planTasks = $wPlan ? $wPlan->tasks : \App\Models\WeeklyTask::where('department_id', $dept->id)->where('year', $selectedYear)->where('month', $selectedMonth)->where('week_number', $selectedWeek)->get();
+                                    $wpStratCount = $planTasks->where('plan_type', 'STRATEGY')->count();
+                                    $wpOpsCount = $planTasks->where('plan_type', 'OPERATIONAL')->count();
+
+                                    $isWPDelayApproved = $wPlan && ($wPlan->isDelayApproved() || $wPlan->submission_status === 'DELAY_APPROVED');
+                                    $isWPDelayPending = $wPlan && $wPlan->isDelayPending();
+                                    $wpDelayReason = $wPlan->delay_reason ?? null;
+                                    $wpDelayGmNotes = $wPlan->delay_gm_notes ?? null;
+
+                                    $wpStatus = 'NOT_SUBMITTED';
+                                    if ($isWPDelayApproved) {
+                                        $wpStatus = 'DELAY_APPROVED';
+                                    } elseif ($wPlan && in_array($wPlan->submission_status, ['ON_TIME', 'LATE'])) {
+                                        $wpStatus = $wPlan->submission_status;
+                                    } elseif ($wPlan && $wPlan->status === 'SUBMITTED') {
+                                        $wpStatus = 'ON_TIME';
+                                    } elseif ($planTasks->count() > 0) {
+                                        $wpStatus = 'DRAFT';
+                                    }
+                                @endphp
+                                <tr>
+                                    <td>
+                                        <strong class="text-dark">{{ $dept->department_name }}</strong>
+                                        <span class="badge bg-light text-secondary border font-monospace ms-1">{{ $dept->department_code }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="small fw-semibold text-dark">{{ $dept->head->full_name ?? 'N/A' }}</div>
+                                        <small class="text-muted" style="font-size: 0.72rem;">{{ $dept->head->email ?? '' }}</small>
+                                    </td>
+                                    <td class="text-center">
+                                        @if($wpStatus === 'DELAY_APPROVED')
+                                            <span class="badge bg-primary px-2.5 py-1.5" title="{{ $wpDelayReason ?? 'Excused by GM' }}">
+                                                <i class="fas fa-shield-alt me-1"></i> DELAY APPROVED
+                                            </span>
+                                            <small class="d-block text-muted" style="font-size: 0.7rem;">Excused by GM</small>
+                                        @elseif($isWPDelayPending)
+                                            <span class="badge bg-warning text-dark px-2.5 py-1.5" title="{{ $wpDelayReason }}">
+                                                <i class="fas fa-hourglass-half me-1"></i> DELAY PENDING
+                                            </span>
+                                            <small class="d-block text-warning fw-semibold" style="font-size: 0.7rem;">Needs GM Review</small>
+                                        @elseif($wpStatus === 'ON_TIME')
+                                            <span class="badge bg-success px-2.5 py-1.5"><i class="fas fa-check-circle me-1"></i> ON-TIME</span>
+                                            @if($wPlan && $wPlan->submitted_at)
+                                                <small class="d-block text-muted" style="font-size: 0.7rem;">{{ $wPlan->submitted_at->format('M d, H:i') }}</small>
+                                            @endif
+                                        @elseif($wpStatus === 'LATE')
+                                            <span class="badge bg-warning text-dark px-2.5 py-1.5"><i class="fas fa-clock me-1"></i> LATE</span>
+                                            @if($wPlan && $wPlan->submitted_at)
+                                                <small class="d-block text-muted" style="font-size: 0.7rem;">{{ $wPlan->submitted_at->format('M d, H:i') }}</small>
+                                            @endif
+                                        @elseif($wpStatus === 'DRAFT')
+                                            <span class="badge bg-secondary px-2.5 py-1.5"><i class="fas fa-edit me-1"></i> IN DRAFT</span>
+                                        @else
+                                            <span class="badge bg-danger px-2.5 py-1.5"><i class="fas fa-times-circle me-1"></i> NOT SUBMITTED</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="fs-6 fw-bold text-dark">{{ $planTasks->count() }}</span>
+                                        <small class="text-muted d-block">Scheduled Tasks</small>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-primary-subtle text-primary border border-primary small">{{ $wpStratCount }} Strategy</span>
+                                        <span class="badge bg-info-subtle text-info border border-info small ms-1">{{ $wpOpsCount }} Ops</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge {{ ($wPlan && $wPlan->status === 'APPROVED') ? 'bg-success-subtle text-success border border-success' : (($wPlan && $wPlan->status === 'SUBMITTED') ? 'bg-primary-subtle text-primary border border-primary' : 'bg-light text-muted border') }} small">
+                                            {{ $wPlan->status ?? 'DRAFT' }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end pe-3">
+                                        <div class="d-flex justify-content-end align-items-center gap-1">
+                                            @if($isWPDelayPending || !empty($wpDelayReason))
+                                                <button type="button" 
+                                                        class="btn btn-xs {{ $isWPDelayPending ? 'btn-warning text-dark fw-bold' : 'btn-outline-primary' }}"
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#reviewDelayModal"
+                                                        data-type="WEEKLY_PLAN"
+                                                        data-dept-id="{{ $dept->id }}"
+                                                        data-dept-name="{{ $dept->department_name }}"
+                                                        data-period="Week {{ $selectedWeek }} Plan Schedule ({{ $selectedMonth }} {{ $selectedYear }})"
+                                                        data-reason="{{ e($wpDelayReason ?? '') }}"
+                                                        data-status="{{ $wPlan->delay_status ?? 'PENDING' }}"
+                                                        data-notes="{{ e($wpDelayGmNotes ?? '') }}"
+                                                        title="Review Delay Justification">
+                                                    <i class="fas fa-clock me-1"></i> {{ $isWPDelayPending ? 'Review Delay' : 'Delay Decision' }}
+                                                </button>
+                                            @endif
+                                            <a href="{{ route('weekly.voucher', ['department_id' => $dept->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek, 'type' => 'plan']) }}" 
+                                               class="btn btn-xs btn-kaldis shadow-sm" title="Open Official Plan Voucher">
+                                                <i class="fas fa-file-invoice me-1"></i> View Voucher
+                                            </a>
+                                            @if($wpStatus === 'NOT_SUBMITTED' && !$isWPDelayPending)
+                                                <form method="POST" action="{{ route('management.remind') }}" class="d-inline" onsubmit="return confirm('Send Telegram reminder to {{ $dept->department_name }} Department Head?');">
+                                                    @csrf
+                                                    <input type="hidden" name="department_id" value="{{ $dept->id }}">
+                                                    <input type="hidden" name="year" value="{{ $selectedYear }}">
+                                                    <input type="hidden" name="month" value="{{ $selectedMonth }}">
+                                                    <input type="hidden" name="week" value="{{ $selectedWeek }}">
+                                                    <input type="hidden" name="type" value="WEEKLY">
+                                                    <button type="submit" class="btn btn-xs btn-outline-danger" title="Send Telegram Schedule Reminder">
                                                         <i class="fab fa-telegram-plane"></i> Remind
                                                     </button>
                                                 </form>
@@ -429,8 +622,15 @@
                                     $stratCount = $deptPlans->where('plan_type', 'STRATEGY')->count();
                                     $opsCount = $deptPlans->where('plan_type', 'OPERATIONAL')->count();
                                     
+                                    $isMDelayApproved = $mSub && ($mSub->isDelayApproved() || $mSub->status === 'DELAY_APPROVED');
+                                    $isMDelayPending = $mSub && $mSub->isDelayPending();
+                                    $mDelayReason = $mSub->delay_reason ?? null;
+                                    $mDelayGmNotes = $mSub->delay_gm_notes ?? null;
+
                                     $mStatus = 'NOT_SUBMITTED';
-                                    if ($mSub && $mSub->submitted_at) {
+                                    if ($isMDelayApproved) {
+                                        $mStatus = 'DELAY_APPROVED';
+                                    } elseif ($mSub && $mSub->submitted_at) {
                                         $mStatus = $mSub->status ?: 'ON_TIME';
                                     } elseif ($deptPlans->count() > 0) {
                                         $mStatus = 'ON_TIME';
@@ -448,7 +648,17 @@
                                         <small class="text-muted" style="font-size: 0.72rem;">{{ $dept->head->email ?? '' }}</small>
                                     </td>
                                     <td class="text-center">
-                                        @if($mStatus === 'ON_TIME')
+                                        @if($mStatus === 'DELAY_APPROVED')
+                                            <span class="badge bg-primary px-2.5 py-1.5" title="{{ $mDelayReason ?? 'Excused by GM' }}">
+                                                <i class="fas fa-shield-alt me-1"></i> DELAY APPROVED
+                                            </span>
+                                            <small class="d-block text-muted" style="font-size: 0.7rem;">Excused by GM</small>
+                                        @elseif($isMDelayPending)
+                                            <span class="badge bg-warning text-dark px-2.5 py-1.5" title="{{ $mDelayReason }}">
+                                                <i class="fas fa-hourglass-half me-1"></i> DELAY PENDING
+                                            </span>
+                                            <small class="d-block text-warning fw-semibold" style="font-size: 0.7rem;">Needs GM Review</small>
+                                        @elseif($mStatus === 'ON_TIME')
                                             <span class="badge bg-success px-2.5 py-1.5"><i class="fas fa-check-circle me-1"></i> ON-TIME</span>
                                             @if($mSub && $mSub->submitted_at)
                                                 <small class="d-block text-muted" style="font-size: 0.7rem;">{{ $mSub->submitted_at->format('M d, H:i') }}</small>
@@ -476,12 +686,28 @@
                                         </span>
                                     </td>
                                     <td class="text-end pe-3">
-                                        <div class="d-flex justify-content-end gap-1">
+                                        <div class="d-flex justify-content-end align-items-center gap-1">
+                                            @if($isMDelayPending || !empty($mDelayReason))
+                                                <button type="button" 
+                                                        class="btn btn-xs {{ $isMDelayPending ? 'btn-warning text-dark fw-bold' : 'btn-outline-primary' }}"
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#reviewDelayModal"
+                                                        data-type="MONTHLY"
+                                                        data-dept-id="{{ $dept->id }}"
+                                                        data-dept-name="{{ $dept->department_name }}"
+                                                        data-period="Monthly Plan ({{ $selectedMonth }} {{ $selectedYear }})"
+                                                        data-reason="{{ e($mDelayReason ?? '') }}"
+                                                        data-status="{{ $mSub->delay_status ?? 'PENDING' }}"
+                                                        data-notes="{{ e($mDelayGmNotes ?? '') }}"
+                                                        title="Review Delay Justification">
+                                                    <i class="fas fa-clock me-1"></i> {{ $isMDelayPending ? 'Review Delay' : 'Delay Decision' }}
+                                                </button>
+                                            @endif
                                             <a href="{{ route('monthly.voucher', ['department_id' => $dept->id, 'year' => $selectedYear, 'month' => $selectedMonth]) }}" 
                                                class="btn btn-xs btn-kaldis shadow-sm" title="Open Official Monthly Plan Voucher">
                                                 <i class="fas fa-file-contract me-1"></i> View Voucher
                                             </a>
-                                            @if($mStatus === 'NOT_SUBMITTED')
+                                            @if($mStatus === 'NOT_SUBMITTED' && !$isMDelayPending)
                                                 <form method="POST" action="{{ route('management.remind') }}" class="d-inline" onsubmit="return confirm('Send Telegram reminder to {{ $dept->department_name }} Department Head?');">
                                                     @csrf
                                                     <input type="hidden" name="department_id" value="{{ $dept->id }}">
@@ -578,6 +804,75 @@
         </div>
     </div>
 </div>
+
+<!-- Modal: Review Department Delay Reason (GM Executive Action) -->
+<div class="modal fade" id="reviewDelayModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" action="{{ route('management.delay_approval') }}">
+                @csrf
+                <input type="hidden" name="type" id="modalDelayType" value="">
+                <input type="hidden" name="department_id" id="modalDelayDeptId" value="">
+                <input type="hidden" name="year" value="{{ $selectedYear }}">
+                <input type="hidden" name="month" value="{{ $selectedMonth }}">
+                <input type="hidden" name="week_number" value="{{ $selectedWeek }}">
+
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold text-dark fs-6">
+                        <i class="fas fa-shield-alt text-primary me-2"></i> Review Department Delay Request
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    <div class="alert alert-info py-2 px-3 small mb-3 border-0">
+                        <i class="fas fa-info-circle me-1"></i>
+                        <strong>Executive Governance Rule:</strong> Approving this delay excuses the department. The submission will be officially recorded as <strong>DELAY APPROVED</strong> and will <strong>NOT</strong> appear as "Not Submitted", "Missing", or penalized in automated reminders &amp; audits.
+                    </div>
+
+                    <div class="bg-light p-3 rounded-3 mb-3 border small">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Department:</span>
+                            <span class="fw-bold text-dark" id="modalDelayDeptName">—</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Period Scope:</span>
+                            <span class="fw-semibold text-dark" id="modalDelayPeriod">—</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Current Decision:</span>
+                            <span class="badge bg-secondary" id="modalDelayStatus">PENDING</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Department Head Justification</label>
+                        <div class="p-3 bg-warning-subtle text-dark border border-warning rounded-3 small fst-italic" id="modalDelayReasonBox">
+                            No delay justification text provided.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">General Manager Notes / Remarks (Optional)</label>
+                        <textarea name="notes" id="modalDelayNotes" class="form-control" rows="3" placeholder="Add GM executive instructions, conditions, or extension deadlines..."></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light d-flex justify-content-between">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                    <div class="d-flex gap-2">
+                        <button type="submit" name="action" value="REJECT" class="btn btn-sm btn-outline-danger" onclick="return confirm('Reject this delay justification? The submission will remain marked as late or missing.');">
+                            <i class="fas fa-times-circle me-1"></i> Reject Delay
+                        </button>
+                        <button type="submit" name="action" value="APPROVE" class="btn btn-sm btn-success fw-bold" onclick="return confirm('Approve this delay justification? The submission will be excused and NOT marked as missing.');">
+                            <i class="fas fa-check-circle me-1"></i> Approve Delay (Mark Excused)
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
@@ -593,6 +888,35 @@ document.addEventListener('DOMContentLoaded', function () {
                 const text = row.textContent.toLowerCase();
                 row.style.display = query === '' || text.includes(query) ? '' : 'none';
             });
+        });
+    }
+
+    const reviewDelayModalEl = document.getElementById('reviewDelayModal');
+    if (reviewDelayModalEl) {
+        reviewDelayModalEl.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            if (!button) return;
+
+            const type = button.getAttribute('data-type') || 'MONTHLY';
+            const deptId = button.getAttribute('data-dept-id') || '';
+            const deptName = button.getAttribute('data-dept-name') || '';
+            const period = button.getAttribute('data-period') || '';
+            const reason = button.getAttribute('data-reason') || 'No justification provided.';
+            const status = button.getAttribute('data-status') || 'PENDING';
+            const notes = button.getAttribute('data-notes') || '';
+
+            document.getElementById('modalDelayType').value = type;
+            document.getElementById('modalDelayDeptId').value = deptId;
+            document.getElementById('modalDelayDeptName').textContent = deptName;
+            document.getElementById('modalDelayPeriod').textContent = period;
+            document.getElementById('modalDelayReasonBox').textContent = reason || 'No justification text provided.';
+            document.getElementById('modalDelayNotes').value = notes;
+
+            const statusBadge = document.getElementById('modalDelayStatus');
+            if (statusBadge) {
+                statusBadge.textContent = status;
+                statusBadge.className = status === 'APPROVED' ? 'badge bg-success' : (status === 'REJECTED' ? 'badge bg-danger' : 'badge bg-warning text-dark');
+            }
         });
     }
 
@@ -646,7 +970,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const subCanvas = document.getElementById('submissionChart');
         if (subCanvas) {
             const subCtx = subCanvas.getContext('2d');
-            const totalSubsVal = {{ (int)($onTimeSubmissions + $lateSubmissions + $missingSubmissions) }};
+            const totalSubsVal = {{ (int)($onTimeSubmissions + $lateSubmissions + ($delayApprovedSubmissions ?? 0) + $missingSubmissions) }};
             
             if (totalSubsVal === 0 && {{ (int)$waitingSubmissions }} > 0) {
                 new Chart(subCtx, {
@@ -669,10 +993,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 new Chart(subCtx, {
                     type: 'doughnut',
                     data: {
-                        labels: ['On Time', 'Late', 'Waiting', 'Missing'],
+                        labels: ['On Time', 'Delay Excused', 'Late', 'Waiting', 'Missing'],
                         datasets: [{
-                            data: [{{ (int)$onTimeSubmissions }}, {{ (int)$lateSubmissions }}, {{ (int)$waitingSubmissions }}, {{ (int)$missingSubmissions }}],
-                            backgroundColor: ['#10B981', '#F59E0B', '#94A3B8', '#EF4444'],
+                            data: [{{ (int)$onTimeSubmissions }}, {{ (int)($delayApprovedSubmissions ?? 0) }}, {{ (int)$lateSubmissions }}, {{ (int)$waitingSubmissions }}, {{ (int)$missingSubmissions }}],
+                            backgroundColor: ['#10B981', '#3B82F6', '#F59E0B', '#94A3B8', '#EF4444'],
                             borderWidth: 2,
                             borderColor: '#FFFFFF'
                         }]

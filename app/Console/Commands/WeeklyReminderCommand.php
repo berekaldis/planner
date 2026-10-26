@@ -76,12 +76,24 @@ class WeeklyReminderCommand extends Command
 
             // 1. Weekly Performance Execution Reminder
             if ($type === 'performance' || $type === 'all') {
-                $isSubmitted = Submission::where('department_id', $dept->id)
+                $sub = Submission::where('department_id', $dept->id)
                     ->where('year', $year)
                     ->where('month', $month)
                     ->where('week_number', $week)
-                    ->whereIn('status', ['ON_TIME', 'LATE'])
-                    ->exists();
+                    ->first();
+
+                $report = WeeklyReport::where('department_id', $dept->id)
+                    ->where('year', $year)
+                    ->where('month', $month)
+                    ->where('week_number', $week)
+                    ->first();
+
+                $isSubmitted = false;
+                if ($sub && ($sub->isDelayApproved() || in_array($sub->status, ['ON_TIME', 'LATE', 'DELAY_APPROVED']))) {
+                    $isSubmitted = true;
+                } elseif ($report && ($report->isDelayApproved() || in_array($report->submission_status, ['ON_TIME', 'LATE', 'DELAY_APPROVED']) || $report->status === 'SUBMITTED')) {
+                    $isSubmitted = true;
+                }
 
                 if (!$isSubmitted) {
                     $unsubmittedDepts[] = [
@@ -119,12 +131,18 @@ class WeeklyReminderCommand extends Command
 
             // 2. Weekly Planning (Upcoming Week Task Scheduling) Reminder
             if ($type === 'plan' || $type === 'all') {
-                $hasWeeklyPlan = WeeklyPlan::where('department_id', $dept->id)
+                $wPlan = WeeklyPlan::where('department_id', $dept->id)
                     ->where('year', $year)
                     ->where('month', $month)
                     ->where('week_number', $week)
-                    ->whereHas('tasks')
-                    ->exists();
+                    ->first();
+
+                $hasWeeklyPlan = false;
+                if ($wPlan && ($wPlan->isDelayApproved() || in_array($wPlan->submission_status, ['ON_TIME', 'LATE', 'DELAY_APPROVED']) || in_array($wPlan->status, ['SUBMITTED', 'APPROVED']))) {
+                    $hasWeeklyPlan = true;
+                } elseif ($wPlan && $wPlan->tasks()->exists()) {
+                    $hasWeeklyPlan = true;
+                }
 
                 if (!$hasWeeklyPlan) {
                     $this->line("- Reminding Task Scheduling: {$dept->department_name} ({$safeHeadName})");

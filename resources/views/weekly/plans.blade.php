@@ -9,10 +9,13 @@
         <h4 class="fw-bold text-dark mb-1">Weekly Task Planning</h4>
         <p class="text-muted small mb-0">{{ $department->department_name }} &bull; Week {{ $selectedWeek }} ({{ $selectedMonth }} {{ $selectedYear }})</p>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex flex-wrap gap-2">
         <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek, 'type' => 'plan']) }}" class="btn btn-outline-dark btn-sm" target="_blank" title="Open Official Plan Voucher in new tab">
             <i class="fas fa-file-invoice me-1"></i> View Plan Voucher
         </a>
+        <button type="button" class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#weeklyPlanDelayReasonModal" title="Submit delay reason to GM if late or requesting extension">
+            <i class="fas fa-clock me-1"></i> Delay Reason
+        </button>
         <button type="button" class="btn btn-kaldis btn-sm" data-bs-toggle="modal" data-bs-target="#createTaskModal">
             <i class="fas fa-plus-circle me-1"></i> Schedule Weekly Task
         </button>
@@ -25,7 +28,46 @@
     </div>
 </div>
 
-@if($weeklyPlan && $weeklyPlan->status === 'SUBMITTED')
+@if($weeklyPlan && ($weeklyPlan->isDelayApproved() || $weeklyPlan->submission_status === 'DELAY_APPROVED'))
+    <div class="alert alert-info border-0 shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <i class="fas fa-shield-alt text-primary fs-5"></i>
+                <strong class="text-dark">Weekly Task Schedule Delay Approved by GM</strong>
+                {!! format_submission_status_badge('DELAY_APPROVED', 'APPROVED', $weeklyPlan->delay_reason) !!}
+            </div>
+            <div class="small text-muted">
+                General Management has approved the delay for scheduling Week {{ $selectedWeek }} tasks. In accordance with executive rules, this schedule is excused and <strong>NOT</strong> recorded as Not Submitted.
+            </div>
+            @if(!empty($weeklyPlan->delay_reason))
+                <div class="small text-dark mt-1"><strong>Justification:</strong> {{ $weeklyPlan->delay_reason }}</div>
+            @endif
+            @if(!empty($weeklyPlan->delay_gm_notes))
+                <div class="small text-primary mt-0.5"><strong>GM Remarks:</strong> {{ $weeklyPlan->delay_gm_notes }}</div>
+            @endif
+        </div>
+        <div class="small text-muted text-nowrap">
+            Approved {{ $weeklyPlan->delay_approved_at ? format_ethiopian_datetime($weeklyPlan->delay_approved_at) : '' }}
+        </div>
+    </div>
+@elseif($weeklyPlan && $weeklyPlan->isDelayPending())
+    <div class="alert alert-warning border-0 shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <i class="fas fa-hourglass-half text-warning fs-5"></i>
+                <strong class="text-dark">Delay Request Submitted (Pending GM Review)</strong>
+                {!! format_submission_status_badge($weeklyPlan->submission_status, 'PENDING', $weeklyPlan->delay_reason) !!}
+            </div>
+            <div class="small text-muted">
+                Your delay justification for Week {{ $selectedWeek }} tasks has been forwarded to General Management.
+            </div>
+            <div class="small text-dark mt-1"><strong>Justification:</strong> {{ $weeklyPlan->delay_reason }}</div>
+        </div>
+        <div class="small text-muted text-nowrap">
+            Pending GM Review
+        </div>
+    </div>
+@elseif($weeklyPlan && $weeklyPlan->status === 'SUBMITTED')
     <div class="alert alert-success border-0 shadow-sm d-flex justify-content-between align-items-center mb-3">
         <div>
             <i class="fas fa-clipboard-check me-2 text-success"></i>
@@ -378,6 +420,13 @@
                     </div>
 
                     <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">
+                            <i class="fas fa-clock text-warning me-1"></i> Delay Reason / Justification (If scheduling past deadline or requesting extension)
+                        </label>
+                        <textarea name="delay_reason" class="form-control" rows="2" placeholder="State operational reason for delay. If approved by GM, this schedule will NOT be marked as Not Submitted.">{{ $weeklyPlan->delay_reason ?? '' }}</textarea>
+                    </div>
+
+                    <div class="mb-3">
                         <label class="form-label small fw-semibold text-secondary">Department Head Remarks for GM (Optional)</label>
                         <textarea name="notes" class="form-control" rows="2" placeholder="Operational context, key focus areas, or remarks for General Management...">{{ $weeklyPlan->notes ?? '' }}</textarea>
                     </div>
@@ -387,6 +436,69 @@
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-sm btn-success">
                         <i class="fas fa-paper-plane me-1"></i> Submit Weekly Plan to GM
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Submit Weekly Plan Delay Reason -->
+<div class="modal fade" id="weeklyPlanDelayReasonModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" action="{{ route('weekly.plans.delay_reason') }}">
+                @csrf
+                <input type="hidden" name="department_id" value="{{ $department->id }}">
+                <input type="hidden" name="year" value="{{ $selectedYear }}">
+                <input type="hidden" name="month" value="{{ $selectedMonth }}">
+                <input type="hidden" name="week_number" value="{{ $selectedWeek }}">
+
+                <div class="modal-header bg-warning bg-opacity-10 border-bottom border-warning border-opacity-25">
+                    <h5 class="modal-title fw-bold text-dark fs-6">
+                        <i class="fas fa-clock text-warning me-2"></i> Submit Weekly Plan Delay Reason to GM
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    <div class="alert alert-info py-2 px-3 small mb-3 border-0">
+                        <i class="fas fa-shield-alt text-primary me-1"></i>
+                        <strong>Executive Governance Rule:</strong> If you have an operational delay in scheduling Week {{ $selectedWeek }} tasks and the <strong>General Manager Approves</strong>, this plan will <strong>NOT</strong> be recorded as "Not Submitted" or "Missing".
+                    </div>
+
+                    <div class="bg-light p-3 rounded-3 mb-3 border small">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Department:</span>
+                            <span class="fw-bold text-dark">{{ $department->department_name }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Week Cycle:</span>
+                            <span class="fw-semibold text-dark">Week {{ $selectedWeek }} ({{ $selectedMonth }} {{ $selectedYear }})</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Current Delay Status:</span>
+                            <span>{!! format_submission_status_badge($weeklyPlan->submission_status ?? null, $weeklyPlan->delay_status ?? null, $weeklyPlan->delay_reason ?? null) !!}</span>
+                        </div>
+                        @if($weeklyPlan && !empty($weeklyPlan->delay_gm_notes))
+                            <div class="pt-2 border-top mt-2 text-primary">
+                                <strong>Last GM Remarks:</strong> {{ $weeklyPlan->delay_gm_notes }}
+                            </div>
+                        @endif
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">
+                            Detailed Reason for Delay / Scheduling Justification <span class="text-danger">*</span>
+                        </label>
+                        <textarea name="delay_reason" class="form-control" rows="4" required placeholder="State why weekly tasks could not be scheduled on time, dependencies, and expected completion...">{{ $weeklyPlan->delay_reason ?? '' }}</textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-sm btn-warning fw-semibold">
+                        <i class="fas fa-paper-plane me-1"></i> Submit Justification to GM
                     </button>
                 </div>
             </form>

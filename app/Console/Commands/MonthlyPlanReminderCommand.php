@@ -54,18 +54,25 @@ class MonthlyPlanReminderCommand extends Command
                 ->count();
 
             $isSubmitted = false;
-            if ($mSub && in_array($mSub->status, ['ON_TIME', 'LATE'])) {
+            $statusLabel = 'NOT_SUBMITTED';
+
+            if ($mSub && ($mSub->isDelayApproved() || $mSub->status === 'DELAY_APPROVED')) {
                 $isSubmitted = true;
+                $statusLabel = 'DELAY_APPROVED';
+            } elseif ($mSub && in_array($mSub->status, ['ON_TIME', 'LATE'])) {
+                $isSubmitted = true;
+                $statusLabel = $mSub->status;
             } elseif ($deptPlansCount > 0) {
                 $isSubmitted = true;
+                $statusLabel = 'ON_TIME';
             }
 
             if ($isSubmitted) {
-                $statusLabel = ($mSub && $mSub->status === 'LATE') ? 'LATE' : 'ON_TIME';
                 $submittedDepts[] = [
                     'dept' => $dept,
                     'status' => $statusLabel,
                     'plans_count' => $deptPlansCount,
+                    'delay_reason' => $mSub->delay_reason ?? null,
                 ];
             } else {
                 $unsubmittedDepts[] = [
@@ -177,6 +184,7 @@ class MonthlyPlanReminderCommand extends Command
         // Summary counts
         $onTimeCount = count(array_filter($submittedDepts, fn($d) => $d['status'] === 'ON_TIME'));
         $lateCount = count(array_filter($submittedDepts, fn($d) => $d['status'] === 'LATE'));
+        $delayApprovedCount = count(array_filter($submittedDepts, fn($d) => $d['status'] === 'DELAY_APPROVED'));
         $missingCount = count($unsubmittedDepts);
         $totalPlansCompany = MonthlyPlan::where('year', $year)->where('month', $month)->count();
         $complianceRate = $totalDepts > 0 ? round((count($submittedDepts) / $totalDepts) * 100, 1) : 0;
@@ -247,15 +255,18 @@ class MonthlyPlanReminderCommand extends Command
                 if ($lateCount > 0) {
                     $gmReport .= "• 🟡 Submitted (Late): <b>{$lateCount}</b>\n";
                 }
+                if ($delayApprovedCount > 0) {
+                    $gmReport .= "• 🔵 Delay Approved (Excused): <b>{$delayApprovedCount}</b>\n";
+                }
                 $gmReport .= "• 🔴 Missing / Delinquent: <b>{$missingCount}</b>\n";
                 $gmReport .= "• 📋 Total Plans Formulated: <b>{$totalPlansCompany}</b>\n";
                 $gmReport .= "• 🎯 Planning Compliance Rate: <b>{$complianceRate}%</b>\n\n";
 
                 if (!empty($submittedDepts)) {
-                    $gmReport .= "🟢 <b>Submitted Departments:</b>\n";
+                    $gmReport .= "🟢 <b>Submitted & Excused Departments:</b>\n";
                     foreach ($submittedDepts as $item) {
                         $safeDept = htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8');
-                        $badge = $item['status'] === 'LATE' ? '🟡 (Late)' : '🟢 (On-Time)';
+                        $badge = $item['status'] === 'LATE' ? '🟡 (Late)' : ($item['status'] === 'DELAY_APPROVED' ? '🔵 (Delay Approved by GM)' : '🟢 (On-Time)');
                         $gmReport .= "• {$safeDept} {$badge} — <i>{$item['plans_count']} plans</i>\n";
                     }
                     $gmReport .= "\n";

@@ -182,6 +182,7 @@ class WeeklyPlanController extends Controller
             'month' => 'required|string',
             'week_number' => 'required|integer|min:1|max:5',
             'notes' => 'nullable|string',
+            'delay_reason' => 'nullable|string|max:1000',
         ]);
 
         $department = Department::findOrFail($validated['department_id']);
@@ -199,10 +200,30 @@ class WeeklyPlanController extends Controller
             return back()->withErrors(['submission' => 'Cannot submit an empty weekly plan. Please schedule at least one task first.']);
         }
 
+        $existingPlan = WeeklyPlan::where('department_id', $validated['department_id'])
+            ->where('year', $validated['year'])
+            ->where('month', $validated['month'])
+            ->where('week_number', $validated['week_number'])
+            ->first();
+
         $planPayload = [
             'status' => 'SUBMITTED',
+            'submitted_at' => now(),
+            'submission_status' => 'ON_TIME',
             'created_by' => $user->id,
         ];
+
+        if ($existingPlan && ($existingPlan->delay_status === 'APPROVED' || $existingPlan->submission_status === 'DELAY_APPROVED')) {
+            $planPayload['submission_status'] = 'DELAY_APPROVED';
+            $planPayload['delay_status'] = 'APPROVED';
+        }
+
+        if (!empty($validated['delay_reason'])) {
+            $planPayload['delay_reason'] = $validated['delay_reason'];
+            if (($planPayload['delay_status'] ?? null) !== 'APPROVED') {
+                $planPayload['delay_status'] = 'PENDING';
+            }
+        }
 
         try {
             if (\Illuminate\Support\Facades\Schema::hasColumn('weekly_plans', 'notes') && !empty($validated['notes'])) {
@@ -253,6 +274,57 @@ class WeeklyPlanController extends Controller
         );
 
         return back()->with('success', "Weekly task schedule for Week {$validated['week_number']} submitted successfully with Last Week's Performance Report!");
+    }
+
+    public function submitDelayReason(Request $request)
+    {
+        $user = Auth::user();
+        $deptId = (int)$request->input('department_id', $user->department_id);
+
+        if (!$user->canAccessAllDepartments() && $user->department_id != $deptId) {
+            abort(403, 'Unauthorized department.');
+        }
+
+        $validated = $request->validate([
+            'department_id' => 'required|exists:departments,id',
+            'year' => 'required|string',
+            'month' => 'required|string',
+            'week_number' => 'required|integer|min:1|max:5',
+            'delay_reason' => 'required|string|max:1000',
+        ]);
+
+        $existingPlan = WeeklyPlan::where('department_id', $deptId)
+            ->where('year', $validated['year'])
+            ->where('month', $validated['month'])
+            ->where('week_number', $validated['week_number'])
+            ->first();
+
+        $delayStatus = ($existingPlan && $existingPlan->delay_status === 'APPROVED') ? 'APPROVED' : 'PENDING';
+        $submissionStatus = ($delayStatus === 'APPROVED') ? 'DELAY_APPROVED' : ($existingPlan->submission_status ?? 'DRAFT');
+
+        WeeklyPlan::updateOrCreate([
+            'department_id' => $deptId,
+            'year' => $validated['year'],
+            'month' => $validated['month'],
+            'week_number' => $validated['week_number'],
+        ], [
+            'delay_reason' => $validated['delay_reason'],
+            'delay_status' => $delayStatus,
+            'submission_status' => $submissionStatus,
+            'created_by' => $user->id,
+        ]);
+
+        AuditLog::log('SUBMIT_DELAY_REASON', 'weekly_plans', "Submitted delay reason for Week {$validated['week_number']} Schedule ({$validated['month']} {$validated['year']})");
+
+        $dept = Department::find($deptId);
+        $notifTitle = "⏳ Weekly Schedule Delay Reason: {$dept->department_code}";
+        $notifMessage = "<b>{$dept->department_name}</b> has submitted a <b>Delay Reason</b> for Week {$validated['week_number']} Task Schedule (<b>{$validated['month']} {$validated['year']}</b>):\n\n"
+                      . "📝 <b>Reason:</b> <i>" . htmlspecialchars($validated['delay_reason'], ENT_QUOTES, 'UTF-8') . "</i>\n\n"
+                      . "👉 Please review and approve/reject on the GM Management Dashboard.";
+        $gmUrl = route('dashboard.gm', ['year' => $validated['year'], 'month' => $validated['month'], 'week' => $validated['week_number']]);
+        notify_both_gm_and_head($deptId, $notifTitle, $notifMessage, $gmUrl);
+
+        return back()->with('success', 'Delay reason for weekly task schedule submitted successfully to General Management.');
     }
 
     public function destroyTask($id)

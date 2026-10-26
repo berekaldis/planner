@@ -301,6 +301,7 @@ class PerformanceController extends Controller
             'week_number' => 'required|integer|min:1|max:5',
             'report_summary' => 'nullable|string',
             'notes' => 'nullable|string',
+            'delay_reason' => 'nullable|string|max:1000',
         ]);
 
         $deptId = $validated['department_id'];
@@ -344,7 +345,41 @@ class PerformanceController extends Controller
         $deadline = $deadlineInfo['deadline_carbon'];
         $compliance = $deadlineInfo['compliance'];
 
-        DB::transaction(function () use ($validated, $totalTasks, $doneTasks, $notDoneTasks, $completionRate, $compliance, $deadline, $user) {
+        // Check if GM previously approved delay
+        $existingReport = WeeklyReport::where('department_id', $deptId)
+            ->where('year', $validated['year'])
+            ->where('month', $validated['month'])
+            ->where('week_number', $validated['week_number'])
+            ->first();
+
+        $delayReason = $validated['delay_reason'] ?? ($existingReport->delay_reason ?? null);
+        $delayStatus = $existingReport->delay_status ?? null;
+
+        if ($existingReport && ($existingReport->delay_status === 'APPROVED' || $existingReport->submission_status === 'DELAY_APPROVED')) {
+            $compliance = 'DELAY_APPROVED';
+            $delayStatus = 'APPROVED';
+        } elseif ($compliance === 'LATE' && !empty($delayReason) && $delayStatus !== 'APPROVED') {
+            $delayStatus = 'PENDING';
+        }
+
+        DB::transaction(function () use ($validated, $totalTasks, $doneTasks, $notDoneTasks, $completionRate, $compliance, $deadline, $delayReason, $delayStatus, $user) {
+            $reportData = [
+                'status' => 'SUBMITTED',
+                'total_tasks' => $totalTasks,
+                'done_tasks' => $doneTasks,
+                'not_done_tasks' => $notDoneTasks,
+                'completion_percentage' => $completionRate,
+                'submitted_by' => $user->id,
+                'submitted_at' => now(),
+                'submission_status' => $compliance,
+                'notes' => $validated['notes'] ?? ($validated['report_summary'] ?? ''),
+            ];
+
+            if (!empty($delayReason)) {
+                $reportData['delay_reason'] = $delayReason;
+                $reportData['delay_status'] = $delayStatus ?: 'PENDING';
+            }
+
             WeeklyReport::updateOrCreate(
                 [
                     'department_id' => $validated['department_id'],
@@ -352,18 +387,22 @@ class PerformanceController extends Controller
                     'month' => $validated['month'],
                     'week_number' => $validated['week_number'],
                 ],
-                [
-                    'status' => 'SUBMITTED',
-                    'total_tasks' => $totalTasks,
-                    'done_tasks' => $doneTasks,
-                    'not_done_tasks' => $notDoneTasks,
-                    'completion_percentage' => $completionRate,
-                    'submitted_by' => $user->id,
-                    'submitted_at' => now(),
-                    'submission_status' => $compliance,
-                    'notes' => $validated['notes'] ?? ($validated['report_summary'] ?? ''),
-                ]
+                $reportData
             );
+
+            $subData = [
+                'deadline_at' => $deadline,
+                'submitted_at' => now(),
+                'status' => $compliance,
+                'submission_channel' => 'WEB',
+                'submitted_by' => $user->id,
+                'remarks' => $validated['notes'] ?? ($validated['report_summary'] ?? ''),
+            ];
+
+            if (!empty($delayReason)) {
+                $subData['delay_reason'] = $delayReason;
+                $subData['delay_status'] = $delayStatus ?: 'PENDING';
+            }
 
             Submission::updateOrCreate(
                 [
@@ -372,14 +411,7 @@ class PerformanceController extends Controller
                     'month' => $validated['month'],
                     'week_number' => $validated['week_number'],
                 ],
-                [
-                    'deadline_at' => $deadline,
-                    'submitted_at' => now(),
-                    'status' => $compliance,
-                    'submission_channel' => 'WEB',
-                    'submitted_by' => $user->id,
-                    'remarks' => $validated['notes'] ?? ($validated['report_summary'] ?? ''),
-                ]
+                $subData
             );
 
             AuditLog::log(
@@ -391,8 +423,10 @@ class PerformanceController extends Controller
 
         // Dispatch GM notification (In-app + Telegram) with Official Vouchers
         $dept = Department::find($deptId);
-        $statusEmoji = ($compliance === 'ON_TIME') ? '🟢 [ON-TIME]' : '🟡 [LATE]';
-        $statusBadge = ($compliance === 'ON_TIME') ? '🟢 ON-TIME SUBMISSION' : '🟡 LATE SUBMISSION';
+        $statusEmoji = ($compliance === 'ON_TIME' || $compliance === 'DELAY_APPROVED') ? '🟢 [ON-TIME]' : '🟡 [LATE]';
+        $statusBadge = ($compliance === 'DELAY_APPROVED')
+            ? '🟢 DELAY APPROVED (EXCUSED ON-TIME)'
+            : (($compliance === 'ON_TIME') ? '🟢 ON-TIME SUBMISSION' : '🟡 LATE SUBMISSION');
         $deptCode = htmlspecialchars($dept->department_code ?? "Dept #{$deptId}", ENT_QUOTES, 'UTF-8');
         $deptName = htmlspecialchars($dept->department_name ?? 'Department', ENT_QUOTES, 'UTF-8');
 
@@ -501,6 +535,73 @@ class PerformanceController extends Controller
         notify_both_gm_and_head($deptId, $notifTitle, $notifMessage, $perfVoucherUrl, $replyMarkup);
 
         return back()->with('success', "Weekly package (Week {$validated['week_number']} Performance & Week {$nextWeek} Plan) submitted successfully to General Management! Status: {$compliance} ({$completionRate}% Completion).");
+    }
+
+    public function submitDelayReason(Request $request)
+    {
+        $user = Auth::user();
+        $deptId = (int)$request->input('department_id', $user->department_id);
+
+        if (!$user->canAccessAllDepartments() && $user->department_id != $deptId) {
+            abort(403, 'Unauthorized department.');
+        }
+
+        $validated = $request->validate([
+            'department_id' => 'required|exists:departments,id',
+            'year' => 'required|string',
+            'month' => 'required|string',
+            'week_number' => 'required|integer|min:1|max:5',
+            'delay_reason' => 'required|string|max:1000',
+        ]);
+
+        $existingReport = WeeklyReport::where('department_id', $deptId)
+            ->where('year', $validated['year'])
+            ->where('month', $validated['month'])
+            ->where('week_number', $validated['week_number'])
+            ->first();
+
+        $delayStatus = ($existingReport && $existingReport->delay_status === 'APPROVED') ? 'APPROVED' : 'PENDING';
+        $submissionStatus = ($delayStatus === 'APPROVED') ? 'DELAY_APPROVED' : ($existingReport->submission_status ?? 'WAITING');
+
+        WeeklyReport::updateOrCreate([
+            'department_id' => $deptId,
+            'year' => $validated['year'],
+            'month' => $validated['month'],
+            'week_number' => $validated['week_number'],
+        ], [
+            'delay_reason' => $validated['delay_reason'],
+            'delay_status' => $delayStatus,
+            'submission_status' => $submissionStatus,
+        ]);
+
+        $deadlineInfo = function_exists('get_weekly_cycle_deadline')
+            ? get_weekly_cycle_deadline($validated['year'], $validated['month'], (int)$validated['week_number'])
+            : ['deadline_carbon' => now()];
+
+        Submission::updateOrCreate([
+            'department_id' => $deptId,
+            'year' => $validated['year'],
+            'month' => $validated['month'],
+            'week_number' => $validated['week_number'],
+        ], [
+            'deadline_at' => $deadlineInfo['deadline_carbon'] ?? now(),
+            'delay_reason' => $validated['delay_reason'],
+            'delay_status' => $delayStatus,
+            'status' => $submissionStatus,
+            'submission_channel' => 'WEB',
+        ]);
+
+        AuditLog::log('SUBMIT_DELAY_REASON', 'performance', "Submitted delay reason for Week {$validated['week_number']} Performance Report ({$validated['month']} {$validated['year']})");
+
+        $dept = Department::find($deptId);
+        $notifTitle = "⏳ Performance Report Delay Reason: {$dept->department_code}";
+        $notifMessage = "<b>{$dept->department_name}</b> has submitted a <b>Delay Reason</b> for Week {$validated['week_number']} Performance Report (<b>{$validated['month']} {$validated['year']}</b>):\n\n"
+                      . "📝 <b>Reason:</b> <i>" . htmlspecialchars($validated['delay_reason'], ENT_QUOTES, 'UTF-8') . "</i>\n\n"
+                      . "👉 Please review and approve/reject on the GM Management Dashboard.";
+        $gmUrl = route('dashboard.gm', ['year' => $validated['year'], 'month' => $validated['month'], 'week' => $validated['week_number']]);
+        notify_both_gm_and_head($deptId, $notifTitle, $notifMessage, $gmUrl);
+
+        return back()->with('success', 'Delay reason for weekly performance report submitted successfully to General Management.');
     }
 
     public function weeklyScorecard(Request $request)

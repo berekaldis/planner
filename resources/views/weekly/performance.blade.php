@@ -9,10 +9,13 @@
         <h4 class="fw-bold text-dark mb-1">Weekly Performance Execution</h4>
         <p class="text-muted small mb-0">{{ $department->department_name }} &bull; Week {{ $selectedWeek }} ({{ $selectedMonth }} {{ $selectedYear }})</p>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex flex-wrap gap-2">
         <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" class="btn btn-outline-dark btn-sm" target="_blank" title="Open Official Voucher in new tab">
             <i class="fas fa-file-invoice me-1"></i> View Official Voucher
         </a>
+        <button type="button" class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#weeklyPerfDelayReasonModal" title="Submit delay reason to GM if late or requesting extension">
+            <i class="fas fa-clock me-1"></i> Delay Reason
+        </button>
         <a href="{{ route('weekly.plans', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" class="btn btn-outline-secondary btn-sm">
             <i class="fas fa-tasks me-1"></i> Edit Planned Tasks
         </a>
@@ -66,15 +69,57 @@
     </form>
 </div>
 
-<!-- Submission Banner (if submitted) -->
-@if($submission && in_array($submission->status, ['ON_TIME', 'LATE', 'SUBMITTED']))
+<!-- Submission Banner (if submitted or delay approved/pending) -->
+@if($submission && ($submission->isDelayApproved() || $submission->status === 'DELAY_APPROVED'))
+    <div class="alert alert-info border-0 shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <i class="fas fa-shield-alt text-primary fs-5"></i>
+                <strong class="text-dark">Weekly Performance Report Delay Approved by GM</strong>
+                {!! format_submission_status_badge('DELAY_APPROVED', 'APPROVED', $submission->delay_reason) !!}
+                @if(!empty($submission->approval_status))
+                    <span class="badge {{ $submission->approval_status === 'APPROVED' ? 'bg-success' : 'bg-secondary' }}">
+                        GM: {{ $submission->approval_status }}
+                    </span>
+                @endif
+            </div>
+            <div class="small text-muted">
+                General Management has approved the delay for Week {{ $selectedWeek }} performance reporting. This report is officially excused and <strong>NOT</strong> recorded as Not Submitted.
+            </div>
+            @if(!empty($submission->delay_reason))
+                <div class="small text-dark mt-1"><strong>Justification:</strong> {{ $submission->delay_reason }}</div>
+            @endif
+            @if(!empty($submission->delay_gm_notes))
+                <div class="small text-primary mt-0.5"><strong>GM Remarks:</strong> {{ $submission->delay_gm_notes }}</div>
+            @endif
+        </div>
+        <div class="small text-muted text-nowrap">
+            Approved {{ $submission->delay_approved_at ? format_ethiopian_datetime($submission->delay_approved_at) : '' }}
+        </div>
+    </div>
+@elseif($submission && $submission->isDelayPending())
+    <div class="alert alert-warning border-0 shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <i class="fas fa-hourglass-half text-warning fs-5"></i>
+                <strong class="text-dark">Delay Request Submitted (Pending GM Review)</strong>
+                {!! format_submission_status_badge($submission->status, 'PENDING', $submission->delay_reason) !!}
+            </div>
+            <div class="small text-muted">
+                Your delay justification for Week {{ $selectedWeek }} performance execution has been submitted to General Management.
+            </div>
+            <div class="small text-dark mt-1"><strong>Submitted Justification:</strong> {{ $submission->delay_reason }}</div>
+        </div>
+        <div class="small text-muted text-nowrap">
+            Pending GM Decision
+        </div>
+    </div>
+@elseif($submission && in_array($submission->status, ['ON_TIME', 'LATE', 'SUBMITTED']))
     <div class="alert alert-success border-0 shadow-sm d-flex justify-content-between align-items-center mb-4">
         <div>
             <i class="fas fa-check-double me-2"></i>
             <strong>Report Submitted:</strong> Week {{ $selectedWeek }} performance report has been officially submitted.
-            <span class="badge {{ $submission->status === 'ON_TIME' ? 'bg-success' : 'bg-warning text-dark' }} ms-2">
-                {{ $submission->status }}
-            </span>
+            {!! format_submission_status_badge($submission->status, $submission->delay_status, $submission->delay_reason) !!}
             @if(!empty($submission->approval_status))
                 <span class="badge {{ $submission->approval_status === 'APPROVED' ? 'bg-success' : ($submission->approval_status === 'REVISION_REQUESTED' ? 'bg-danger' : 'bg-secondary') }} ms-1">
                     GM: {{ $submission->approval_status }}
@@ -85,6 +130,7 @@
             Submitted by {{ $submission->submitter->full_name ?? 'Department Head' }} on {{ $submission->submitted_at ? format_ethiopian_datetime($submission->submitted_at) : '' }}
         </div>
     </div>
+@endif
     @if(!empty($submission->gm_feedback))
         <div class="card border-primary mb-4 shadow-sm">
             <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
@@ -362,6 +408,13 @@
             </div>
 
             <div class="mb-3">
+                <label class="form-label small fw-semibold text-secondary">
+                    <i class="fas fa-clock text-warning me-1"></i> Delay Reason / Justification (If submitting past Monday 12:30 PM cutoff or requesting extension)
+                </label>
+                <textarea name="delay_reason" class="form-control" rows="2" placeholder="State operational reason for delay. If approved by GM, this report will NOT be marked as Not Submitted.">{{ $submission->delay_reason ?? ($report->delay_reason ?? '') }}</textarea>
+            </div>
+
+            <div class="mb-3">
                 <label class="form-label small fw-semibold text-secondary">Executive Summary &amp; Department Remarks for GM (Optional)</label>
                 <textarea name="report_summary" class="form-control" rows="2" placeholder="Overall execution summary, operational highlights, challenges, or notes for General Management..."></textarea>
             </div>
@@ -381,6 +434,69 @@
                 </button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- Modal: Submit Weekly Performance Delay Reason -->
+<div class="modal fade" id="weeklyPerfDelayReasonModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" action="{{ route('weekly.performance.delay_reason') }}">
+                @csrf
+                <input type="hidden" name="department_id" value="{{ $department->id }}">
+                <input type="hidden" name="year" value="{{ $selectedYear }}">
+                <input type="hidden" name="month" value="{{ $selectedMonth }}">
+                <input type="hidden" name="week_number" value="{{ $selectedWeek }}">
+
+                <div class="modal-header bg-warning bg-opacity-10 border-bottom border-warning border-opacity-25">
+                    <h5 class="modal-title fw-bold text-dark fs-6">
+                        <i class="fas fa-clock text-warning me-2"></i> Submit Weekly Performance Delay Reason to GM
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    <div class="alert alert-info py-2 px-3 small mb-3 border-0">
+                        <i class="fas fa-shield-alt text-primary me-1"></i>
+                        <strong>Executive Governance Rule:</strong> If you have an operational delay submitting the Week {{ $selectedWeek }} performance report and the <strong>General Manager Approves</strong>, this report will <strong>NOT</strong> be recorded as "Not Submitted", "Missing", or escalated.
+                    </div>
+
+                    <div class="bg-light p-3 rounded-3 mb-3 border small">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Department:</span>
+                            <span class="fw-bold text-dark">{{ $department->department_name }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Week Cycle:</span>
+                            <span class="fw-semibold text-dark">Week {{ $selectedWeek }} ({{ $selectedMonth }} {{ $selectedYear }})</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Current Delay Status:</span>
+                            <span>{!! format_submission_status_badge($submission->status ?? null, $submission->delay_status ?? null, $submission->delay_reason ?? null) !!}</span>
+                        </div>
+                        @if($submission && !empty($submission->delay_gm_notes))
+                            <div class="pt-2 border-top mt-2 text-primary">
+                                <strong>Last GM Remarks:</strong> {{ $submission->delay_gm_notes }}
+                            </div>
+                        @endif
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">
+                            Detailed Reason for Delay / Reporting Justification <span class="text-danger">*</span>
+                        </label>
+                        <textarea name="delay_reason" class="form-control" rows="4" required placeholder="State why the weekly execution report could not be submitted by Monday 12:30 PM (6:30 LT), operational reasons, and expected time of submission...">{{ $submission->delay_reason ?? ($report->delay_reason ?? '') }}</textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-sm btn-warning fw-semibold">
+                        <i class="fas fa-paper-plane me-1"></i> Submit Justification to GM
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
