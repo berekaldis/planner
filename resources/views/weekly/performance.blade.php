@@ -132,16 +132,15 @@
     </div>
 @endif
     @if(!empty($submission->gm_feedback))
-        <div class="card border-primary mb-4 shadow-sm">
-            <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
-                <span class="fw-bold small"><i class="fas fa-comment-dots me-1"></i> Executive Review Comments from General Manager</span>
-                <span class="small opacity-75">{{ $submission->gm_feedback_at ? format_ethiopian_datetime($submission->gm_feedback_at) : '' }}</span>
-            </div>
-            <div class="card-body bg-light py-2 px-3 small">
-                <p class="mb-0 text-dark">{{ $submission->gm_feedback }}</p>
-            </div>
+    <div class="card border-primary mb-4 shadow-sm">
+        <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
+            <span class="fw-bold small"><i class="fas fa-comment-dots me-1"></i> Executive Review Comments from General Manager</span>
+            <span class="small opacity-75">{{ $submission->gm_feedback_at ? format_ethiopian_datetime($submission->gm_feedback_at) : '' }}</span>
         </div>
-    @endif
+        <div class="card-body bg-light py-2 px-3 small">
+            <p class="mb-0 text-dark">{{ $submission->gm_feedback }}</p>
+        </div>
+    </div>
 @endif
 
 <!-- Execution Metrics -->
