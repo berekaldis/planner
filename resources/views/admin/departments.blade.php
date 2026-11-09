@@ -2,28 +2,66 @@
 
 @section('title', 'Departments Management')
 
+@section('styles')
+<style>
+    /* DataTables Kaldis Custom Styling */
+    .dataTables_wrapper .dataTables_paginate .paginate_button {
+        padding: 0.25rem 0.65rem !important;
+        border-radius: 6px !important;
+        margin: 0 2px !important;
+        font-size: 0.825rem !important;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current,
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+        background: var(--k-gold, #D97706) !important;
+        color: #ffffff !important;
+        border-color: var(--k-gold, #D97706) !important;
+    }
+    .dataTables_wrapper .dataTables_info,
+    .dataTables_wrapper .dataTables_length {
+        font-size: 0.825rem !important;
+        color: var(--bs-secondary-color, #64748B) !important;
+    }
+    .dataTables_wrapper .dataTables_length select {
+        padding: 0.25rem 1.75rem 0.25rem 0.65rem !important;
+        border-radius: 6px !important;
+        font-size: 0.825rem !important;
+        border-color: var(--bs-border-color, #E2E8F0) !important;
+    }
+    .dept-filter-btn.active {
+        background-color: var(--k-gold, #D97706) !important;
+        border-color: var(--k-gold, #D97706) !important;
+        color: #ffffff !important;
+        box-shadow: 0 2px 4px rgba(217, 119, 6, 0.25);
+    }
+    .metric-card-hover {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .metric-card-hover:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.08) !important;
+    }
+</style>
+@endsection
+
 @section('content')
 <div class="container-fluid px-0">
 
     <!-- Header & Action Bar -->
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
         <div>
-            <div class="d-flex align-items-center gap-2 mb-1">
-                <span class="badge bg-warning bg-opacity-10 text-warning px-2.5 py-1 rounded-pill small fw-semibold">
-                    <i class="fas fa-sitemap me-1"></i> Organizational Governance
-                </span>
-                <span class="badge bg-secondary-subtle text-secondary px-2.5 py-1 rounded-pill small font-monospace">
-                    {{ $departments->count() }} Corporate Units
-                </span>
-            </div>
-            <h4 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                Company Departments Directory
+            <h4 class="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="fa-solid fa-sitemap text-warning"></i> Company Departments
             </h4>
-            <p class="text-muted small mb-0">Strategic planning units, department codes, appointed leadership, and annual goal ownership</p>
+            <p class="text-muted small mb-0">Organizational units, department codes, appointed heads, and annual strategy ownership</p>
         </div>
         <div class="d-flex align-items-center gap-2">
-            <button type="button" class="btn btn-warning text-dark fw-bold shadow-sm d-inline-flex align-items-center gap-2 px-3 py-2 rounded-pill" data-bs-toggle="modal" data-bs-target="#createDepartmentModal">
-                <i class="fas fa-plus-circle"></i> Add Department
+            <button type="button" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2 shadow-xs" id="toggleAnalyticsBtn" onclick="toggleDeptAnalytics()">
+                <i class="fa-solid fa-chart-column text-warning"></i>
+                <span id="analyticsBtnText">Show Analytics</span>
+            </button>
+            <button type="button" class="btn btn-warning text-dark fw-bold shadow-sm d-inline-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#createDepartmentModal">
+                <i class="fa-solid fa-plus"></i> Add Department
             </button>
         </div>
     </div>
@@ -31,266 +69,264 @@
     <!-- Quick Metrics Row -->
     <div class="row g-3 mb-4">
         <div class="col-sm-6 col-xl-3">
-            <div class="card border border-light-subtle shadow-sm bg-white mb-0 rounded-4 overflow-hidden h-100">
-                <div class="card-body p-3.5 d-flex align-items-center gap-3">
-                    <div class="rounded-3 bg-warning bg-opacity-10 text-warning d-flex align-items-center justify-content-center flex-shrink-0" style="width: 48px; height: 48px;">
-                        <i class="fas fa-building fs-4"></i>
+            <div class="card border border-light-subtle shadow-sm bg-white mb-0 metric-card-hover rounded-3">
+                <div class="card-body p-3 d-flex align-items-center gap-3">
+                    <div class="rounded-3 bg-warning bg-opacity-10 text-warning d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
+                        <i class="fa-solid fa-building fs-5"></i>
                     </div>
                     <div>
-                        <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.72rem; letter-spacing: 0.05em;">Total Departments</div>
-                        <div class="fw-bold text-dark fs-4 mb-0">{{ $departments->count() }}</div>
-                        <div class="text-muted small" style="font-size: 0.72rem;">Official Corporate Units</div>
+                        <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.72rem; letter-spacing: 0.04em;">Total Departments</div>
+                        <div class="fw-bold text-dark fs-5">{{ $departments->count() }} Units</div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-sm-6 col-xl-3">
-            <div class="card border border-light-subtle shadow-sm bg-white mb-0 rounded-4 overflow-hidden h-100">
-                <div class="card-body p-3.5 d-flex align-items-center gap-3">
-                    <div class="rounded-3 bg-success bg-opacity-10 text-success d-flex align-items-center justify-content-center flex-shrink-0" style="width: 48px; height: 48px;">
-                        <i class="fas fa-circle-check fs-4"></i>
+            <div class="card border border-light-subtle shadow-sm bg-white mb-0 metric-card-hover rounded-3">
+                <div class="card-body p-3 d-flex align-items-center gap-3">
+                    <div class="rounded-3 bg-success bg-opacity-10 text-success d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
+                        <i class="fa-solid fa-circle-check fs-5"></i>
                     </div>
                     <div>
-                        <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.72rem; letter-spacing: 0.05em;">Active Units</div>
-                        <div class="fw-bold text-dark fs-4 mb-0">{{ $departments->where('active', 1)->count() }}</div>
-                        <div class="text-success small fw-medium" style="font-size: 0.72rem;">
-                            {{ $departments->count() > 0 ? round(($departments->where('active', 1)->count() / $departments->count()) * 100) : 0 }}% operational
-                        </div>
+                        <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.72rem; letter-spacing: 0.04em;">Active Units</div>
+                        <div class="fw-bold text-dark fs-5">{{ $departments->where('active', 1)->count() }} Active</div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-sm-6 col-xl-3">
-            <div class="card border border-light-subtle shadow-sm bg-white mb-0 rounded-4 overflow-hidden h-100">
-                <div class="card-body p-3.5 d-flex align-items-center gap-3">
-                    <div class="rounded-3 bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 48px; height: 48px;">
-                        <i class="fas fa-user-tie fs-4"></i>
+            <div class="card border border-light-subtle shadow-sm bg-white mb-0 metric-card-hover rounded-3">
+                <div class="card-body p-3 d-flex align-items-center gap-3">
+                    <div class="rounded-3 bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
+                        <i class="fa-solid fa-user-tie fs-5"></i>
                     </div>
                     <div>
-                        <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.72rem; letter-spacing: 0.05em;">Heads Appointed</div>
-                        <div class="fw-bold text-dark fs-4 mb-0">{{ $departments->whereNotNull('head_user_id')->count() }}</div>
-                        <div class="text-muted small" style="font-size: 0.72rem;">
-                            @php $vacantCount = $departments->whereNull('head_user_id')->count(); @endphp
-                            {{ $vacantCount > 0 ? "{$vacantCount} vacant unit(s)" : "Fully appointed" }}
-                        </div>
+                        <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.72rem; letter-spacing: 0.04em;">Heads Appointed</div>
+                        <div class="fw-bold text-dark fs-5">{{ $departments->whereNotNull('head_user_id')->count() }} / {{ $departments->count() }}</div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-sm-6 col-xl-3">
-            <div class="card border border-light-subtle shadow-sm bg-white mb-0 rounded-4 overflow-hidden h-100">
-                <div class="card-body p-3.5 d-flex align-items-center gap-3">
-                    <div class="rounded-3 bg-info bg-opacity-10 text-info d-flex align-items-center justify-content-center flex-shrink-0" style="width: 48px; height: 48px;">
-                        <i class="fas fa-bullseye fs-4"></i>
+            <div class="card border border-light-subtle shadow-sm bg-white mb-0 metric-card-hover rounded-3">
+                <div class="card-body p-3 d-flex align-items-center gap-3">
+                    <div class="rounded-3 bg-info bg-opacity-10 text-info d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
+                        <i class="fa-solid fa-bullseye fs-5"></i>
                     </div>
                     <div>
-                        <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.72rem; letter-spacing: 0.05em;">Strategic Linkages</div>
-                        <div class="fw-bold text-dark fs-4 mb-0">{{ $departments->sum(fn($d) => $d->annualGoals->count()) }}</div>
-                        <div class="text-muted small" style="font-size: 0.72rem;">Annual Goals Assigned</div>
+                        <div class="text-muted small text-uppercase fw-semibold" style="font-size: 0.72rem; letter-spacing: 0.04em;">Strategic Linkages</div>
+                        <div class="fw-bold text-dark fs-5">{{ $departments->sum(fn($d) => $d->annualGoals->count()) }} Goals</div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Chart.js Strategic Visual Analytics Row -->
-    <div class="row g-3 mb-4">
-        <!-- Chart 1: Strategic Goals Distribution per Department -->
-        <div class="col-lg-8">
-            <div class="card border border-light-subtle shadow-sm bg-white rounded-4 overflow-hidden h-100">
-                <div class="card-header bg-white py-3 border-bottom border-light-subtle d-flex align-items-center justify-content-between">
-                    <div class="d-flex align-items-center gap-2">
-                        <div class="rounded-3 bg-warning bg-opacity-10 text-warning d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-                            <i class="fas fa-chart-column"></i>
-                        </div>
-                        <div>
-                            <h6 class="fw-bold mb-0 text-dark">Strategic Goal Ownership Distribution</h6>
-                            <span class="text-muted" style="font-size: 0.72rem;">Annual strategic targets assigned per organizational unit</span>
-                        </div>
+    <!-- Chart.js Governance & Strategy Analytics (Collapsible) -->
+    <div id="deptAnalyticsSection" class="card border border-light-subtle shadow-sm bg-white rounded-3 mb-4 d-none">
+        <div class="card-header bg-white py-3 border-bottom border-light-subtle d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fa-solid fa-chart-pie text-warning"></i>
+                <h6 class="fw-bold mb-0 text-dark">Strategic Governance & Alignment Insights</h6>
+            </div>
+            <button type="button" class="btn btn-sm btn-link text-muted p-0 text-decoration-none" onclick="toggleDeptAnalytics()">
+                <i class="fa-solid fa-xmark"></i> Close Insights
+            </button>
+        </div>
+        <div class="card-body p-4">
+            <div class="row g-4 align-items-center">
+                <!-- Bar Chart: Annual Goals Allocation by Department -->
+                <div class="col-lg-8 border-end-lg">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="small fw-bold text-uppercase text-secondary mb-0" style="letter-spacing: 0.05em;">
+                            <i class="fa-solid fa-bars-progress text-warning me-1"></i> Strategy Goals Ownership by Department
+                        </h6>
+                        <span class="badge bg-light text-muted border font-monospace small">{{ $annualGoals->count() }} Corporate Goals</span>
                     </div>
-                    <span class="badge bg-light text-secondary border font-monospace small">Chart.js</span>
-                </div>
-                <div class="card-body p-3">
-                    <div style="height: 220px; position: relative;">
+                    <div style="height: 250px; position: relative;">
                         <canvas id="deptGoalsChart"></canvas>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- Chart 2: Governance & Appointment Breakdown -->
-        <div class="col-lg-4">
-            <div class="card border border-light-subtle shadow-sm bg-white rounded-4 overflow-hidden h-100">
-                <div class="card-header bg-white py-3 border-bottom border-light-subtle d-flex align-items-center justify-content-between">
-                    <div class="d-flex align-items-center gap-2">
-                        <div class="rounded-3 bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-                            <i class="fas fa-chart-pie"></i>
-                        </div>
-                        <div>
-                            <h6 class="fw-bold mb-0 text-dark">Leadership Status</h6>
-                            <span class="text-muted" style="font-size: 0.72rem;">Head appointment ratio</span>
-                        </div>
+                <!-- Doughnut Chart: Department Governance & Operational Readiness -->
+                <div class="col-lg-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="small fw-bold text-uppercase text-secondary mb-0" style="letter-spacing: 0.05em;">
+                            <i class="fa-solid fa-shield-halved text-success me-1"></i> Governance Readiness
+                        </h6>
                     </div>
-                    <span class="badge bg-light text-secondary border font-monospace small">Ratio</span>
-                </div>
-                <div class="card-body p-3 d-flex flex-column align-items-center justify-content-center">
-                    <div style="height: 190px; width: 100%; position: relative;">
+                    <div style="height: 250px; position: relative;">
                         <canvas id="deptGovernanceChart"></canvas>
-                    </div>
-                    <div class="d-flex justify-content-center gap-3 mt-2" style="font-size: 0.75rem;">
-                        <span class="d-flex align-items-center gap-1.5 text-muted">
-                            <span class="d-inline-block rounded-circle" style="width: 10px; height: 10px; background: #059669;"></span> Appointed ({{ $departments->whereNotNull('head_user_id')->count() }})
-                        </span>
-                        <span class="d-flex align-items-center gap-1.5 text-muted">
-                            <span class="d-inline-block rounded-circle" style="width: 10px; height: 10px; background: #F59E0B;"></span> Vacant ({{ $departments->whereNull('head_user_id')->count() }})
-                        </span>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Departments DataTables Card -->
-    <div class="card border border-light-subtle shadow-sm bg-white rounded-4 overflow-hidden mb-4">
-        <!-- Card Header with Filter Pills -->
+    <!-- Departments Directory Table Card with DataTables -->
+    <div class="card border border-light-subtle shadow-sm bg-white rounded-3">
         <div class="card-header bg-white py-3 border-bottom border-light-subtle">
-            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
-                <div class="d-flex align-items-center gap-2">
-                    <h6 class="fw-bold mb-0 text-dark">Operational Units Directory</h6>
-                    <span class="badge bg-dark font-monospace">{{ $departments->count() }} Registered</span>
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2 me-2">
+                        <h6 class="fw-bold mb-0 text-dark">Directory of Operational Units</h6>
+                        <span class="badge bg-secondary-subtle text-secondary font-monospace">{{ $departments->count() }} Registered</span>
+                    </div>
+                    <!-- Quick Filter Buttons -->
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Department Filter">
+                        <button type="button" class="btn btn-outline-secondary active dept-filter-btn" data-filter="all">All ({{ $departments->count() }})</button>
+                        <button type="button" class="btn btn-outline-secondary dept-filter-btn" data-filter="active">Active ({{ $departments->where('active', 1)->count() }})</button>
+                        <button type="button" class="btn btn-outline-secondary dept-filter-btn" data-filter="inactive">Inactive ({{ $departments->where('active', 0)->count() }})</button>
+                        <button type="button" class="btn btn-outline-secondary dept-filter-btn" data-filter="head">With Head ({{ $departments->whereNotNull('head_user_id')->count() }})</button>
+                    </div>
                 </div>
-                
-                <!-- Quick Filter Pills -->
-                <div class="react-nav-pills flex-wrap" id="deptFilterPills">
-                    <button type="button" class="nav-link active" data-filter="all">
-                        <i class="fas fa-layer-group"></i> All ({{ $departments->count() }})
-                    </button>
-                    <button type="button" class="nav-link" data-filter="active">
-                        <i class="fas fa-circle-check text-success"></i> Active ({{ $departments->where('active', 1)->count() }})
-                    </button>
-                    <button type="button" class="nav-link" data-filter="inactive">
-                        <i class="fas fa-power-off text-muted"></i> Inactive ({{ $departments->where('active', 0)->count() }})
-                    </button>
-                    <button type="button" class="nav-link" data-filter="appointed">
-                        <i class="fas fa-user-check text-primary"></i> Appointed ({{ $departments->whereNotNull('head_user_id')->count() }})
-                    </button>
-                    <button type="button" class="nav-link" data-filter="vacant">
-                        <i class="fas fa-user-slash text-warning"></i> Vacant ({{ $departments->whereNull('head_user_id')->count() }})
-                    </button>
+                <div class="w-100 w-lg-auto" style="min-width: 260px;">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-light border-light-subtle text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
+                        <input type="text" id="deptSearchInput" class="form-control bg-light border-light-subtle" placeholder="Instant filter departments...">
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="p-3">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0 w-100" id="departmentsDataTable" style="font-size: 0.88rem;">
-                    <thead class="table-light">
-                        <tr>
-                            <th style="width: 100px;">Code</th>
-                            <th>Department Name</th>
-                            <th>Appointed Head</th>
-                            <th>Strategy Goals Owned</th>
-                            <th style="width: 110px;">Status</th>
-                            <th style="width: 140px;" class="text-end text-nowrap">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($departments as $dept)
-                            @php
-                                $goalIds = $dept->annualGoals->pluck('id')->toArray();
-                                $goalsCount = $dept->annualGoals->count();
-                            @endphp
-                            <tr data-dept-id="{{ $dept->id }}" data-active="{{ $dept->active ? '1' : '0' }}" data-has-head="{{ $dept->head_user_id ? '1' : '0' }}">
-                                <td>
-                                    <span class="badge bg-dark font-monospace px-2.5 py-1.5 shadow-2xs">{{ $dept->department_code }}</span>
-                                </td>
-                                <td>
-                                    <strong class="text-dark fs-6 d-block">{{ $dept->department_name }}</strong>
-                                    <span class="text-muted small" style="font-size: 0.75rem;">Created {{ $dept->created_at ? $dept->created_at->format('M Y') : 'System Initialized' }}</span>
-                                </td>
-                                <td>
-                                    @if($dept->head)
-                                        <div class="d-flex align-items-center gap-2">
-                                            <div class="rounded-circle bg-warning bg-opacity-20 text-dark d-flex align-items-center justify-content-center fw-bold flex-shrink-0" style="width: 30px; height: 30px; font-size: 0.78rem;">
-                                                {{ strtoupper(substr($dept->head->full_name, 0, 1)) }}
-                                            </div>
-                                            <div>
-                                                <div class="fw-semibold text-dark">{{ $dept->head->full_name }}</div>
-                                                <span class="text-muted small" style="font-size: 0.72rem;">@ {{ $dept->head->username }}</span>
-                                            </div>
-                                        </div>
-                                    @else
-                                        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle px-2 py-1">
-                                            <i class="fas fa-circle-exclamation me-1"></i> Vacant / Not Appointed
-                                        </span>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if($goalsCount > 0)
-                                        <div class="d-flex flex-wrap align-items-center gap-1">
-                                            @foreach($dept->annualGoals->take(4) as $goal)
-                                                <span class="badge bg-light text-secondary border font-monospace" style="font-size: 0.72rem;" title="{{ $goal->goal_description }}">
-                                                    {{ $goal->goal_code }}
-                                                </span>
-                                            @endforeach
-                                            @if($goalsCount > 4)
-                                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle font-monospace" style="font-size: 0.72rem;">+{{ $goalsCount - 4 }} more</span>
-                                            @endif
-                                            <span class="badge bg-secondary-subtle text-secondary small ms-1 font-monospace">{{ $goalsCount }} {{ Str::plural('Goal', $goalsCount) }}</span>
-                                        </div>
-                                    @else
-                                        <span class="text-muted small fst-italic">
-                                            <i class="fas fa-minus-circle text-muted me-1"></i> No strategic goals
-                                        </span>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if($dept->active)
-                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 rounded-pill">
-                                            <i class="fas fa-circle text-success me-1" style="font-size: 0.5rem;"></i> Active
-                                        </span>
-                                    @else
-                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2.5 py-1 rounded-pill">
-                                            <i class="fas fa-circle text-secondary me-1" style="font-size: 0.5rem;"></i> Inactive
-                                        </span>
-                                    @endif
-                                </td>
-                                <td class="text-end text-nowrap">
-                                    <div class="btn-group btn-group-sm">
-                                        <button type="button" class="btn btn-outline-secondary edit-dept-btn px-2.5" 
-                                                data-bs-toggle="modal" 
-                                                data-bs-target="#editDepartmentModal"
-                                                data-id="{{ $dept->id }}"
-                                                data-code="{{ $dept->department_code }}"
-                                                data-name="{{ $dept->department_name }}"
-                                                data-head="{{ $dept->head_user_id }}"
-                                                data-active="{{ $dept->active }}"
-                                                data-goals="{{ json_encode($goalIds) }}"
-                                                title="Edit Department">
-                                            <i class="fas fa-pen-to-square text-primary me-1"></i> Edit
-                                        </button>
-                                        <button type="button" class="btn btn-outline-danger delete-dept-btn px-2.5"
-                                                data-id="{{ $dept->id }}"
-                                                data-code="{{ $dept->department_code }}"
-                                                data-name="{{ $dept->department_name }}"
-                                                data-goals-count="{{ $goalsCount }}"
-                                                title="Deactivate or Remove Department">
-                                            <i class="fas fa-trash-can me-1"></i> Remove
-                                        </button>
+        <div class="table-responsive p-3">
+            <table class="table table-hover align-middle mb-0 w-100" id="departmentsTable" style="font-size: 0.88rem;">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 90px;" class="text-center">Code</th>
+                        <th>Department Name</th>
+                        <th>Appointed Head</th>
+                        <th>Strategy Goals Owned</th>
+                        <th style="width: 110px;" class="text-center">Status</th>
+                        <th style="width: 140px;" class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($departments as $dept)
+                        @php
+                            $goalIds = $dept->annualGoals->pluck('id')->toArray();
+                            $hasHead = !empty($dept->head_user_id);
+                        @endphp
+                        <tr data-status="{{ $dept->active ? 'active' : 'inactive' }}" data-has-head="{{ $hasHead ? 'yes' : 'no' }}">
+                            <td class="text-center">
+                                <span class="badge bg-dark font-monospace px-2 py-1 shadow-xs">{{ $dept->department_code }}</span>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="rounded-2 bg-light text-secondary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 32px; height: 32px;">
+                                        <i class="fa-solid fa-building-user text-muted" style="font-size: 0.85rem;"></i>
                                     </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="6" class="text-center py-5 text-muted">
-                                    <i class="fas fa-building fa-2x mb-2 opacity-25 d-block"></i>
-                                    No departments found. Click "Add Department" above to create one.
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+                                    <div>
+                                        <strong class="text-dark d-block">{{ $dept->department_name }}</strong>
+                                        <span class="text-muted small font-monospace" style="font-size: 0.72rem;">ID: #{{ $dept->id }}</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                @if($dept->head)
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="rounded-circle bg-warning bg-opacity-20 text-dark d-flex align-items-center justify-content-center fw-bold" style="width: 28px; height: 28px; font-size: 0.75rem;">
+                                            {{ strtoupper(substr($dept->head->full_name, 0, 1)) }}
+                                        </div>
+                                        <div>
+                                            <span class="fw-semibold text-dark d-block">{{ $dept->head->full_name }}</span>
+                                            <span class="text-muted small" style="font-size: 0.72rem;">{{ $dept->head->username }}</span>
+                                        </div>
+                                    </div>
+                                @else
+                                    <span class="text-muted small fst-italic d-inline-flex align-items-center gap-1">
+                                        <i class="fa-solid fa-circle-question text-muted opacity-50"></i> Not Appointed
+                                    </span>
+                                @endif
+                            </td>
+                            <td>
+                                @if($dept->annualGoals->isNotEmpty())
+                                    <div class="d-flex flex-wrap gap-1">
+                                        @foreach($dept->annualGoals->take(4) as $goal)
+                                            <span class="badge bg-light text-secondary border font-monospace" style="font-size: 0.7rem;" title="{{ $goal->goal_description }}">
+                                                {{ $goal->goal_code }}
+                                            </span>
+                                        @endforeach
+                                        @if($dept->annualGoals->count() > 4)
+                                            <span class="badge bg-light text-muted border font-monospace" style="font-size: 0.7rem;">+{{ $dept->annualGoals->count() - 4 }} more</span>
+                                        @endif
+                                    </div>
+                                @else
+                                    <span class="text-muted small fst-italic">No goals assigned</span>
+                                @endif
+                            </td>
+                            <td class="text-center">
+                                @if($dept->active)
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                        <i class="fa-solid fa-circle text-success me-1" style="font-size: 0.5rem;"></i> Active
+                                    </span>
+                                @else
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1">
+                                        <i class="fa-solid fa-circle text-secondary me-1" style="font-size: 0.5rem;"></i> Inactive
+                                    </span>
+                                @endif
+                            </td>
+                            <td class="text-end">
+                                <div class="btn-group btn-group-sm">
+                                    <!-- Edit Department -->
+                                    <button type="button" class="btn btn-outline-secondary edit-dept-btn" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#editDepartmentModal"
+                                            data-id="{{ $dept->id }}"
+                                            data-code="{{ $dept->department_code }}"
+                                            data-name="{{ $dept->department_name }}"
+                                            data-head="{{ $dept->head_user_id }}"
+                                            data-active="{{ $dept->active }}"
+                                            data-goals="{{ json_encode($goalIds) }}"
+                                            title="Edit Department">
+                                        <i class="fa-solid fa-pencil"></i>
+                                    </button>
+
+                                    @if($dept->active)
+                                        <!-- Deactivate / Delete Action -->
+                                        <button type="button" class="btn btn-outline-danger delete-dept-btn"
+                                                data-id="{{ $dept->id }}"
+                                                data-name="{{ $dept->department_name }}"
+                                                data-code="{{ $dept->department_code }}"
+                                                data-active="1"
+                                                data-goals="{{ $dept->annualGoals->count() }}"
+                                                data-head="{{ $dept->head ? $dept->head->full_name : 'No Head' }}"
+                                                title="Deactivate or Remove Department">
+                                            <i class="fa-solid fa-power-off"></i>
+                                        </button>
+                                    @else
+                                        <!-- Reactivate Button -->
+                                        <button type="button" class="btn btn-outline-success reactivate-dept-btn"
+                                                data-id="{{ $dept->id }}"
+                                                data-name="{{ $dept->department_name }}"
+                                                data-code="{{ $dept->department_code }}"
+                                                title="Reactivate Department">
+                                            <i class="fa-solid fa-rotate-left"></i>
+                                        </button>
+                                        <!-- Permanent Delete Action for Inactive -->
+                                        <button type="button" class="btn btn-outline-danger delete-dept-btn"
+                                                data-id="{{ $dept->id }}"
+                                                data-name="{{ $dept->department_name }}"
+                                                data-code="{{ $dept->department_code }}"
+                                                data-active="0"
+                                                data-goals="{{ $dept->annualGoals->count() }}"
+                                                data-head="{{ $dept->head ? $dept->head->full_name : 'No Head' }}"
+                                                title="Permanently Remove Inactive Department">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted">
+                                <i class="fa-solid fa-building fa-2x mb-2 opacity-25 d-block"></i>
+                                No departments found. Click "Add Department" above to create one.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -302,105 +338,69 @@
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
             <div class="modal-header bg-warning bg-opacity-10 py-3 border-bottom border-light-subtle">
-                <div class="d-flex align-items-center gap-2.5">
-                    <div class="rounded-3 bg-warning text-dark d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
-                        <i class="fas fa-plus-circle fs-5"></i>
-                    </div>
-                    <div>
-                        <h5 class="modal-title fw-bold text-dark mb-0" id="createDepartmentModalLabel">
-                            Create New Department
-                        </h5>
-                        <small class="text-muted">Register a strategic organizational unit and allocate strategy ownership</small>
-                    </div>
-                </div>
+                <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2" id="createDepartmentModalLabel">
+                    <i class="fa-solid fa-plus-circle text-warning"></i> Create New Department
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form method="POST" action="{{ route('admin.departments.store') }}" id="createDepartmentForm">
                 @csrf
                 <div class="modal-body p-4">
-                    <!-- Live Preview Pill Card -->
-                    <div class="p-3 mb-4 rounded-3 border border-light-subtle bg-light d-flex align-items-center justify-content-between">
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="text-muted small fw-semibold">Live Preview:</span>
-                            <span class="badge bg-dark font-monospace px-2.5 py-1" id="previewCodeBadge">NEW</span>
-                            <span class="fw-bold text-dark" id="previewNameLabel">New Department Name</span>
-                        </div>
-                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 small" id="previewStatusBadge">Active</span>
-                    </div>
-
                     <div class="row g-3 mb-3">
                         <div class="col-md-4">
-                            <label class="form-label small fw-semibold text-secondary">
-                                Department Code <span class="text-danger">*</span>
-                            </label>
+                            <label class="form-label small fw-semibold text-secondary">Department Code <span class="text-danger">*</span></label>
                             <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-barcode"></i></span>
-                                <input type="text" name="department_code" id="createDeptCodeInput" class="form-control font-monospace text-uppercase border-start-0" placeholder="e.g. BD" maxlength="20" required value="{{ old('department_code') }}">
+                                <span class="input-group-text bg-light border-light-subtle text-muted"><i class="fa-solid fa-id-badge"></i></span>
+                                <input type="text" name="department_code" class="form-control font-monospace text-uppercase" placeholder="e.g. MKT" maxlength="20" required oninput="this.value = this.value.toUpperCase();">
                             </div>
-                            <div class="form-text small">Short unique code (e.g. IT, OPS, MKT, SCM)</div>
+                            <div class="form-text small">Short identifier (e.g. OPS, FIN, HR)</div>
                         </div>
                         <div class="col-md-8">
-                            <label class="form-label small fw-semibold text-secondary">
-                                Department Name <span class="text-danger">*</span>
-                            </label>
+                            <label class="form-label small fw-semibold text-secondary">Department Name <span class="text-danger">*</span></label>
                             <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-building"></i></span>
-                                <input type="text" name="department_name" id="createDeptNameInput" class="form-control border-start-0" placeholder="e.g. Business Development & Partnerships" maxlength="150" required value="{{ old('department_name') }}">
+                                <span class="input-group-text bg-light border-light-subtle text-muted"><i class="fa-solid fa-building"></i></span>
+                                <input type="text" name="department_name" class="form-control" placeholder="e.g. Marketing & Corporate Communications" maxlength="150" required>
                             </div>
-                            <div class="form-text small">Full official corporate title</div>
                         </div>
                     </div>
 
                     <div class="row g-3 mb-3">
                         <div class="col-md-8">
-                            <label class="form-label small fw-semibold text-secondary">
-                                Appointed Department Head
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-user-tie"></i></span>
-                                <select name="head_user_id" id="createDeptHeadSelect" class="form-select border-start-0">
-                                    <option value="">-- No Head Appointed Yet --</option>
-                                    @foreach($users as $u)
-                                        <option value="{{ $u->id }}" {{ old('head_user_id') == $u->id ? 'selected' : '' }}>
-                                            {{ $u->full_name }} ({{ $u->username }})
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="form-text small">Appointed leader responsible for quarterly & monthly plans</div>
+                            <label class="form-label small fw-semibold text-secondary">Appointed Department Head</label>
+                            <select name="head_user_id" class="form-select">
+                                <option value="">-- No Head Appointed Yet --</option>
+                                @foreach($users as $u)
+                                    <option value="{{ $u->id }}">{{ $u->full_name }} ({{ $u->username }})</option>
+                                @endforeach
+                            </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label small fw-semibold text-secondary">
-                                Status
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-toggle-on"></i></span>
-                                <select name="active" id="createDeptActiveSelect" class="form-select border-start-0">
-                                    <option value="1" {{ old('active', '1') == '1' ? 'selected' : '' }}>Active</option>
-                                    <option value="0" {{ old('active') == '0' ? 'selected' : '' }}>Inactive</option>
-                                </select>
-                            </div>
+                            <label class="form-label small fw-semibold text-secondary">Status</label>
+                            <select name="active" class="form-select">
+                                <option value="1" selected>Active</option>
+                                <option value="0">Inactive</option>
+                            </select>
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label small fw-semibold text-secondary">
-                            Assigned Annual Strategy Goals (Ownership)
-                        </label>
-                        <select name="annual_goal_ids[]" id="createDeptGoalsSelect" class="form-select" multiple placeholder="Search & select strategic goals owned by this department...">
+                        <label class="form-label small fw-semibold text-secondary">Assigned Annual Strategy Goals (Ownership)</label>
+                        <select name="annual_goal_ids[]" class="form-select" multiple placeholder="Select strategic goals owned by this department...">
                             @foreach($annualGoals as $g)
-                                <option value="{{ $g->id }}" {{ in_array($g->id, old('annual_goal_ids', [])) ? 'selected' : '' }}>
+                                <option value="{{ $g->id }}">
                                     [{{ $g->goal_code }}] {{ Str::limit($g->goal_description, 80) }}
                                 </option>
                             @endforeach
                         </select>
-                        <div class="form-text small">Link strategic annual goals that this department owns and reports on.</div>
+                        <div class="form-text small">Link goals that this department is responsible for achieving.</div>
                     </div>
                 </div>
-                <div class="modal-footer bg-light py-2.5 px-4 border-top border-light-subtle d-flex justify-content-between align-items-center">
-                    <button type="button" class="btn btn-sm btn-light border rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-sm btn-warning text-dark fw-bold px-4 rounded-pill shadow-xs" id="createDeptSubmitBtn">
-                        <i class="fas fa-plus-circle me-1"></i> Save Department
+                <div class="modal-footer bg-light py-2 px-4 border-top border-light-subtle">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" id="createDeptSubmitBtn" class="btn btn-sm btn-warning text-dark fw-bold px-4 d-inline-flex align-items-center gap-2">
+                        <span class="spinner-border spinner-border-sm d-none" role="status"></span>
+                        <i class="fa-solid fa-check"></i>
+                        <span>Create Department</span>
                     </button>
                 </div>
             </form>
@@ -415,17 +415,9 @@
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
             <div class="modal-header bg-light py-3 border-bottom border-light-subtle">
-                <div class="d-flex align-items-center gap-2.5">
-                    <div class="rounded-3 bg-secondary bg-opacity-10 text-dark d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
-                        <i class="fas fa-pen-to-square fs-5 text-warning"></i>
-                    </div>
-                    <div>
-                        <h5 class="modal-title fw-bold text-dark mb-0" id="editDepartmentModalLabel">
-                            Edit Department Configuration
-                        </h5>
-                        <small class="text-muted">Update department code, title, appointed head, and goal linkages</small>
-                    </div>
-                </div>
+                <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2" id="editDepartmentModalLabel">
+                    <i class="fa-solid fa-pencil text-warning"></i> Edit Department
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form method="POST" id="editDepartmentForm" action="">
@@ -434,56 +426,42 @@
                 <div class="modal-body p-4">
                     <div class="row g-3 mb-3">
                         <div class="col-md-4">
-                            <label class="form-label small fw-semibold text-secondary">
-                                Department Code <span class="text-danger">*</span>
-                            </label>
+                            <label class="form-label small fw-semibold text-secondary">Department Code <span class="text-danger">*</span></label>
                             <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-barcode"></i></span>
-                                <input type="text" name="department_code" id="editDeptCode" class="form-control font-monospace text-uppercase border-start-0" maxlength="20" required>
+                                <span class="input-group-text bg-light border-light-subtle text-muted"><i class="fa-solid fa-id-badge"></i></span>
+                                <input type="text" name="department_code" id="editDeptCode" class="form-control font-monospace text-uppercase" maxlength="20" required oninput="this.value = this.value.toUpperCase();">
                             </div>
                         </div>
                         <div class="col-md-8">
-                            <label class="form-label small fw-semibold text-secondary">
-                                Department Name <span class="text-danger">*</span>
-                            </label>
+                            <label class="form-label small fw-semibold text-secondary">Department Name <span class="text-danger">*</span></label>
                             <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-building"></i></span>
-                                <input type="text" name="department_name" id="editDeptName" class="form-control border-start-0" maxlength="150" required>
+                                <span class="input-group-text bg-light border-light-subtle text-muted"><i class="fa-solid fa-building"></i></span>
+                                <input type="text" name="department_name" id="editDeptName" class="form-control" maxlength="150" required>
                             </div>
                         </div>
                     </div>
 
                     <div class="row g-3 mb-3">
                         <div class="col-md-8">
-                            <label class="form-label small fw-semibold text-secondary">
-                                Appointed Department Head
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-user-tie"></i></span>
-                                <select name="head_user_id" id="editDeptHead" class="form-select border-start-0">
-                                    <option value="">-- No Head Appointed Yet --</option>
-                                    @foreach($users as $u)
-                                        <option value="{{ $u->id }}">{{ $u->full_name }} ({{ $u->username }})</option>
-                                    @endforeach
-                                </select>
-                            </div>
+                            <label class="form-label small fw-semibold text-secondary">Appointed Department Head</label>
+                            <select name="head_user_id" id="editDeptHead" class="form-select">
+                                <option value="">-- No Head Appointed Yet --</option>
+                                @foreach($users as $u)
+                                    <option value="{{ $u->id }}">{{ $u->full_name }} ({{ $u->username }})</option>
+                                @endforeach
+                            </select>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label small fw-semibold text-secondary">Status</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-toggle-on"></i></span>
-                                <select name="active" id="editDeptActive" class="form-select border-start-0">
-                                    <option value="1">Active</option>
-                                    <option value="0">Inactive</option>
-                                </select>
-                            </div>
+                            <select name="active" id="editDeptActive" class="form-select">
+                                <option value="1">Active</option>
+                                <option value="0">Inactive</option>
+                            </select>
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label small fw-semibold text-secondary">
-                            Assigned Annual Strategy Goals
-                        </label>
+                        <label class="form-label small fw-semibold text-secondary">Assigned Annual Strategy Goals</label>
                         <select name="annual_goal_ids[]" id="editDeptGoals" class="form-select" multiple placeholder="Select strategic goals owned by this department...">
                             @foreach($annualGoals as $g)
                                 <option value="{{ $g->id }}">
@@ -493,10 +471,12 @@
                         </select>
                     </div>
                 </div>
-                <div class="modal-footer bg-light py-2.5 px-4 border-top border-light-subtle d-flex justify-content-between align-items-center">
-                    <button type="button" class="btn btn-sm btn-light border rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-sm btn-warning text-dark fw-bold px-4 rounded-pill shadow-xs" id="editDeptSubmitBtn">
-                        <i class="fas fa-check-circle me-1"></i> Update Department
+                <div class="modal-footer bg-light py-2 px-4 border-top border-light-subtle">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" id="editDeptSubmitBtn" class="btn btn-sm btn-warning text-dark fw-bold px-4 d-inline-flex align-items-center gap-2">
+                        <span class="spinner-border spinner-border-sm d-none" role="status"></span>
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>Update Department</span>
                     </button>
                 </div>
             </form>
@@ -505,45 +485,93 @@
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
-     DELETE / DEACTIVATE CONFIRMATION MODAL
+     DELETE / DEACTIVATE CONFIRMATION MODAL (ENHANCED UX)
      ══════════════════════════════════════════════════════════ -->
 <div class="modal fade" id="deleteDepartmentModal" tabindex="-1" aria-labelledby="deleteDepartmentModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-            <div class="modal-body p-4 text-center">
-                <div class="mx-auto mb-3 rounded-circle d-flex align-items-center justify-content-center bg-danger-subtle text-danger" style="width: 60px; height: 60px; font-size: 1.6rem;">
-                    <i class="fas fa-triangle-exclamation"></i>
+            <div class="modal-header border-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-start">
+                <div class="rounded-circle bg-danger bg-opacity-10 text-danger d-flex align-items-center justify-content-center" style="width: 52px; height: 52px;">
+                    <i class="fa-solid fa-triangle-exclamation fs-4"></i>
                 </div>
-                <h5 class="fw-bold text-dark mb-1" id="deleteDepartmentModalLabel">
-                    Remove or Deactivate Department?
-                </h5>
-                <p class="text-muted small mb-3">You are about to remove the following organizational unit:</p>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 pt-3 pb-2">
+                <h5 class="fw-bold text-dark mb-1" id="deleteDepartmentModalLabel">Remove / Deactivate Department</h5>
+                <p class="text-muted small mb-3">Please review the organizational impact before proceeding.</p>
 
-                <!-- Department Focus Card -->
-                <div class="p-3 mb-3 rounded-3 border border-danger-subtle bg-danger-subtle bg-opacity-25 text-start">
-                    <div class="d-flex align-items-center gap-2 mb-1">
-                        <span class="badge bg-dark font-monospace px-2.5 py-1" id="deleteDeptCodeBadge">CODE</span>
-                        <strong class="text-dark fs-6" id="deleteDeptNameLabel">Department Name</strong>
+                <!-- Department Details Card -->
+                <div class="card border border-light-subtle rounded-3 bg-light bg-opacity-50 p-3 mb-3">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="badge bg-dark font-monospace px-2 py-1" id="delModalCode">--</span>
+                        <span id="delModalStatusBadge" class="badge">--</span>
                     </div>
-                    <div class="small text-danger" id="deleteDeptGoalsNotice">
-                        <i class="fas fa-info-circle me-1"></i> Linked to strategic goals and historical activity.
+                    <h6 class="fw-bold text-dark mb-1" id="delModalName">--</h6>
+                    <div class="small text-muted d-flex align-items-center gap-3 mt-2">
+                        <span><i class="fa-solid fa-bullseye text-warning me-1"></i> <span id="delModalGoalsCount">0</span> Goals Linked</span>
+                        <span><i class="fa-solid fa-user-tie text-primary me-1"></i> <span id="delModalHeadStatus">No Head</span></span>
                     </div>
                 </div>
 
-                <div class="alert alert-warning text-start small mb-4 py-2.5 px-3 border border-warning-subtle" style="font-size: 0.8rem;">
-                    <i class="fas fa-shield-halved text-warning me-1.5"></i>
-                    <strong>Organizational Audit Trail Protection:</strong> If this department has linked historical plans, weekly tasks, or registered user accounts, it will be safely marked <strong>INACTIVE</strong> to preserve reporting records. If completely unused, it will be permanently deleted.
+                <!-- Audit Protection Notice -->
+                <div class="alert alert-warning border-0 bg-warning bg-opacity-10 py-2.5 px-3 small d-flex align-items-start gap-2 mb-0">
+                    <i class="fa-solid fa-shield-halved text-warning mt-1 flex-shrink-0"></i>
+                    <div class="text-muted" style="line-height: 1.45;">
+                        <strong class="text-dark">Audit Protection Safeguard:</strong>
+                        If this department has associated operational records (monthly plans, weekly performance tasks, or active user accounts), the system will safely mark it <strong>INACTIVE</strong> instead of hard-deleting it to preserve corporate audit trails.
+                    </div>
                 </div>
-
-                <form method="POST" id="deleteDepartmentForm" action="">
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-2 d-flex justify-content-end gap-2">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteDepartmentForm" method="POST" action="">
                     @csrf
                     @method('DELETE')
-                    <div class="d-flex justify-content-center gap-2">
-                        <button type="button" class="btn btn-light border px-4 rounded-pill fw-semibold" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-danger px-4 rounded-pill fw-semibold shadow-xs" id="deleteDeptSubmitBtn">
-                            <i class="fas fa-trash-can me-1"></i> Confirm Deactivation / Removal
-                        </button>
+                    <button type="submit" id="confirmDeleteSubmitBtn" class="btn btn-danger fw-bold d-inline-flex align-items-center gap-2">
+                        <span class="spinner-border spinner-border-sm d-none" role="status"></span>
+                        <i class="fa-solid fa-power-off"></i>
+                        <span id="confirmDeleteBtnText">Confirm Action</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     REACTIVATE CONFIRMATION MODAL
+     ══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="reactivateDepartmentModal" tabindex="-1" aria-labelledby="reactivateDepartmentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header border-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-start">
+                <div class="rounded-circle bg-success bg-opacity-10 text-success d-flex align-items-center justify-content-center" style="width: 52px; height: 52px;">
+                    <i class="fa-solid fa-rotate-left fs-4"></i>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 pt-3 pb-2">
+                <h5 class="fw-bold text-dark mb-1" id="reactivateDepartmentModalLabel">Reactivate Department</h5>
+                <p class="text-muted small mb-3">Re-enable this department for organizational planning and reporting.</p>
+
+                <div class="card border border-light-subtle rounded-3 bg-light bg-opacity-50 p-3 mb-2">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="badge bg-dark font-monospace px-2 py-1" id="reactModalCode">--</span>
+                        <span class="badge bg-secondary-subtle text-secondary">Currently Inactive</span>
                     </div>
+                    <h6 class="fw-bold text-dark mb-0" id="reactModalName">--</h6>
+                </div>
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-2 d-flex justify-content-end gap-2">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="reactivateDepartmentForm" method="POST" action="">
+                    @csrf
+                    @method('PATCH')
+                    <button type="submit" id="confirmReactivateSubmitBtn" class="btn btn-success fw-bold d-inline-flex align-items-center gap-2">
+                        <span class="spinner-border spinner-border-sm d-none" role="status"></span>
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span>Reactivate Unit</span>
+                    </button>
                 </form>
             </div>
         </div>
@@ -553,42 +581,46 @@
 
 @section('scripts')
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // ══════════════════════════════════════════════════════════
-        // 1. Chart.js Visualizations
-        // ══════════════════════════════════════════════════════════
-        @php
-            $chartLabels = $departments->pluck('department_code')->toArray();
-            $chartGoals = $departments->map(fn($d) => $d->annualGoals->count())->toArray();
-            $headsAppointedCount = $departments->whereNotNull('head_user_id')->count();
-            $headsVacantCount = $departments->whereNull('head_user_id')->count();
-        @endphp
+    // Toggle Analytics Section
+    function toggleDeptAnalytics() {
+        const sec = document.getElementById('deptAnalyticsSection');
+        const btnText = document.getElementById('analyticsBtnText');
+        if (!sec) return;
+        const isHidden = sec.classList.contains('d-none');
+        if (isHidden) {
+            sec.classList.remove('d-none');
+            btnText.textContent = 'Hide Analytics';
+            initDeptCharts();
+        } else {
+            sec.classList.add('d-none');
+            btnText.textContent = 'Show Analytics';
+        }
+    }
 
-        const chartLabels = @json($chartLabels);
-        const chartGoals = @json($chartGoals);
-        const headsAppointed = {{ $headsAppointedCount }};
-        const headsVacant = {{ $headsVacantCount }};
+    let chartsInitialized = false;
+    function initDeptCharts() {
+        if (chartsInitialized) return;
+        chartsInitialized = true;
 
-        // Chart 1: Goals per Department
+        // 1. Strategic Goals Ownership Chart
+        const deptLabels = {!! json_encode($departments->pluck('department_code')) !!};
+        const deptNames = {!! json_encode($departments->pluck('department_name')) !!};
+        const deptGoalCounts = {!! json_encode($departments->map(fn($d) => $d->annualGoals->count())) !!};
+
         const goalsCanvas = document.getElementById('deptGoalsChart');
-        if (goalsCanvas && typeof Chart !== 'undefined') {
-            const ctx = goalsCanvas.getContext('2d');
-            const goldGradient = ctx.createLinearGradient(0, 0, 0, 220);
-            goldGradient.addColorStop(0, 'rgba(245, 158, 11, 0.9)');
-            goldGradient.addColorStop(1, 'rgba(217, 119, 6, 0.45)');
-
-            new Chart(ctx, {
+        if (goalsCanvas) {
+            new Chart(goalsCanvas, {
                 type: 'bar',
                 data: {
-                    labels: chartLabels,
+                    labels: deptLabels,
                     datasets: [{
-                        label: 'Strategic Goals Owned',
-                        data: chartGoals,
-                        backgroundColor: goldGradient,
+                        label: 'Annual Strategy Goals',
+                        data: deptGoalCounts,
+                        backgroundColor: 'rgba(217, 119, 6, 0.75)',
                         borderColor: '#D97706',
                         borderWidth: 1.5,
                         borderRadius: 6,
-                        maxBarThickness: 28,
+                        hoverBackgroundColor: '#B45309'
                     }]
                 },
                 options: {
@@ -598,8 +630,12 @@
                         legend: { display: false },
                         tooltip: {
                             callbacks: {
-                                label: function(context) {
-                                    return context.parsed.y + ' Strategic Annual Goals Assigned';
+                                title: function(items) {
+                                    const idx = items[0].dataIndex;
+                                    return deptNames[idx] + ' (' + deptLabels[idx] + ')';
+                                },
+                                label: function(item) {
+                                    return ' ' + item.raw + ' Strategic Goals Assigned';
                                 }
                             }
                         }
@@ -607,161 +643,125 @@
                     scales: {
                         y: {
                             beginAtZero: true,
-                            ticks: { precision: 0, font: { family: 'JetBrains Mono', size: 11 } },
+                            ticks: { precision: 0, stepSize: 1 },
                             grid: { color: 'rgba(0, 0, 0, 0.05)' }
                         },
                         x: {
-                            ticks: { font: { family: 'JetBrains Mono', weight: 'bold', size: 10 } },
-                            grid: { display: false }
+                            grid: { display: false },
+                            ticks: { font: { family: 'JetBrains Mono', size: 10 } }
                         }
                     }
                 }
             });
         }
 
-        // Chart 2: Governance Ratio Donut
+        // 2. Governance Readiness Doughnut Chart
         const govCanvas = document.getElementById('deptGovernanceChart');
-        if (govCanvas && typeof Chart !== 'undefined') {
-            const ctx2 = govCanvas.getContext('2d');
-            new Chart(ctx2, {
+        if (govCanvas) {
+            const activeWithHead = {{ $departments->where('active', 1)->whereNotNull('head_user_id')->count() }};
+            const activeWithoutHead = {{ $departments->where('active', 1)->whereNull('head_user_id')->count() }};
+            const inactive = {{ $departments->where('active', 0)->count() }};
+
+            new Chart(govCanvas, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Heads Appointed', 'Vacant / Needs Head'],
+                    labels: ['Appointed Head', 'Vacant Head', 'Inactive Units'],
                     datasets: [{
-                        data: [headsAppointed, headsVacant],
-                        backgroundColor: ['#059669', '#F59E0B'],
-                        borderColor: ['#FFFFFF', '#FFFFFF'],
+                        data: [activeWithHead, activeWithoutHead, inactive],
+                        backgroundColor: [
+                            '#10B981',
+                            '#F59E0B',
+                            '#94A3B8'
+                        ],
                         borderWidth: 2,
-                        hoverOffset: 6
+                        borderColor: '#ffffff',
+                        hoverOffset: 4
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    cutout: '72%',
                     plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return ' ' + context.label + ': ' + context.parsed + ' units';
-                                }
-                            }
+                        legend: {
+                            position: 'bottom',
+                            labels: { boxWidth: 12, padding: 12, font: { size: 11 } }
                         }
-                    }
+                    },
+                    cutout: '68%'
                 }
             });
         }
+    }
 
+    document.addEventListener('DOMContentLoaded', function () {
         // ══════════════════════════════════════════════════════════
-        // 2. DataTables 2.0 Integration & Live Filters
+        // 1. DATATABLES INITIALIZATION
         // ══════════════════════════════════════════════════════════
-        let dataTableInstance = null;
-        if (typeof $ !== 'undefined' && $.fn.DataTable) {
-            dataTableInstance = $('#departmentsDataTable').DataTable({
+        let dt = null;
+        if (typeof $.fn.DataTable !== 'undefined') {
+            dt = $('#departmentsTable').DataTable({
                 responsive: true,
-                pageLength: 25,
-                lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "All"]],
-                order: [[0, 'asc']], // Order by Department Code
-                columnDefs: [
-                    { targets: 5, orderable: false, searchable: false } // Actions column not sortable
-                ],
+                pageLength: 16,
+                lengthMenu: [[10, 16, 25, 50, -1], ['10 rows', '16 rows', '25 rows', '50 rows', 'All']],
+                order: [[1, 'asc']], // Order by Department Name
+                dom: "<'row g-2 align-items-center mb-3'<'col-sm-6'l><'col-sm-6 text-sm-end'>>" +
+                     "<'table-responsive'tr>" +
+                     "<'row g-2 align-items-center mt-3'<'col-sm-6'i><'col-sm-6 text-sm-end'p>>",
                 language: {
                     search: "_INPUT_",
-                    searchPlaceholder: "Search code, name, head, goals...",
-                    lengthMenu: "Show _MENU_ units",
+                    searchPlaceholder: "Search departments...",
+                    lengthMenu: "Show _MENU_",
                     info: "Showing _START_ to _END_ of _TOTAL_ departments",
-                    infoEmpty: "No departments found",
+                    infoEmpty: "Showing 0 to 0 of 0 departments",
                     infoFiltered: "(filtered from _MAX_ total)",
+                    zeroRecords: "No matching departments found",
                     paginate: {
-                        first: '<i class="fas fa-angles-left"></i>',
-                        previous: '<i class="fas fa-angle-left"></i>',
-                        next: '<i class="fas fa-angle-right"></i>',
-                        last: '<i class="fas fa-angles-right"></i>'
+                        previous: '<i class="fa-solid fa-chevron-left"></i>',
+                        next: '<i class="fa-solid fa-chevron-right"></i>'
                     }
+                },
+                columnDefs: [
+                    { targets: 0, className: 'text-center' },
+                    { targets: 4, className: 'text-center' },
+                    { targets: 5, orderable: false, searchable: false, className: 'text-end' }
+                ]
+            });
+
+            // Wire custom search input
+            $('#deptSearchInput').on('keyup', function() {
+                dt.search(this.value).draw();
+            });
+
+            // Wire filter buttons
+            $('.dept-filter-btn').on('click', function() {
+                $('.dept-filter-btn').removeClass('active');
+                $(this).addClass('active');
+
+                const filter = $(this).data('filter');
+                if (filter === 'all') {
+                    dt.column(4).search('').column(2).search('').draw();
+                } else if (filter === 'active') {
+                    dt.column(4).search('Active').column(2).search('').draw();
+                } else if (filter === 'inactive') {
+                    dt.column(4).search('Inactive').column(2).search('').draw();
+                } else if (filter === 'head') {
+                    dt.column(4).search('').column(2).search('^(?!.*Not Appointed).*$', true, false).draw();
                 }
             });
-        }
-
-        // Quick Filter Pills Handler
-        const filterPills = document.querySelectorAll('#deptFilterPills .nav-link');
-        filterPills.forEach(pill => {
-            pill.addEventListener('click', function () {
-                filterPills.forEach(p => p.classList.remove('active'));
-                this.classList.add('active');
-
-                const filterType = this.dataset.filter;
-                if (!dataTableInstance) return;
-
-                if (filterType === 'all') {
-                    dataTableInstance.column(4).search('').column(2).search('').draw();
-                } else if (filterType === 'active') {
-                    dataTableInstance.column(4).search('Active').column(2).search('').draw();
-                } else if (filterType === 'inactive') {
-                    dataTableInstance.column(4).search('Inactive').column(2).search('').draw();
-                } else if (filterType === 'vacant') {
-                    dataTableInstance.column(4).search('').column(2).search('Vacant').draw();
-                } else if (filterType === 'appointed') {
-                    // Filter out rows containing Vacant in Head column
-                    dataTableInstance.column(4).search('').column(2).search('^(?!.*Vacant).*$', true, false).draw();
-                }
-            });
-        });
-
-        // ══════════════════════════════════════════════════════════
-        // 3. Create Department Live Preview & Auto-Uppercase
-        // ══════════════════════════════════════════════════════════
-        const createCodeInput = document.getElementById('createDeptCodeInput');
-        const createNameInput = document.getElementById('createDeptNameInput');
-        const previewCodeBadge = document.getElementById('previewCodeBadge');
-        const previewNameLabel = document.getElementById('previewNameLabel');
-        const previewStatusBadge = document.getElementById('previewStatusBadge');
-        const createActiveSelect = document.getElementById('createDeptActiveSelect');
-
-        if (createCodeInput) {
-            createCodeInput.addEventListener('input', function() {
-                this.value = this.value.toUpperCase().replace(/[^A-Z0-9_\-]/g, '');
-                previewCodeBadge.textContent = this.value || 'NEW';
-            });
-        }
-        if (createNameInput) {
-            createNameInput.addEventListener('input', function() {
-                previewNameLabel.textContent = this.value || 'New Department Name';
-            });
-        }
-        if (createActiveSelect) {
-            createActiveSelect.addEventListener('change', function() {
-                if (this.value === '1') {
-                    previewStatusBadge.className = 'badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 small';
-                    previewStatusBadge.textContent = 'Active';
-                } else {
-                    previewStatusBadge.className = 'badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-0.5 small';
-                    previewStatusBadge.textContent = 'Inactive';
-                }
-            });
-        }
-
-        // Form Submit Loading State & Toast
-        const createForm = document.getElementById('createDepartmentForm');
-        if (createForm) {
-            createForm.addEventListener('submit', function() {
-                const submitBtn = document.getElementById('createDeptSubmitBtn');
-                if (submitBtn) {
-                    submitBtn.disabled = true;
-                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Creating Department...';
-                }
-            });
+        } else {
+            // Fallback live search if DataTables is unavailable
+            setupLiveSearch('deptSearchInput', 'departmentsTable');
         }
 
         // ══════════════════════════════════════════════════════════
-        // 4. Edit Department Modal Wiring
+        // 2. WIRE EDIT DEPARTMENT MODAL
         // ══════════════════════════════════════════════════════════
         const editForm = document.getElementById('editDepartmentForm');
-        const editCodeInput = document.getElementById('editDeptCode');
-        const editNameInput = document.getElementById('editDeptName');
-        const editHeadSelect = document.getElementById('editDeptHead');
-        const editActiveSelect = document.getElementById('editDeptActive');
-        const editGoalsSelect = document.getElementById('editDeptGoals');
+        const codeInput = document.getElementById('editDeptCode');
+        const nameInput = document.getElementById('editDeptName');
+        const headSelect = document.getElementById('editDeptHead');
+        const activeSelect = document.getElementById('editDeptActive');
+        const goalsSelect = document.getElementById('editDeptGoals');
 
         document.querySelectorAll('.edit-dept-btn').forEach(btn => {
             btn.addEventListener('click', function () {
@@ -777,107 +777,109 @@
                     goals = [];
                 }
 
-                // Update Form Action
                 editForm.action = "{{ url('admin/departments') }}/" + id;
 
-                // Populate Fields
-                editCodeInput.value = code;
-                editNameInput.value = name;
+                codeInput.value = code;
+                nameInput.value = name;
                 
-                // Head Select
-                if (editHeadSelect.tomselect) {
-                    editHeadSelect.tomselect.setValue(head);
+                if (headSelect.tomselect) {
+                    headSelect.tomselect.setValue(head);
                 } else {
-                    editHeadSelect.value = head;
+                    headSelect.value = head;
                 }
 
-                // Active Select
-                if (editActiveSelect.tomselect) {
-                    editActiveSelect.tomselect.setValue(active == '1' ? '1' : '0');
+                if (activeSelect.tomselect) {
+                    activeSelect.tomselect.setValue(active == '1' ? '1' : '0');
                 } else {
-                    editActiveSelect.value = active == '1' ? '1' : '0';
+                    activeSelect.value = active == '1' ? '1' : '0';
                 }
 
-                // Multi Goals Select
-                if (editGoalsSelect.tomselect) {
-                    editGoalsSelect.tomselect.setValue(goals);
+                if (goalsSelect.tomselect) {
+                    goalsSelect.tomselect.setValue(goals);
                 } else {
-                    Array.from(editGoalsSelect.options).forEach(opt => {
+                    Array.from(goalsSelect.options).forEach(opt => {
                         opt.selected = goals.includes(parseInt(opt.value));
                     });
                 }
             });
         });
 
-        if (editForm) {
-            editForm.addEventListener('submit', function() {
-                const submitBtn = document.getElementById('editDeptSubmitBtn');
-                if (submitBtn) {
-                    submitBtn.disabled = true;
-                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving Changes...';
-                }
-            });
-        }
-
         // ══════════════════════════════════════════════════════════
-        // 5. Delete / Deactivate Confirmation Modal Wiring
+        // 3. WIRE DELETE / DEACTIVATE MODAL (NO BROWSER CONFIRM)
         // ══════════════════════════════════════════════════════════
+        const deleteModal = new bootstrap.Modal(document.getElementById('deleteDepartmentModal'));
         const deleteForm = document.getElementById('deleteDepartmentForm');
-        const deleteCodeBadge = document.getElementById('deleteDeptCodeBadge');
-        const deleteNameLabel = document.getElementById('deleteDeptNameLabel');
-        const deleteGoalsNotice = document.getElementById('deleteDeptGoalsNotice');
-        const deleteModalEl = document.getElementById('deleteDepartmentModal');
-        const bsDeleteModal = deleteModalEl ? new bootstrap.Modal(deleteModalEl) : null;
+        const delCode = document.getElementById('delModalCode');
+        const delName = document.getElementById('delModalName');
+        const delStatusBadge = document.getElementById('delModalStatusBadge');
+        const delGoalsCount = document.getElementById('delModalGoalsCount');
+        const delHeadStatus = document.getElementById('delModalHeadStatus');
+        const delBtnText = document.getElementById('confirmDeleteBtnText');
 
-        document.querySelectorAll('.delete-dept-btn').forEach(btn => {
-            btn.addEventListener('click', function () {
-                const id = this.dataset.id;
-                const code = this.dataset.code || '';
-                const name = this.dataset.name || '';
-                const goalsCount = parseInt(this.dataset.goalsCount || '0', 10);
+        $(document).on('click', '.delete-dept-btn', function () {
+            const id = $(this).data('id');
+            const code = $(this).data('code') || '';
+            const name = $(this).data('name') || '';
+            const active = $(this).data('active') == '1';
+            const goals = $(this).data('goals') || 0;
+            const head = $(this).data('head') || 'No Head';
 
-                if (deleteForm) {
-                    deleteForm.action = "{{ url('admin/departments') }}/" + id;
-                }
-                if (deleteCodeBadge) deleteCodeBadge.textContent = code;
-                if (deleteNameLabel) deleteNameLabel.textContent = name;
-                if (deleteGoalsNotice) {
-                    if (goalsCount > 0) {
-                        deleteGoalsNotice.innerHTML = `<i class="fas fa-bullseye me-1 text-warning"></i> Department currently owns <strong>${goalsCount}</strong> strategic annual ${goalsCount === 1 ? 'goal' : 'goals'}.`;
-                    } else {
-                        deleteGoalsNotice.innerHTML = `<i class="fas fa-check-circle me-1 text-success"></i> No active annual strategic goals linked.`;
-                    }
-                }
+            deleteForm.action = "{{ url('admin/departments') }}/" + id;
 
-                const submitBtn = document.getElementById('deleteDeptSubmitBtn');
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = '<i class="fas fa-trash-can me-1"></i> Confirm Deactivation / Removal';
-                }
+            delCode.textContent = code;
+            delName.textContent = name;
+            delGoalsCount.textContent = goals;
+            delHeadStatus.textContent = head;
 
-                if (bsDeleteModal) {
-                    bsDeleteModal.show();
-                }
-            });
+            if (active) {
+                delStatusBadge.className = 'badge bg-success-subtle text-success border border-success-subtle';
+                delStatusBadge.textContent = 'Active';
+                delBtnText.textContent = 'Confirm Deactivate / Remove';
+            } else {
+                delStatusBadge.className = 'badge bg-secondary-subtle text-secondary border border-secondary-subtle';
+                delStatusBadge.textContent = 'Inactive';
+                delBtnText.textContent = 'Confirm Permanent Deletion';
+            }
+
+            deleteModal.show();
         });
 
-        if (deleteForm) {
-            deleteForm.addEventListener('submit', function() {
-                const submitBtn = document.getElementById('deleteDeptSubmitBtn');
-                if (submitBtn) {
-                    submitBtn.disabled = true;
-                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Processing...';
-                }
-            });
-        }
+        // ══════════════════════════════════════════════════════════
+        // 4. WIRE REACTIVATE MODAL
+        // ══════════════════════════════════════════════════════════
+        const reactivateModal = new bootstrap.Modal(document.getElementById('reactivateDepartmentModal'));
+        const reactivateForm = document.getElementById('reactivateDepartmentForm');
+        const reactCode = document.getElementById('reactModalCode');
+        const reactName = document.getElementById('reactModalName');
+
+        $(document).on('click', '.reactivate-dept-btn', function () {
+            const id = $(this).data('id');
+            const code = $(this).data('code') || '';
+            const name = $(this).data('name') || '';
+
+            reactivateForm.action = "{{ url('admin/departments') }}/" + id + "/reactivate";
+            reactCode.textContent = code;
+            reactName.textContent = name;
+
+            reactivateModal.show();
+        });
 
         // ══════════════════════════════════════════════════════════
-        // 6. Auto Re-open Create Modal on Validation Error
+        // 5. BUTTON LOADING SPINNERS ON FORM SUBMISSIONS
         // ══════════════════════════════════════════════════════════
-        @if(isset($errors) && $errors->any() && (old('department_code') || old('department_name')))
-            const createModal = new bootstrap.Modal(document.getElementById('createDepartmentModal'));
-            createModal.show();
-        @endif
+        ['createDepartmentForm', 'editDepartmentForm', 'deleteDepartmentForm', 'reactivateDepartmentForm'].forEach(formId => {
+            const f = document.getElementById(formId);
+            if (f) {
+                f.addEventListener('submit', function () {
+                    const submitBtn = this.querySelector('button[type="submit"]');
+                    if (submitBtn) {
+                        const spinner = submitBtn.querySelector('.spinner-border');
+                        if (spinner) spinner.classList.remove('d-none');
+                        submitBtn.disabled = true;
+                    }
+                });
+            }
+        });
     });
 </script>
 @endsection
