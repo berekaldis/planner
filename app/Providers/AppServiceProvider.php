@@ -25,6 +25,16 @@ class AppServiceProvider extends ServiceProvider
     {
         Paginator::useBootstrapFive();
 
+        // Resolve missing route aliases gracefully
+        try {
+            url()->resolveMissingNamedRoutesUsing(function (string $name, array $parameters = [], bool $absolute = true) {
+                if ($name === 'departments.sync_company_system') {
+                    return route('admin.departments.sync_company_system', $parameters, $absolute);
+                }
+                return null;
+            });
+        } catch (\Throwable $e) {}
+
         // Auto-heal: Invalidate stale route cache if routes/web.php was updated
         try {
             $routeCache = base_path('bootstrap/cache/routes-v7.php');
