@@ -18,10 +18,10 @@
         })();
     </script>
 
-    <!-- Google Fonts: Outfit & Plus Jakarta Sans -->
+    <!-- Google Fonts: Inter & Plus Jakarta Sans & JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     
     <!-- Bootstrap 5.3 & FontAwesome 6 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -38,25 +38,25 @@
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
 
     <!-- Kaldis Design System Core Stylesheet with Cache Busting -->
-    <link href="{{ asset('assets/css/style.css') }}?v=2.2.1" rel="stylesheet">
+    <link href="{{ asset('assets/css/style.css') }}?v=3.0.0" rel="stylesheet">
 
     <style>
         /* ══════════════════════════════════════════════════════════
-           KALDIS BRAND SIDEBAR THEME (#347D28) & ENHANCED SCROLLBAR
+           KALDIS LUXURY OBSIDIAN & WARM ROASTED GOLD SIDEBAR THEME
            ══════════════════════════════════════════════════════════ */
         :root {
-            --kaldis-sidebar-bg: #347D28 !important;
+            --kaldis-sidebar-bg: #0F141C !important;
         }
 
         .kaldis-sidebar,
         [data-bs-theme="dark"] .kaldis-sidebar {
-            background: #347D28 !important;
+            background: #0F141C !important;
             background-image: 
-                radial-gradient(ellipse 95% 55% at 50% -10%, rgba(255, 255, 255, 0.12) 0%, transparent 68%),
-                radial-gradient(ellipse 80% 40% at 50% 100%, rgba(0, 0, 0, 0.20) 0%, transparent 65%),
-                linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(0, 0, 0, 0.12) 100%) !important;
-            border-right: 1px solid rgba(0, 0, 0, 0.15) !important;
-            box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15) !important;
+                radial-gradient(ellipse 95% 55% at 50% -10%, rgba(217, 119, 6, 0.16) 0%, transparent 68%),
+                radial-gradient(ellipse 80% 40% at 50% 100%, rgba(15, 23, 42, 0.45) 0%, transparent 65%),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, rgba(0, 0, 0, 0.32) 100%) !important;
+            border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+            box-shadow: 4px 0 28px rgba(0, 0, 0, 0.25) !important;
         }
 
         .sidebar-inner-wrapper {
@@ -75,75 +75,90 @@
             flex: 1 1 auto !important;
             padding: 0.35rem 0.75rem 3rem 0.75rem !important;
             scrollbar-width: thin !important;
-            scrollbar-color: rgba(255, 255, 255, 0.45) rgba(0, 0, 0, 0.15) !important;
+            scrollbar-color: rgba(255, 255, 255, 0.25) rgba(0, 0, 0, 0.20) !important;
             -webkit-overflow-scrolling: touch;
         }
 
         .sidebar-nav-scroll::-webkit-scrollbar {
-            width: 6px !important;
+            width: 5px !important;
         }
 
         .sidebar-nav-scroll::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.12) !important;
+            background: rgba(0, 0, 0, 0.15) !important;
             border-radius: 8px !important;
         }
 
         .sidebar-nav-scroll::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.40) !important;
+            background: rgba(255, 255, 255, 0.25) !important;
             border-radius: 8px !important;
-            border: 1px solid rgba(0, 0, 0, 0.08) !important;
+            border: 1px solid rgba(0, 0, 0, 0.10) !important;
         }
 
         .sidebar-nav-scroll::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.75) !important;
+            background: rgba(245, 158, 11, 0.60) !important;
         }
 
-        /* Typography & Nav Items On #347D28 */
+        /* Typography & Nav Items On Luxury Obsidian */
         .kaldis-sidebar .sidebar-heading {
-            color: rgba(255, 255, 255, 0.70) !important;
+            color: rgba(255, 255, 255, 0.40) !important;
+            font-size: 0.65rem !important;
             font-weight: 700 !important;
             letter-spacing: 0.12em !important;
+            text-transform: uppercase !important;
+            padding: 1.15rem 0.75rem 0.35rem !important;
         }
 
         .kaldis-sidebar .sidebar-heading::after {
-            background: rgba(255, 255, 255, 0.20) !important;
+            background: rgba(255, 255, 255, 0.08) !important;
         }
 
         .kaldis-sidebar .nav-link {
-            color: rgba(255, 255, 255, 0.92) !important;
+            color: rgba(255, 255, 255, 0.76) !important;
+            font-size: 0.85rem !important;
             font-weight: 500 !important;
+            border-radius: 9px !important;
             margin: 2px 0 !important;
+            padding: 0.52rem 0.75rem !important;
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
 
         .kaldis-sidebar .nav-link:hover {
-            background: rgba(255, 255, 255, 0.16) !important;
+            background: rgba(255, 255, 255, 0.08) !important;
             color: #FFFFFF !important;
         }
 
         .kaldis-sidebar .nav-link.active {
-            background: rgba(0, 0, 0, 0.24) !important;
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.22) 0%, rgba(180, 83, 9, 0.12) 100%) !important;
             color: #FFFFFF !important;
-            font-weight: 700 !important;
-            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+            font-weight: 600 !important;
+            box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.25) !important;
         }
 
         .kaldis-sidebar .nav-link.active::before {
-            background: #FBBF24 !important;
-            box-shadow: 0 0 10px rgba(251, 191, 36, 0.75) !important;
+            background: linear-gradient(180deg, #F59E0B, #D97706) !important;
+            box-shadow: 0 0 8px rgba(245, 158, 11, 0.65) !important;
         }
 
         .kaldis-sidebar .nav-link.active .nav-icon-wrap {
-            background: #F59E0B !important;
+            background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%) !important;
             color: #FFFFFF !important;
+            box-shadow: 0 4px 12px rgba(217, 119, 6, 0.40) !important;
         }
 
         .kaldis-sidebar .nav-link.active .sidebar-chevron {
-            color: #FBBF24 !important;
+            color: #F59E0B !important;
         }
 
         .sidebar-search-box .input-group {
-            background: rgba(0, 0, 0, 0.18) !important;
-            border: 1px solid rgba(255, 255, 255, 0.22) !important;
+            background: rgba(255, 255, 255, 0.06) !important;
+            border: 1px solid rgba(255, 255, 255, 0.10) !important;
+            border-radius: 9px !important;
+        }
+
+        .sidebar-search-box .input-group:focus-within {
+            background: rgba(255, 255, 255, 0.10) !important;
+            border-color: rgba(245, 158, 11, 0.45) !important;
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15) !important;
         }
 
         .sidebar-search-box input {
@@ -151,26 +166,34 @@
         }
 
         .sidebar-search-box input::placeholder {
-            color: rgba(255, 255, 255, 0.55) !important;
+            color: rgba(255, 255, 255, 0.35) !important;
         }
 
         .sidebar-search-box .input-group-text {
-            color: rgba(255, 255, 255, 0.65) !important;
+            color: rgba(255, 255, 255, 0.45) !important;
         }
 
         .sidebar-user-section {
-            background: rgba(0, 0, 0, 0.22) !important;
-            border-top: 1px solid rgba(255, 255, 255, 0.16) !important;
+            background: rgba(0, 0, 0, 0.28) !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
         }
 
         .sidebar-user-card:hover {
-            background: rgba(255, 255, 255, 0.12) !important;
+            background: rgba(255, 255, 255, 0.08) !important;
         }
 
         .sidebar-edge-toggle {
-            background: #347D28 !important;
-            border: 1px solid rgba(255, 255, 255, 0.25) !important;
-            color: #FFFFFF !important;
+            background: #1E293B !important;
+            border: 1px solid rgba(255, 255, 255, 0.20) !important;
+            color: rgba(255, 255, 255, 0.75) !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+        }
+
+        .sidebar-edge-toggle:hover {
+            color: #F59E0B !important;
+            border-color: rgba(245, 158, 11, 0.5) !important;
+            background: #0F172A !important;
+            box-shadow: 0 0 14px rgba(245, 158, 11, 0.35) !important;
         }
         /* ══════════════════════════════════════════════════════════
            EXACT MATCH FOR USER SCREENSHOT (media_1791907933701.png)

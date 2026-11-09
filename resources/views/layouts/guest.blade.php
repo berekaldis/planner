@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Sign In') | {{ config('kaldis.app_name', 'Kaldis Planning Portal') }}</title>
     
-    <!-- Google Fonts: Outfit & Plus Jakarta Sans -->
+    <!-- Google Fonts: Inter & Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,500;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
     
     <!-- Bootstrap 5.3 & FontAwesome 6 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -37,7 +37,7 @@
         html, body { margin: 0; padding: 0; width: 100%; min-height: 100vh; }
 
         body {
-            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            font-family: 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -80,11 +80,11 @@
         }
 
         .brand-title {
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Plus Jakarta Sans', sans-serif;
             font-weight: 800;
             color: var(--text-main);
-            letter-spacing: -0.02em;
-            font-size: 1.5rem;
+            letter-spacing: -0.025em;
+            font-size: 1.45rem;
         }
 
         .input-group-text {
@@ -124,23 +124,23 @@
         }
 
         .btn-kaldis-login {
-            background: var(--gold);
+            background: linear-gradient(135deg, #D97706 0%, #B45309 100%);
             color: #FFFFFF;
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Plus Jakarta Sans', sans-serif;
             font-weight: 700;
-            font-size: 0.96rem;
+            font-size: 0.95rem;
             border: none;
             padding: 0.75rem 1.25rem;
             border-radius: 10px;
             transition: all 0.2s ease;
-            box-shadow: 0 4px 12px rgba(217, 119, 6, 0.25);
+            box-shadow: 0 4px 14px rgba(217, 119, 6, 0.28);
         }
 
         .btn-kaldis-login:hover {
-            background: var(--gold-hover);
+            background: linear-gradient(135deg, #B45309 0%, #92400E 100%);
             color: #FFFFFF;
             transform: translateY(-1px);
-            box-shadow: 0 6px 16px rgba(217, 119, 6, 0.35);
+            box-shadow: 0 6px 18px rgba(217, 119, 6, 0.38);
         }
 
         .demo-pill {
