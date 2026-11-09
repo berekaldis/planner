@@ -102,6 +102,21 @@ class DashboardController extends Controller
         $submittedMonthlyPackagesCount = MonthlySubmission::where('year', $selectedYear)->where('month', $selectedMonth)->where('status', 'SUBMITTED')->count();
         $submittedWeeklyReportsCount = WeeklyReport::where('year', $selectedYear)->where('month', $selectedMonth)->where('week_number', $selectedWeek)->where('status', 'SUBMITTED')->count();
 
+        $allWeeklyTasksCount = WeeklyTask::where('year', $selectedYear)
+            ->where('month', $selectedMonth)
+            ->where('week_number', $selectedWeek)
+            ->count();
+
+        $allDoneTasksCount = DB::table('weekly_tasks as wt')
+            ->join('weekly_task_results as wtr', 'wt.id', '=', 'wtr.weekly_task_id')
+            ->where('wt.year', $selectedYear)
+            ->where('wt.month', $selectedMonth)
+            ->where('wt.week_number', $selectedWeek)
+            ->where('wtr.result', 'DONE')
+            ->count();
+
+        $companyCompletionPct = $allWeeklyTasksCount > 0 ? round(($allDoneTasksCount / $allWeeklyTasksCount) * 100) : 0;
+
         $recentActivities = AuditLog::with('user')
             ->orderByDesc('id')
             ->limit(6)
@@ -137,6 +152,9 @@ class DashboardController extends Controller
             'allMonthlyPlansCount',
             'submittedMonthlyPackagesCount',
             'submittedWeeklyReportsCount',
+            'allWeeklyTasksCount',
+            'allDoneTasksCount',
+            'companyCompletionPct',
             'recentActivities',
             'generalManager',
             'departments'
