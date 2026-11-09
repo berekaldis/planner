@@ -42,25 +42,16 @@ class CompanySystemService
         'business intelligence & analytics' => 'BI',
         'operation/f&b' => 'FB',
         'food & beverage' => 'FB',
-        'operation/maintenance' => 'OPER',
-        'production' => 'PROD',
-        'fixed asset' => 'FIXE',
-        'executive team' => 'EXEC',
-        'general manager' => 'GENE',
-        'branch manager' => 'BRAN',
-        'store' => 'STOR',
-        'main store' => 'MAIN',
-        'lawyer' => 'LAWY',
-        'janitor' => 'JANI',
-        'kitchen' => 'KITC',
-        'laborer' => 'LABO',
-        'cashier' => 'CASH',
-        'barista' => 'BARI',
-        'bar tender' => 'BART',
-        'guard' => 'GUAR',
-        'film editing' => 'FILM',
-        'coffee room' => 'COFF',
-        'waiter' => 'WAIT',
+        'project management' => 'PM',
+        'projects' => 'PM',
+        'pm' => 'PM',
+        'research and development' => 'RND',
+        'research & development' => 'RND',
+        'r&d' => 'RND',
+        'safety' => 'SAFE',
+        'safety & security' => 'SAFE',
+        'business development' => 'BD',
+        'bd' => 'BD',
     ];
 
     /**
@@ -329,149 +320,31 @@ class CompanySystemService
     }
 
     /**
-     * Synchronize all active departments and designated heads from Company System.
-     */
-    public static function syncDepartments(): array
-    {
-        $pdo = self::getConnection();
-        if (!$pdo) {
-            throw new \RuntimeException("Unable to establish connection to Company System database.");
-        }
-
-        $stmt = $pdo->query("SELECT id, name, is_active FROM departments WHERE is_active = 1 ORDER BY name");
-        $companyDepts = $stmt->fetchAll();
-
-        $syncedCount = 0;
-        $createdCount = 0;
-        $headsSynced = 0;
-        $results = [];
-
-        foreach ($companyDepts as $cd) {
-            $cId = (int)$cd['id'];
-            $cName = trim($cd['name']);
-
-            $dept = self::resolvePlannerDepartment($cId, $cName);
-            if ($dept) {
-                $syncedCount++;
-                $results[] = [
-                    'company_id' => $cId,
-                    'name' => $cName,
-                    'planner_id' => $dept->id,
-                    'action' => 'updated',
-                ];
-            } else {
-                $createdCount++;
-                $results[] = [
-                    'company_id' => $cId,
-                    'name' => $cName,
-                    'planner_id' => null,
-                    'action' => 'created',
-                ];
-            }
-        }
-
-        // Next, synchronize department heads
-        $headsQuery = "
-            SELECT u.id, u.name, u.email, u.password, u.telegram_chat_id, u.telegram_username,
-                   e.department_id as company_department_id, d.name as company_department_name,
-                   p.title as position_title, r.name as role_name
-            FROM model_has_roles mhr
-            JOIN roles r ON mhr.role_id = r.id
-            JOIN users u ON mhr.model_id = u.id
-            JOIN employees e ON u.employee_id = e.id
-            JOIN departments d ON e.department_id = d.id
-            LEFT JOIN positions p ON e.position_id = p.id
-            WHERE r.name IN ('department head', 'ceo role', 'IT Admin')
-               OR p.title LIKE '%Head%'
-               OR p.title LIKE '%Director%'
-               OR p.title LIKE '%General Manager%'
-            ORDER BY u.id
-        ";
-
-        try {
-            $headsStmt = $pdo->query($headsQuery);
-            $heads = $headsStmt->fetchAll();
-
-            foreach ($heads as $h) {
-                $h['roles'] = [$h['role_name']];
-                $user = self::syncCompanyUser($h);
-                if ($user->department_id) {
-                    Department::where('id', $user->department_id)->update(['head_user_id' => $user->id]);
-                    $headsSynced++;
-                }
-            }
-        } catch (Throwable $e) {
-            Log::warning("CompanySystemService sync department heads error: " . $e->getMessage());
-        }
-
-        return [
-            'total_company_departments' => count($companyDepts),
-            'synced_departments' => $syncedCount + $createdCount,
-            'heads_synced' => $headsSynced,
-            'details' => $results,
-        ];
-    }
-
-    /**
-     * Resolve or create the matching Planner Department.
+     * Resolve the matching official Planner Department.
+     * Note: Only matches against existing corporate departments. Never creates new departments.
      */
     public static function resolvePlannerDepartment(?int $companyDeptId, ?string $companyDeptName): ?Department
     {
-        if (!$companyDeptId && !$companyDeptName) {
+        if (!$companyDeptName) {
             return null;
-        }
-
-        // 1. Try finding by company_department_id
-        if ($companyDeptId) {
-            $dept = Department::where('company_department_id', $companyDeptId)->first();
-            if ($dept) {
-                return $dept;
-            }
         }
 
         $cName = trim((string)$companyDeptName);
         $lowName = strtolower($cName);
 
-        // 2. Try finding by exact name or code
-        $dept = Department::where('department_name', $cName)
-            ->orWhere('department_code', $cName)
-            ->first();
-
-        // 3. Try finding by alias map
-        if (!$dept && isset(self::$aliasMap[$lowName])) {
+        // 1. Try finding by alias map
+        if (isset(self::$aliasMap[$lowName])) {
             $targetCode = self::$aliasMap[$lowName];
             $dept = Department::where('department_code', $targetCode)->first();
-        }
-
-        // If found, link company_department_id
-        if ($dept) {
-            if ($companyDeptId && empty($dept->company_department_id)) {
-                $dept->update(['company_department_id' => $companyDeptId]);
+            if ($dept) {
+                return $dept;
             }
-            return $dept;
         }
 
-        // 4. Create new Department in Planner
-        if ($cName) {
-            $baseCode = isset(self::$aliasMap[$lowName])
-                ? self::$aliasMap[$lowName]
-                : strtoupper(substr(preg_replace('/[^a-zA-Z]/', '', $cName), 0, 4));
-
-            $code = $baseCode;
-            $counter = 1;
-            while (Department::where('department_code', $code)->exists()) {
-                $code = substr($baseCode, 0, 3) . $counter++;
-            }
-
-            return Department::create([
-                'company_department_id' => $companyDeptId,
-                'department_name' => $cName,
-                'department_code' => $code,
-                'active' => 1,
-            ]);
-        }
-
-        return null;
+        // 2. Try finding by exact name or code
+        return Department::where('department_name', $cName)
+            ->orWhere('department_code', $cName)
+            ->first();
     }
 
     /**

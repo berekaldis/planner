@@ -25,16 +25,6 @@ class AppServiceProvider extends ServiceProvider
     {
         Paginator::useBootstrapFive();
 
-        // Resolve missing route aliases gracefully
-        try {
-            url()->resolveMissingNamedRoutesUsing(function (string $name, array $parameters = [], bool $absolute = true) {
-                if ($name === 'departments.sync_company_system') {
-                    return route('admin.departments.sync_company_system', $parameters, $absolute);
-                }
-                return null;
-            });
-        } catch (\Throwable $e) {}
-
         // Auto-heal: Invalidate stale route cache if routes/web.php was updated
         try {
             $routeCache = base_path('bootstrap/cache/routes-v7.php');
@@ -237,11 +227,8 @@ class AppServiceProvider extends ServiceProvider
 
                 Cache::forever('auto_heal_telegram_gm_v2', true);
             }
-            // Auto-heal schema for company system link columns
+            // Auto-heal schema for company user link columns
             if (!Cache::has('schema_company_system_links_v1')) {
-                if (Schema::hasTable('departments') && !Schema::hasColumn('departments', 'company_department_id')) {
-                    DB::statement("ALTER TABLE `departments` ADD COLUMN `company_department_id` BIGINT UNSIGNED NULL AFTER `id`, ADD INDEX (`company_department_id`)");
-                }
                 if (Schema::hasTable('users')) {
                     if (!Schema::hasColumn('users', 'company_user_id')) {
                         DB::statement("ALTER TABLE `users` ADD COLUMN `company_user_id` BIGINT UNSIGNED NULL AFTER `id`, ADD INDEX (`company_user_id`)");

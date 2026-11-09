@@ -131,7 +131,6 @@ Route::middleware('auth')->group(function () {
         Route::post('/departments', [AdminController::class, 'storeDepartment'])->name('departments.store');
         Route::put('/departments/{id}', [AdminController::class, 'updateDepartment'])->name('departments.update');
         Route::delete('/departments/{id}', [AdminController::class, 'destroyDepartment'])->name('departments.destroy');
-        Route::post('/departments/sync-company-system', [AdminController::class, 'syncCompanySystem'])->name('departments.sync_company_system');
         Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
         Route::post('/settings', [AdminController::class, 'updateSettings'])->name('settings.update');
         Route::get('/audit-logs', [AdminController::class, 'auditLogs'])->name('audit');
