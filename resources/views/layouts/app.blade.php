@@ -27,6 +27,9 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
     
+    <!-- DataTables 2.0 with Bootstrap 5 Integration -->
+    <link href="https://cdn.datatables.net/2.0.8/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    
     <!-- Favicon with Strict Transparent Multi-Resolution and Cache Busting -->
     <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v=3">
     <link rel="shortcut icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v=3">
@@ -549,49 +552,72 @@
         }
 
         /* ══════════════════════════════════════════════════════════
-           REACT-STYLE TOAST NOTIFICATION STACK
+           PREMIUM ENTERPRISE TOAST NOTIFICATION STACK
            ══════════════════════════════════════════════════════════ */
         .react-toast-container {
             position: fixed;
             top: 24px;
             right: 24px;
-            z-index: 1090;
+            z-index: 1099;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
             pointer-events: none;
-            max-width: 420px;
+            max-width: 440px;
             width: calc(100% - 48px);
         }
         .react-toast {
             pointer-events: auto;
-            background: #FFFFFF;
-            border: 1px solid #E2E8F0;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.12), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            border-left: 5px solid #D97706;
+            border-radius: 14px;
+            box-shadow: 0 16px 36px -4px rgba(15, 23, 42, 0.16), 0 4px 12px -2px rgba(15, 23, 42, 0.06);
             padding: 14px 16px;
             display: flex;
             align-items: flex-start;
             gap: 12px;
             position: relative;
             overflow: hidden;
-            animation: toastSlideIn 0.24s cubic-bezier(0.16, 1, 0.3, 1);
-            transition: all 0.2s ease;
+            animation: toastSlideIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+        }
+        .react-toast:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 42px -4px rgba(15, 23, 42, 0.20), 0 6px 16px -2px rgba(15, 23, 42, 0.08);
+        }
+        .react-toast:hover .react-toast-progress {
+            animation-play-state: paused !important;
+        }
+        .react-toast.toast-success {
+            border-left-color: #10B981 !important;
+        }
+        .react-toast.toast-error {
+            border-left-color: #EF4444 !important;
+        }
+        .react-toast.toast-warning {
+            border-left-color: #F59E0B !important;
+        }
+        .react-toast.toast-info {
+            border-left-color: #0EA5E9 !important;
         }
         .react-toast.toast-hiding {
             opacity: 0;
-            transform: translateX(100%) scale(0.95);
+            transform: translateX(105%) scale(0.95);
+            pointer-events: none;
         }
         @keyframes toastSlideIn {
-            from { opacity: 0; transform: translateY(-16px) scale(0.96); }
+            from { opacity: 0; transform: translateY(-20px) scale(0.94); }
             to { opacity: 1; transform: translateY(0) scale(1); }
         }
         .react-toast-progress {
             position: absolute;
             bottom: 0;
             left: 0;
-            height: 3px;
-            background: var(--k-gold, #D97706);
+            height: 3.5px;
+            background: linear-gradient(90deg, #FBBF24, #D97706);
             width: 100%;
             animation: toastProgress linear forwards;
         }
@@ -599,10 +625,127 @@
             from { width: 100%; }
             to { width: 0%; }
         }
+        .toast-icon-wrap {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.05rem;
+            flex-shrink: 0;
+        }
+        .toast-close-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+        }
+        .toast-close-btn:hover {
+            background: rgba(0, 0, 0, 0.06);
+            color: #0F172A !important;
+        }
         [data-bs-theme="dark"] .react-toast {
-            background: #0F172A;
+            background: rgba(15, 23, 42, 0.94);
+            border-color: rgba(51, 65, 85, 0.8);
+            color: #F8FAFC;
+        }
+        [data-bs-theme="dark"] .toast-close-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #FFFFFF !important;
+        }
+
+        /* ══════════════════════════════════════════════════════════
+           DATATABLES LUXURY KALDIS STYLING (Bootstrap 5)
+           ══════════════════════════════════════════════════════════ */
+        .dataTables_wrapper {
+            width: 100%;
+        }
+        .dataTables_wrapper .dataTables_length label,
+        .dataTables_wrapper .dataTables_filter label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--k-text-muted);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .dataTables_wrapper .dataTables_length select {
+            border-radius: 8px;
+            border: 1px solid #E2E8F0;
+            padding: 5px 10px;
+            font-size: 0.85rem;
+            background-color: var(--k-card);
+            color: var(--k-text);
+        }
+        .dataTables_wrapper .dataTables_filter input {
+            border-radius: 8px;
+            border: 1px solid #E2E8F0;
+            padding: 5px 12px;
+            font-size: 0.85rem;
+            background-color: var(--k-card);
+            color: var(--k-text);
+            transition: all 0.15s ease;
+        }
+        .dataTables_wrapper .dataTables_filter input:focus {
+            border-color: #D97706;
+            box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
+            outline: none;
+        }
+        .dataTables_wrapper .dataTables_info {
+            font-size: 0.8rem;
+            color: var(--k-text-muted);
+            padding-top: 0.75rem;
+        }
+        .dataTables_wrapper .dataTables_paginate {
+            padding-top: 0.5rem;
+        }
+        .dataTables_wrapper .dataTables_paginate .pagination {
+            gap: 4px;
+        }
+        .dataTables_wrapper .dataTables_paginate .page-link {
+            border-radius: 8px !important;
+            font-size: 0.825rem;
+            font-weight: 600;
+            padding: 5px 11px;
+            border: 1px solid #E2E8F0;
+            color: var(--k-text-secondary);
+            background: var(--k-card);
+        }
+        .dataTables_wrapper .dataTables_paginate .page-item.active .page-link {
+            background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%) !important;
+            border-color: #D97706 !important;
+            color: #FFFFFF !important;
+            box-shadow: 0 2px 8px rgba(217, 119, 6, 0.35);
+        }
+        .dataTables_wrapper .dataTables_paginate .page-link:hover {
+            background: rgba(217, 119, 6, 0.08);
+            color: #D97706;
+            border-color: #D97706;
+        }
+        table.dataTable thead th {
+            font-size: 0.76rem !important;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-weight: 700;
+            color: var(--k-text-muted);
+            border-bottom: 2px solid #E2E8F0 !important;
+        }
+        table.dataTable tbody tr:hover {
+            background-color: rgba(245, 158, 11, 0.03) !important;
+        }
+        [data-bs-theme="dark"] .dataTables_wrapper .dataTables_length select,
+        [data-bs-theme="dark"] .dataTables_wrapper .dataTables_filter input,
+        [data-bs-theme="dark"] .dataTables_wrapper .dataTables_paginate .page-link {
+            background-color: #1E293B;
             border-color: #334155;
             color: #F8FAFC;
+        }
+        [data-bs-theme="dark"] table.dataTable thead th {
+            border-bottom-color: #334155 !important;
         }
 
         /* ══════════════════════════════════════════════════════════
@@ -1090,9 +1233,33 @@
     <!-- React-Style Toast Container -->
     <div id="reactToastContainer" class="react-toast-container"></div>
 
-    <!-- Bootstrap 5 Bundle & Chart.js -->
+    <!-- Global Luxury Confirmation Modal -->
+    <div class="modal fade" id="kaldisConfirmModal" tabindex="-1" aria-hidden="true" style="z-index: 1085;">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 20px; overflow: hidden;">
+                <div class="modal-body p-4 text-center">
+                    <div id="confirmModalIconWrap" class="mx-auto mb-3 rounded-circle d-flex align-items-center justify-content-center bg-danger-subtle text-danger" style="width: 58px; height: 58px; font-size: 1.5rem;">
+                        <i id="confirmModalIcon" class="fas fa-triangle-exclamation"></i>
+                    </div>
+                    <h5 class="fw-bold text-dark mb-2" id="confirmModalTitle">Confirm Action</h5>
+                    <div class="text-muted small mb-4" id="confirmModalMessage">Are you sure you want to proceed?</div>
+                    <div class="d-flex justify-content-center gap-2">
+                        <button type="button" class="btn btn-light border px-4 rounded-pill fw-semibold" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-danger px-4 rounded-pill fw-semibold shadow-xs" id="confirmModalActionBtn">
+                            <span class="btn-text">Confirm</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- jQuery 3.7.1, Bootstrap 5 Bundle, Chart.js & DataTables 2 -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.datatables.net/2.0.8/js/dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/2.0.8/js/dataTables.bootstrap5.min.js"></script>
     
     <!-- TomSelect 2.4 JS -->
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
@@ -1100,60 +1267,178 @@
     <!-- Kaldis Core JS with Cache Busting -->
     <script src="{{ asset('assets/js/app.js') }}?v=2.2.0"></script>
 
-    <!-- React-Style Toast Notification System -->
+    <!-- Enhanced Toast Notification & Confirmation System -->
     <script>
         window.Toast = {
-            show(type, title, message, duration = 4500) {
+            show(type, title, message, duration = 4800) {
                 const container = document.getElementById('reactToastContainer');
                 if (!container) return;
 
                 const toast = document.createElement('div');
-                toast.className = 'react-toast shadow-lg';
+                toast.className = 'react-toast shadow-lg toast-' + type;
                 
-                const iconMap = {
-                    success: 'fa-circle-check text-success',
-                    error: 'fa-circle-exclamation text-danger',
-                    warning: 'fa-triangle-exclamation text-warning',
-                    info: 'fa-circle-info text-info'
+                const meta = {
+                    success: {
+                        icon: 'fa-circle-check',
+                        bgClass: 'bg-success-subtle text-success',
+                        barGradient: 'linear-gradient(90deg, #34D399, #059669)',
+                        defaultTitle: 'Success'
+                    },
+                    error: {
+                        icon: 'fa-circle-xmark',
+                        bgClass: 'bg-danger-subtle text-danger',
+                        barGradient: 'linear-gradient(90deg, #F87171, #DC2626)',
+                        defaultTitle: 'Error Encountered'
+                    },
+                    warning: {
+                        icon: 'fa-triangle-exclamation',
+                        bgClass: 'bg-warning-subtle text-warning',
+                        barGradient: 'linear-gradient(90deg, #FBBF24, #D97706)',
+                        defaultTitle: 'Attention'
+                    },
+                    info: {
+                        icon: 'fa-circle-info',
+                        bgClass: 'bg-info-subtle text-info',
+                        barGradient: 'linear-gradient(90deg, #38BDF8, #0284C7)',
+                        defaultTitle: 'Information'
+                    }
+                }[type] || {
+                    icon: 'fa-bell',
+                    bgClass: 'bg-warning-subtle text-warning',
+                    barGradient: 'linear-gradient(90deg, #FBBF24, #D97706)',
+                    defaultTitle: 'Notification'
                 };
-                const iconClass = iconMap[type] || 'fa-bell text-warning';
+
+                const resolvedTitle = title || meta.defaultTitle;
 
                 toast.innerHTML = `
-                    <i class="fas ${iconClass} fs-5 mt-1 flex-shrink-0"></i>
-                    <div class="flex-grow-1 min-w-0">
-                        <div class="fw-bold small text-dark mb-0">${title}</div>
-                        <div class="small text-muted text-break">${message}</div>
+                    <div class="toast-icon-wrap rounded-3 ${meta.bgClass}">
+                        <i class="fas ${meta.icon}"></i>
                     </div>
-                    <button type="button" class="btn btn-sm btn-link text-muted p-0 border-0 ms-2" style="font-size: 0.9rem;" onclick="this.closest('.react-toast').classList.add('toast-hiding'); setTimeout(() => this.closest('.react-toast')?.remove(), 200);">
+                    <div class="flex-grow-1 min-w-0">
+                        <div class="d-flex align-items-center justify-content-between mb-0.5">
+                            <span class="fw-bold small text-dark">${resolvedTitle}</span>
+                            <span class="text-muted ms-2" style="font-size: 0.7rem;">Just now</span>
+                        </div>
+                        <div class="small text-muted text-break" style="font-size: 0.825rem; line-height: 1.45;">${message}</div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-link text-muted p-0 border-0 ms-1 toast-close-btn" aria-label="Close" onclick="this.closest('.react-toast').classList.add('toast-hiding'); setTimeout(() => this.closest('.react-toast')?.remove(), 250);">
                         <i class="fas fa-xmark"></i>
                     </button>
-                    <div class="react-toast-progress" style="animation-duration: ${duration}ms;"></div>
+                    <div class="react-toast-progress" style="background: ${meta.barGradient}; animation-duration: ${duration}ms;"></div>
                 `;
 
                 container.appendChild(toast);
 
-                setTimeout(() => {
+                let timer = setTimeout(() => {
                     if (toast.parentElement) {
                         toast.classList.add('toast-hiding');
                         setTimeout(() => toast.remove(), 250);
                     }
                 }, duration);
+
+                // Pause progress on mouse hover
+                let remaining = duration;
+                let startTime = Date.now();
+                toast.addEventListener('mouseenter', () => {
+                    clearTimeout(timer);
+                    remaining -= (Date.now() - startTime);
+                });
+                toast.addEventListener('mouseleave', () => {
+                    startTime = Date.now();
+                    timer = setTimeout(() => {
+                        if (toast.parentElement) {
+                            toast.classList.add('toast-hiding');
+                            setTimeout(() => toast.remove(), 250);
+                        }
+                    }, Math.max(remaining, 1200));
+                });
             },
-            success(message, title = 'Success') { this.show('success', title, message); },
-            error(message, title = 'Error') { this.show('error', title, message); },
-            info(message, title = 'Information') { this.show('info', title, message); },
-            warning(message, title = 'Attention') { this.show('warning', title, message); }
+            success(message, title = 'Success', duration = 4800) { this.show('success', title, message, duration); },
+            error(message, title = 'Error', duration = 5800) { this.show('error', title, message, duration); },
+            info(message, title = 'Information', duration = 4800) { this.show('info', title, message, duration); },
+            warning(message, title = 'Attention', duration = 5400) { this.show('warning', title, message, duration); }
+        };
+
+        // Global Modal Confirmation Helper
+        window.KaldisConfirm = function(options) {
+            const {
+                title = 'Confirm Action',
+                message = 'Are you sure you want to proceed?',
+                confirmText = 'Confirm',
+                confirmBtnClass = 'btn-danger',
+                icon = 'fa-triangle-exclamation',
+                iconClass = 'bg-danger-subtle text-danger',
+                onConfirm = null
+            } = options;
+
+            const modalEl = document.getElementById('kaldisConfirmModal');
+            if (!modalEl) {
+                if (confirm(message)) {
+                    if (typeof onConfirm === 'function') onConfirm();
+                }
+                return;
+            }
+
+            document.getElementById('confirmModalTitle').textContent = title;
+            document.getElementById('confirmModalMessage').innerHTML = message;
+            const actionBtn = document.getElementById('confirmModalActionBtn');
+            actionBtn.className = `btn ${confirmBtnClass} px-4 rounded-pill fw-semibold shadow-xs`;
+            actionBtn.innerHTML = `<span class="btn-text">${confirmText}</span>`;
+            actionBtn.disabled = false;
+            
+            const iconWrap = document.getElementById('confirmModalIconWrap');
+            iconWrap.className = `mx-auto mb-3 rounded-circle d-flex align-items-center justify-content-center ${iconClass}`;
+            iconWrap.innerHTML = `<i class="fas ${icon}"></i>`;
+
+            const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            
+            actionBtn.onclick = function() {
+                actionBtn.disabled = true;
+                actionBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Processing...';
+                if (typeof onConfirm === 'function') {
+                    onConfirm(bsModal);
+                } else {
+                    bsModal.hide();
+                }
+            };
+
+            bsModal.show();
         };
 
         // Automatically trigger toast for flash notifications
         @if(session('success'))
             document.addEventListener('DOMContentLoaded', () => {
-                window.Toast.success("{{ addslashes(session('success')) }}");
+                window.Toast.success(@json(session('success')));
             });
         @endif
         @if(session('error'))
             document.addEventListener('DOMContentLoaded', () => {
-                window.Toast.error("{{ addslashes(session('error')) }}");
+                window.Toast.error(@json(session('error')));
+            });
+        @endif
+        @if(session('warning'))
+            document.addEventListener('DOMContentLoaded', () => {
+                window.Toast.warning(@json(session('warning')));
+            });
+        @endif
+        @if(session('info'))
+            document.addEventListener('DOMContentLoaded', () => {
+                window.Toast.info(@json(session('info')));
+            });
+        @endif
+        @if(session('status'))
+            document.addEventListener('DOMContentLoaded', () => {
+                window.Toast.info(@json(session('status')));
+            });
+        @endif
+        @if(isset($errors) && $errors->any())
+            document.addEventListener('DOMContentLoaded', () => {
+                const errList = @json($errors->all());
+                const msg = errList.length === 1 
+                    ? errList[0] 
+                    : '<ul class="mb-0 ps-3 mt-1 text-start">' + errList.map(e => '<li>' + e + '</li>').join('') + '</ul>';
+                window.Toast.error(msg, 'Please check your inputs (' + errList.length + ' ' + (errList.length === 1 ? 'error' : 'errors') + ')', 6500);
             });
         @endif
     </script>

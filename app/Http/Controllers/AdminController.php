@@ -164,7 +164,7 @@ class AdminController extends Controller
 
         AuditLog::log('CREATE_DEPARTMENT', 'department', "Created department {$dept->department_name} ({$dept->department_code})", null, null, $dept->toArray());
 
-        return back()->with('success', "Department '{$dept->department_name}' created successfully.");
+        return back()->with('success', "Department '{$dept->department_name}' [{$dept->department_code}] created successfully.");
     }
 
     public function updateDepartment(Request $request, $id)
@@ -195,7 +195,7 @@ class AdminController extends Controller
 
         AuditLog::log('UPDATE_DEPARTMENT', 'department', "Updated department {$dept->department_name} ({$dept->department_code})", null, null, $dept->toArray());
 
-        return back()->with('success', "Department '{$dept->department_name}' updated successfully.");
+        return back()->with('success', "Department '{$dept->department_name}' [{$dept->department_code}] updated successfully.");
     }
 
     public function destroyDepartment($id)
@@ -215,7 +215,7 @@ class AdminController extends Controller
         if ($hasHistoricalData) {
             $dept->update(['active' => 0]);
             AuditLog::log('DEACTIVATE_DEPARTMENT', 'department', "Deactivated department {$dept->department_name} ({$dept->department_code}) due to existing operational records", $dept->id);
-            return back()->with('warning', "Department '{$dept->department_name}' has linked operational records (plans, tasks, or user accounts) and was safely set to INACTIVE instead of hard-deleted to preserve organizational audit trails.");
+            return back()->with('warning', "Department '{$dept->department_name}' [{$dept->department_code}] has linked operational records (plans, tasks, or users) and was safely set to INACTIVE to preserve organizational audit trails.");
         }
 
         try {
@@ -241,12 +241,12 @@ class AdminController extends Controller
             });
 
             AuditLog::log('DELETE_DEPARTMENT', 'department', "Permanently deleted department {$dept->department_name} ({$dept->department_code})", $dept->id);
-            return back()->with('success', "Department '{$dept->department_name}' was successfully deleted.");
+            return back()->with('success', "Department '{$dept->department_name}' [{$dept->department_code}] was permanently deleted.");
         } catch (\Throwable $e) {
             // Safety fallback: if any unexpected foreign key constraint fails, mark inactive instead of crashing
             $dept->update(['active' => 0]);
             AuditLog::log('DEACTIVATE_DEPARTMENT', 'department', "Deactivated department {$dept->department_name} due to constraint protection: " . $e->getMessage(), $dept->id);
-            return back()->with('warning', "Department '{$dept->department_name}' is referenced by related database records and was safely marked INACTIVE.");
+            return back()->with('warning', "Department '{$dept->department_name}' [{$dept->department_code}] is referenced by related database records and was safely marked INACTIVE.");
         }
     }
 
