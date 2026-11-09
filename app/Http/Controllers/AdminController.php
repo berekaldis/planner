@@ -249,7 +249,22 @@ class AdminController extends Controller
             return back()->with('warning', "Department '{$dept->department_name}' is referenced by related database records and was safely marked INACTIVE.");
         }
     }
+    public function syncCompanySystem(Request $request)
+    {
+        try {
+            if (!\App\Services\CompanySystemService::isAvailable()) {
+                return back()->with('error', 'Unable to establish connection to Central Company System database (kaldisbp_company_system). Please verify COMPANY_DB_* configuration.');
+            }
 
+            $result = \App\Services\CompanySystemService::syncDepartments();
+
+            AuditLog::log('SYNC_COMPANY_SYSTEM', 'department', "Admin synchronized departments and heads from Company System. Total: {$result['synced_departments']}, Heads linked: {$result['heads_synced']}");
+
+            return back()->with('success', "Central Company System synchronization completed successfully! {$result['synced_departments']} departments and {$result['heads_synced']} department heads synchronized.");
+        } catch (\Throwable $e) {
+            return back()->with('error', "Synchronization failed: " . $e->getMessage());
+        }
+    }
     public function settings()
     {
         $settings = SystemSetting::all()->keyBy('setting_key');

@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Services\CompanySystemService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
@@ -25,26 +27,50 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $user = User::where('username', $credentials['username'])
+        $identifier = trim($credentials['username']);
+        $password = $credentials['password'];
+        $remember = $request->boolean('remember');
+
+        // 1. Primary Authentication: Central Company System Database (kaldisbp_company_system)
+        try {
+            $user = CompanySystemService::authenticate($identifier, $password);
+            if ($user) {
+                Auth::login($user, $remember);
+
+                AuditLog::log('LOGIN', 'auth', "User {$user->username} ({$user->full_name}) logged in successfully via Company System", $user->id);
+
+                $request->session()->regenerate();
+
+                return redirect()->intended(route('dashboard'));
+            }
+        } catch (\Throwable $e) {
+            Log::error("CompanySystemService authentication error: " . $e->getMessage());
+        }
+
+        // 2. Fallback Authentication: Local Planner Database
+        $localUser = User::where(function ($query) use ($identifier) {
+                $query->where('username', $identifier)
+                      ->orWhere('email', $identifier);
+            })
             ->where('is_active', 1)
             ->first();
 
-        if ($user) {
+        if ($localUser) {
             $passwordValid = false;
             // Check standard bcrypt or legacy hash
-            if (Hash::check($credentials['password'], $user->password_hash)) {
+            if (Hash::check($password, $localUser->password_hash)) {
                 $passwordValid = true;
-            } elseif (password_verify($credentials['password'], $user->password_hash)) {
+            } elseif (password_verify($password, $localUser->password_hash)) {
                 $passwordValid = true;
                 // Rehash with current settings
-                $user->password_hash = Hash::make($credentials['password']);
-                $user->save();
+                $localUser->password_hash = Hash::make($password);
+                $localUser->save();
             }
 
             if ($passwordValid) {
-                Auth::login($user, $request->boolean('remember'));
+                Auth::login($localUser, $remember);
 
-                AuditLog::log('LOGIN', 'auth', "User {$user->username} logged in successfully", $user->id);
+                AuditLog::log('LOGIN', 'auth', "User {$localUser->username} logged in successfully via local credentials", $localUser->id);
 
                 $request->session()->regenerate();
 
@@ -52,7 +78,7 @@ class AuthController extends Controller
             }
         }
 
-        AuditLog::log('LOGIN_FAILED', 'auth', "Failed login attempt for username: {$credentials['username']}");
+        AuditLog::log('LOGIN_FAILED', 'auth', "Failed login attempt for identifier: {$identifier}");
 
         return back()->withErrors([
             'username' => 'Invalid username or password provided.',
@@ -123,8 +149,22 @@ class AuthController extends Controller
         }
 
         // Update password hash
-        $user->password_hash = Hash::make($validated['new_password']);
+        $newHash = Hash::make($validated['new_password']);
+        $user->password_hash = $newHash;
         $user->save();
+
+        // Sync to Company System if connected
+        try {
+            if ($user->company_user_id && CompanySystemService::isAvailable()) {
+                $pdo = CompanySystemService::getConnection();
+                if ($pdo) {
+                    $stmt = $pdo->prepare("UPDATE users SET password = ? WHERE id = ?");
+                    $stmt->execute([$newHash, $user->company_user_id]);
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning("Could not sync updated password to company system: " . $e->getMessage());
+        }
 
         AuditLog::log('CHANGE_PASSWORD', 'auth', "User {$user->username} successfully changed their account password", $user->id);
 

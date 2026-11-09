@@ -14,6 +14,12 @@
             <p class="text-muted small mb-0">Organizational units, department codes, appointed heads, and annual strategy ownership</p>
         </div>
         <div class="d-flex align-items-center gap-2">
+            <form action="{{ route('departments.sync_company_system') }}" method="POST" class="d-inline" onsubmit="return confirm('Synchronize all departments and designated department heads from the central Company System (kaldisbp_company_system)?');">
+                @csrf
+                <button type="submit" class="btn btn-outline-dark fw-bold shadow-sm d-inline-flex align-items-center gap-2">
+                    <i class="fas fa-sync-alt"></i> Sync from Company System
+                </button>
+            </form>
             <button type="button" class="btn btn-warning text-dark fw-bold shadow-sm d-inline-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#createDepartmentModal">
                 <i class="fas fa-plus"></i> Add Department
             </button>

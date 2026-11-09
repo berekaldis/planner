@@ -22,10 +22,10 @@
     <form method="POST" action="{{ route('login.post') }}">
         @csrf
         <div class="mb-3">
-            <label class="form-label">Username</label>
+            <label class="form-label">Username or Email</label>
             <div class="input-group">
                 <span class="input-group-text"><i class="fas fa-user text-muted"></i></span>
-                <input type="text" name="username" id="usernameInput" class="form-control" placeholder="Enter username (e.g. gm or admin)" value="{{ old('username') }}" required autofocus>
+                <input type="text" name="username" id="usernameInput" class="form-control" placeholder="Enter username or email (e.g. Berhanu@kaldisbunna.et or admin)" value="{{ old('username') }}" required autofocus>
             </div>
         </div>
 
