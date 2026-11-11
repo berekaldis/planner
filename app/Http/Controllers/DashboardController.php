@@ -617,8 +617,8 @@ class DashboardController extends Controller
                 $tgMsg = "<b>Kaldis Executive Notice: Delay Request {$actionLabel}</b>\n\n"
                     . "Dear <b>{$head->full_name}</b> ({$department->department_name}),\n\n"
                     . "Your delay justification for <b>{$typeDisplayName}</b> ({$periodLabel}) has been <b>" . strtoupper($actionLabel) . "</b> by General Management.\n\n"
-                    . ($isApproved ? "<b>Governance Status:</b> Excused on-time submission. This will <b>NOT</b> be marked or penalized as Not Submitted.\n" : "<b>Governance Status:</b> Please finalize and submit immediately.\n")
-                    . ($notes ? "<b>GM Remarks:</b> <i>{$notes}</i>\n\n" : "\n")
+                    . ($isApproved ? "• <b>Governance Status:</b> Excused on-time submission. This will <b>NOT</b> be marked or penalized as Not Submitted.\n" : "• <b>Governance Status:</b> Please finalize and submit immediately.\n")
+                    . ($notes ? "• <b>GM Remarks:</b> <i>{$notes}</i>\n\n" : "\n")
                     . "<i>Kaldis Coffee PLC — Office of the General Manager</i>";
 
                 $telegram->sendMessage($head->telegram_chat_id, $tgMsg);

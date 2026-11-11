@@ -698,7 +698,7 @@ if (!function_exists('notify_gm_submission')) {
 
                 // Format Telegram message cleanly without duplicate URLs
                 $safeTitle = str_contains($title, '<') ? $title : "<b>" . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "</b>";
-                $telegramText = "{$safeTitle}\n\n{$message}\n\n<i>" . format_ethiopian_datetime() . "</i>";
+                $telegramText = "{$safeTitle}\n\n{$message}\n\n<i>Ethiopian Date: " . format_ethiopian_datetime() . "</i>";
 
                 $replyMarkup = $customReplyMarkup;
                 if (empty($replyMarkup) && $voucherUrl) {
@@ -786,7 +786,7 @@ if (!function_exists('notify_department_head')) {
             $telegram = app(\App\Services\TelegramService::class);
             if ($telegram && $telegram->isConfigured() && !empty($chatId) && $chatId !== '123456789') {
                 $safeTitle = str_contains($title, '<') ? $title : "<b>" . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "</b>";
-                $telegramText = "{$safeTitle}\n\n{$message}\n\n<i>" . format_ethiopian_datetime() . "</i>";
+                $telegramText = "{$safeTitle}\n\n{$message}\n\n<i>Ethiopian Date: " . format_ethiopian_datetime() . "</i>";
 
                 $replyMarkup = $customReplyMarkup;
                 if (empty($replyMarkup) && $url) {
@@ -986,10 +986,10 @@ if (!function_exists('build_weekly_task_scheduled_notification')) {
         if (!empty($lastWeekPerf['has_data'])) {
             $timingRaw = $lastWeekPerf['timing_status'] ?? 'ON_TIME';
             $timingBadge = match ($timingRaw) {
-                'ON_TIME' => 'ON-TIME',
-                'LATE' => 'LATE',
-                'MISSING' => 'MISSING',
-                default => str_replace('_', ' ', $timingRaw),
+                'ON_TIME' => '[ON-TIME]',
+                'LATE' => '[LATE]',
+                'MISSING' => '[MISSING]',
+                default => '[' . str_replace('_', ' ', $timingRaw) . ']',
             };
 
             $compRate = $lastWeekPerf['completion_rate'];

@@ -397,7 +397,7 @@
                 <input type="hidden" name="action" value="DECLINE">
                 <div class="modal-header bg-danger text-white">
                     <h5 class="modal-title fs-6 fw-bold">
-                        <i class="fas fa-times-circle me-2"></i> Decline Monthly Plan
+                        <i class="fas fa-times-circle me-2"></i> Why Decline the Plan?
                     </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>

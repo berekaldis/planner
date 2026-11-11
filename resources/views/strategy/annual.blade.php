@@ -12,7 +12,7 @@
     @if(auth()->user()->isGM() || auth()->user()->isSuperAdmin())
         <div>
             <a href="{{ route('strategy.activation', ['year' => $selectedYear]) }}" class="btn btn-kaldis btn-sm">
-                <i class="fas fa-sliders-h me-1"></i> Monthly Strategy Activation
+                <i class="fas fa-toggle-on me-1"></i> GM Monthly Strategy Activation &rarr;
             </a>
         </div>
     @endif
@@ -61,7 +61,7 @@
                     <th>Goal Title &amp; Target Description</th>
                     <th>Definition of Done (DoD)</th>
                     <th>Owner Departments</th>
-                    <th style="width: 120px;" class="text-center">Status</th>
+                    <th style="width: 170px;" class="text-center">Status &amp; Action</th>
                 </tr>
             </thead>
             <tbody>
@@ -91,9 +91,16 @@
                             </div>
                         </td>
                         <td class="text-center">
-                            <span class="badge {{ $goal->status === 'ACTIVE' ? 'bg-success text-white' : 'bg-secondary text-white' }} px-2 py-1">
-                                {{ $goal->status ?: 'ACTIVE' }}
-                            </span>
+                            <div class="d-flex align-items-center justify-content-center gap-2">
+                                <span class="badge {{ $goal->status === 'ACTIVE' ? 'bg-success text-white' : 'bg-secondary text-white' }} px-2 py-1">
+                                    {{ $goal->status ?: 'ACTIVE' }}
+                                </span>
+                                @if(auth()->user()->isGM() || auth()->user()->isSuperAdmin())
+                                    <a href="{{ route('strategy.activation', ['year' => $selectedYear, 'search' => $goal->goal_code]) }}" class="btn btn-xs btn-outline-primary" title="Manage Monthly Activation">
+                                        Activate
+                                    </a>
+                                @endif
+                            </div>
                         </td>
                     </tr>
                 @empty

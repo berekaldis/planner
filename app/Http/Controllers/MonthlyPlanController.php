@@ -163,8 +163,8 @@ class MonthlyPlanController extends Controller
         // Notify GM & Department Head with Official Monthly Plan Voucher
         $dept = Department::find($deptId);
         $statusBadge = ($status === 'DELAY_APPROVED')
-            ? 'DELAY APPROVED (EXCUSED ON-TIME)'
-            : (($status === 'ON_TIME') ? 'ON-TIME SUBMISSION' : 'LATE SUBMISSION');
+            ? '[DELAY APPROVED (EXCUSED)]'
+            : (($status === 'ON_TIME') ? '[ON-TIME]' : '[LATE]');
         $deptCode = htmlspecialchars($dept->department_code ?? "Dept #{$deptId}", ENT_QUOTES, 'UTF-8');
         $deptName = htmlspecialchars($dept->department_name ?? 'Department', ENT_QUOTES, 'UTF-8');
 
@@ -174,8 +174,8 @@ class MonthlyPlanController extends Controller
             'month' => $validated['month'],
         ]);
 
-        $notifTitle = "Monthly Plan Package: {$deptCode}";
-        $notifMessage = "<b>{$deptName}</b> has officially submitted their <b>Monthly Plan Package</b> for <b>{$validated['month']} {$validated['year']}</b>.\n\n"
+        $notifTitle = "Monthly Plan Package: {$deptCode} {$statusBadge}";
+        $notifMessage = "<b>{$deptName}</b> has submitted their <b>Monthly Plan Package</b> for <b>{$validated['month']} {$validated['year']}</b>.\n\n"
                       . "<b>Package Overview:</b>\n"
                       . "• Timing Status: <b>{$statusBadge}</b>\n"
                       . "• Total Monthly Plans: <b>{$totalPlans}</b> ({$stratCount} Strategy, {$opsCount} Operational)\n"
@@ -188,14 +188,14 @@ class MonthlyPlanController extends Controller
         $replyMarkup = [
             'inline_keyboard' => [
                 [
-                    ['text' => 'View Official Monthly Plan Voucher', 'url' => $voucherUrl]
+                    ['text' => 'View Monthly Plan Voucher', 'url' => $voucherUrl]
                 ]
             ]
         ];
 
         notify_both_gm_and_head($deptId, $notifTitle, $notifMessage, $voucherUrl, $replyMarkup);
 
-        return back()->with('success', "Monthly Plan package submitted successfully to General Management! Timing Status: {$status} (Deadline: {$deadlineInfo['deadline_formatted']}).");
+        return back()->with('success', "Monthly Plan package submitted successfully to General Management. Status: {$status} (Deadline: {$deadlineInfo['deadline_formatted']}).");
     }
 
     public function submitDelayReason(Request $request)
@@ -240,7 +240,7 @@ class MonthlyPlanController extends Controller
         AuditLog::log('SUBMIT_DELAY_REASON', 'monthly_plans', "Submitted delay reason for Monthly Plan ({$validated['month']} {$validated['year']}): {$validated['delay_reason']}");
 
         $dept = Department::find($deptId);
-        $notifTitle = "Monthly Plan Delay Reason: {$dept->department_code}";
+        $notifTitle = "Monthly Plan Delay Request: {$dept->department_code}";
         $notifMessage = "<b>{$dept->department_name}</b> has submitted a <b>Delay Reason</b> for their Monthly Plan (<b>{$validated['month']} {$validated['year']}</b>):\n\n"
                       . "<b>Reason:</b> <i>" . htmlspecialchars($validated['delay_reason'], ENT_QUOTES, 'UTF-8') . "</i>\n\n"
                       . "Please review and approve/reject on the GM Management Dashboard.";
@@ -279,7 +279,8 @@ class MonthlyPlanController extends Controller
 
         // Automated Telegram Notification to Department Head
         $dept = Department::find($validated['department_id']);
-        $notifTitle = "GM Monthly Plan Review: " . ($dept->department_code ?? "Dept #{$validated['department_id']}");
+        $statusBadge = $validated['approval_status'] === 'APPROVED' ? '[APPROVED]' : ($validated['approval_status'] === 'REVISION_REQUESTED' ? '[REVISION REQUESTED]' : '[REVIEW]');
+        $notifTitle = "GM Monthly Plan Review {$statusBadge}: " . ($dept->department_code ?? "Dept #{$validated['department_id']}");
         $notifMessage = "The General Manager has evaluated the Monthly Plan Package for <b>" . ($dept->department_name ?? 'Department') . "</b> ({$validated['month']} {$validated['year']}):\n\n"
             . "• <b>Decision:</b> <b>{$validated['approval_status']}</b>\n";
         if (!empty($validated['gm_feedback'])) {
@@ -311,12 +312,8 @@ class MonthlyPlanController extends Controller
             'plan_type' => 'required|in:STRATEGY,OPERATIONAL',
             'annual_goal_id' => 'nullable|exists:annual_goals,id',
             'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
             'definition_of_done' => 'required|string',
             'monthly_target' => 'required|string',
-            'target_percentage' => 'nullable|numeric|min:0|max:100',
-            'priority' => 'nullable|in:HIGH,MEDIUM,LOW',
-            'responsible_person' => 'nullable|string|max:100',
         ]);
 
         if ($validated['plan_type'] === 'STRATEGY') {
@@ -343,9 +340,10 @@ class MonthlyPlanController extends Controller
         }
 
         $validated['created_by'] = $user->id;
-        $validated['target_percentage'] = $validated['target_percentage'] ?? 100.00;
-        $validated['priority'] = $validated['priority'] ?? 'MEDIUM';
-        $validated['responsible_person'] = $validated['responsible_person'] ?? null;
+        $validated['description'] = null;
+        $validated['target_percentage'] = 100.00;
+        $validated['priority'] = 'MEDIUM';
+        $validated['responsible_person'] = null;
 
         // If created by GM or SuperAdmin, auto-approve
         if ($user->isGM() || $user->isSuperAdmin()) {
@@ -367,7 +365,7 @@ class MonthlyPlanController extends Controller
             . "• <b>Title:</b> " . htmlspecialchars($plan->title, ENT_QUOTES, 'UTF-8') . "\n"
             . "• <b>Type:</b> {$plan->plan_type}\n"
             . "• <b>Target:</b> " . htmlspecialchars($plan->monthly_target, ENT_QUOTES, 'UTF-8') . "\n"
-            . "• <b>Definition of Done:</b> " . htmlspecialchars($plan->definition_of_done, ENT_QUOTES, 'UTF-8');
+            . "• <b>Definition of Done (DOD):</b> " . htmlspecialchars($plan->definition_of_done, ENT_QUOTES, 'UTF-8');
 
         $monthlyUrl = route('monthly.plans', [
             'department_id' => $validated['department_id'],
@@ -419,27 +417,35 @@ class MonthlyPlanController extends Controller
             $plan->id
         );
 
-        // Telegram Notification to Department Head
+        // Notify Department Head via Telegram
         $dept = $plan->department;
-        $deptId = $plan->department_id;
-        $notifTitle = "Monthly Plan {$action}: " . ($dept->department_code ?? "Dept #{$deptId}");
-        $notifMessage = "General Management has <b>{$action}D</b> the monthly plan: <b>" . htmlspecialchars($plan->title, ENT_QUOTES, 'UTF-8') . "</b>\n"
-            . "• Department: <b>" . htmlspecialchars($dept->department_name ?? 'Department', ENT_QUOTES, 'UTF-8') . "</b>\n"
-            . "• Month: <b>{$plan->month} {$plan->year}</b>\n"
-            . "• Type: <b>{$plan->plan_type}</b>\n";
+        $decisionBadge = $action === 'APPROVE' ? '[APPROVED]' : '[DECLINED]';
+        $notifTitle = "Monthly Plan {$decisionBadge}: {$plan->title}";
+        $notifMessage = "<b>General Management</b> has <b>{$decisionBadge}</b> the monthly plan: <b>" . htmlspecialchars($plan->title, ENT_QUOTES, 'UTF-8') . "</b>\n\n"
+            . "• <b>Department:</b> " . htmlspecialchars($dept->department_name ?? 'Department', ENT_QUOTES, 'UTF-8') . "\n"
+            . "• <b>Period:</b> {$plan->month} {$plan->year}\n";
         if ($action === 'DECLINE') {
-            $notifMessage .= "• <b>Reason:</b> " . htmlspecialchars($plan->decline_reason, ENT_QUOTES, 'UTF-8') . "\n";
+            $notifMessage .= "• <b>Reason for Decline:</b> <i>" . htmlspecialchars($plan->decline_reason, ENT_QUOTES, 'UTF-8') . "</i>\n";
         }
         $monthlyUrl = route('monthly.plans', [
-            'department_id' => $deptId,
+            'department_id' => $plan->department_id,
             'year' => $plan->year,
             'month' => $plan->month,
         ]);
-        notify_department_head($deptId, $notifTitle, $notifMessage, $monthlyUrl);
+        notify_department_head((int)$plan->department_id, $notifTitle, $notifMessage, $monthlyUrl);
 
         $msg = $action === 'APPROVE' 
             ? "Monthly Plan '{$plan->title}' has been APPROVED." 
             : "Monthly Plan '{$plan->title}' has been DECLINED.";
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $msg,
+                'approval_status' => $plan->approval_status,
+                'decline_reason' => $plan->decline_reason,
+            ]);
+        }
 
         return back()->with('success', $msg);
     }

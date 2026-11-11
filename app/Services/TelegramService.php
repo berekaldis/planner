@@ -400,9 +400,9 @@ class TelegramService
 
             $msg = "<b>Welcome to Kaldis Coffee Planning Portal</b>\n\n";
             $msg .= "Hello <b>{$firstName}</b>!\n";
-            $msg .= "Account: <b>{$user->full_name}</b> (@{$user->username})\n";
-            $msg .= "Department: <b>{$deptName}</b>\n";
-            $msg .= "Role: <b>{$roleName}</b>\n\n";
+            $msg .= "• Account: <b>{$user->full_name}</b> (@{$user->username})\n";
+            $msg .= "• Department: <b>{$deptName}</b>\n";
+            $msg .= "• Role: <b>{$roleName}</b>\n\n";
             $msg .= "<i>Your Telegram account is successfully linked to Kaldis Planner.</i>\n\n";
             $msg .= "<b>Available Commands:</b>\n";
             $msg .= "• /status — View weekly tasks & execution progress\n";
@@ -452,10 +452,10 @@ class TelegramService
             $rate = $totalTasks > 0 ? round(($doneTasks / $totalTasks) * 100, 1) : 0;
 
             $msg = "<b>Company Performance Status ({$month} {$year})</b>\n\n";
-            $msg .= "Active Departments: <b>{$totalDepts}</b>\n";
-            $msg .= "Scheduled Tasks: <b>{$totalTasks}</b>\n";
-            $msg .= "Completed Tasks: <b>{$doneTasks}</b>\n";
-            $msg .= "Overall Completion Rate: <b>{$rate}%</b>\n\n";
+            $msg .= "• Active Departments: <b>{$totalDepts}</b>\n";
+            $msg .= "• Scheduled Tasks: <b>{$totalTasks}</b>\n";
+            $msg .= "• Completed Tasks: <b>{$doneTasks}</b>\n";
+            $msg .= "• Overall Completion Rate: <b>{$rate}%</b>\n\n";
             $msg .= "Use the web portal for complete department breakdowns and executive scorecards.";
 
             $this->sendMessage($chatId, $msg);
@@ -476,7 +476,7 @@ class TelegramService
         $rate = $total > 0 ? round(($done / $total) * 100, 1) : 0;
 
         $msg = "<b>Department Performance ({$dept->department_code})</b>\n";
-        $msg .= "Period: <b>{$month} {$year} — Week {$week}</b>\n\n";
+        $msg .= "• Period: <b>{$month} {$year} — Week {$week}</b>\n\n";
         $msg .= "• Total Tasks: <b>{$total}</b>\n";
         $msg .= "• DONE: <b>{$done}</b>\n";
         $msg .= "• NOT DONE: <b>{$notDone}</b>\n";
@@ -507,13 +507,13 @@ class TelegramService
             ->where('week_number', $week)
             ->first();
 
-        $statusText = $sub ? ($sub->status === 'ON_TIME' ? 'ON TIME' : ($sub->status === 'LATE' ? 'LATE' : $sub->status)) : 'NOT YET SUBMITTED';
+        $statusText = $sub ? ($sub->status === 'ON_TIME' ? '[ON TIME]' : ($sub->status === 'LATE' ? '[LATE]' : "[{$sub->status}]")) : '[NOT YET SUBMITTED]';
 
         $msg = "<b>Weekly Report Status — {$dept->department_name}</b>\n";
-        $msg .= "Week {$week} ({$month} {$year})\n\n";
-        $msg .= "Status: <b>{$statusText}</b>\n";
+        $msg .= "• Period: Week {$week} ({$month} {$year})\n\n";
+        $msg .= "• Status: <b>{$statusText}</b>\n";
         if ($sub && $sub->submitted_at) {
-            $msg .= "Submitted At: <b>" . Carbon::parse($sub->submitted_at)->format('M d, Y h:i A') . "</b>\n";
+            $msg .= "• Submitted At: <b>" . Carbon::parse($sub->submitted_at)->format('M d, Y h:i A') . "</b>\n";
         }
         $msg .= "\nRegular weekly submission deadline is <b>Monday 6:30 LT (12:30 PM)</b>.";
 
@@ -549,8 +549,8 @@ class TelegramService
         ]);
 
         $msg = "<b>Weekly Achievement Logged!</b>\n\n";
-        $msg .= "Department: <b>{$user->department->department_code}</b>\n";
-        $msg .= "<i>\"{$text}\"</i>\n\n";
+        $msg .= "• Department: <b>{$user->department->department_code}</b>\n";
+        $msg .= "• Details: <i>\"{$text}\"</i>\n\n";
         $msg .= "This achievement is now visible in the company-wide feed.";
 
         $this->sendMessage($chatId, $msg);
@@ -585,8 +585,8 @@ class TelegramService
         ]);
 
         $msg = "<b>Weekly Challenge / Blocker Logged</b>\n\n";
-        $msg .= "Department: <b>{$user->department->department_code}</b>\n";
-        $msg .= "<i>\"{$text}\"</i>\n\n";
+        $msg .= "• Department: <b>{$user->department->department_code}</b>\n";
+        $msg .= "• Details: <i>\"{$text}\"</i>\n\n";
         $msg .= "General Management and cross-functional teams have been alerted.";
 
         $this->sendMessage($chatId, $msg);
@@ -629,8 +629,8 @@ class TelegramService
         $text = "<b>Kaldis Coffee PLC — Weekly Report Reminder</b>\n\n";
         $text .= "Dear <b>{$head->full_name}</b> ({$department->department_name}),\n\n";
         $text .= "This is a reminder to finalize and submit your department's <b>Week {$weekNumber}</b> Performance Report for <b>{$month} {$year}</b>.\n\n";
-        $text .= "<b>Submission Deadline:</b> {$deadlineDay} at 6:30 LT ({$deadlineTime})\n";
-        $text .= "Please evaluate all tasks as <b>DONE</b> or <b>NOT DONE</b> in the portal:\n";
+        $text .= "• <b>Submission Deadline:</b> {$deadlineDay} at 6:30 LT ({$deadlineTime})\n";
+        $text .= "• Please evaluate all tasks as <b>DONE</b> or <b>NOT DONE</b> in the portal:\n";
         $text .= "<code>http://localhost/Planner/weekly/performance</code>";
 
         $res = $this->sendMessage($head->telegram_chat_id, $text);
@@ -665,10 +665,10 @@ class TelegramService
         $month = kaldis_setting('current_planning_month', config('kaldis.current_planning_month', 'Meskerem'));
 
         $text = "<b>Kaldis Coffee PLC — Report Escalation Alert</b>\n\n";
-        $text .= "<b>Department:</b> {$department->department_name} ({$department->department_code})\n";
-        $text .= "<b>Escalation Level:</b> {$level}\n";
-        $text .= "<b>Missed Submission Weeks:</b> {$missedWeeks} week(s)\n";
-        $text .= "<b>Planning Period:</b> {$month} {$year}\n\n";
+        $text .= "• <b>Department:</b> {$department->department_name} ({$department->department_code})\n";
+        $text .= "• <b>Escalation Level:</b> {$level}\n";
+        $text .= "• <b>Missed Submission Weeks:</b> {$missedWeeks} week(s)\n";
+        $text .= "• <b>Planning Period:</b> {$month} {$year}\n\n";
         $text .= "Immediate submission or formal explanation is required.\n";
         $text .= "Access Portal: <code>http://localhost/Planner</code>";
 

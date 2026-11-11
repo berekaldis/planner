@@ -237,7 +237,7 @@ class DeadlineCheckCommand extends Command
                              . "A <b>Level 1 Escalation</b> has been registered in the system.\n"
                              . "Please evaluate your tasks and submit your execution report immediately.\n\n"
                              . "<i>Kaldis Coffee PLC — Executive Operations</i>\n"
-                             . "<i>" . format_ethiopian_datetime() . "</i>";
+                             . "<i>Ethiopian Date: " . format_ethiopian_datetime() . "</i>";
 
                         $replyMarkup = [
                             'inline_keyboard' => [
@@ -318,9 +318,9 @@ class DeadlineCheckCommand extends Command
             if ($force || !Cache::has($cacheKey)) {
                 if (!empty($gmChatIds)) {
                     $execMsg = "<b>Kaldis Executive Weekly Cutoff Report</b>\n";
-                    $execMsg .= "<b>Cycle:</b> Week {$week} Performance &amp; Week {$planWeek} Plan &bull; {$month} {$year}\n";
-                    $execMsg .= "<b>Submission Cutoff:</b> Monday 6:30 LT (12:30 PM)\n";
-                    $execMsg .= "<b>Evaluation Broadcast:</b> Monday 9:00 LT (3:00 PM)\n\n";
+                    $execMsg .= "• <b>Cycle:</b> Week {$week} Performance &amp; Week {$planWeek} Plan &bull; {$month} {$year}\n";
+                    $execMsg .= "• <b>Submission Cutoff:</b> Monday 6:30 LT (12:30 PM)\n";
+                    $execMsg .= "• <b>Evaluation Broadcast:</b> Monday 9:00 LT (3:00 PM)\n\n";
 
                     $execMsg .= "<b>Company Submission Performance:</b>\n";
                     $execMsg .= "• Total Departments: <b>{$totalDepts}</b>\n";
@@ -335,7 +335,7 @@ class DeadlineCheckCommand extends Command
                     $execMsg .= "• Submission Compliance: <b>{$complianceRate}%</b>\n\n";
 
                     if (!empty($onTimeDepts)) {
-                        $execMsg .= "<b>ON-TIME SUBMISSIONS:</b>\n";
+                        $execMsg .= "<b>ON-TIME SUBMISSIONS (በሰዓቱ ያስገቡ):</b>\n";
                         foreach ($onTimeDepts as $item) {
                             $safeDept = htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8');
                             $planInfo = $item['plan_tasks'] > 0 ? " &bull; W{$planWeek} Plan: {$item['plan_tasks']} tasks" : "";
@@ -345,7 +345,7 @@ class DeadlineCheckCommand extends Command
                     }
 
                     if (!empty($delayApprovedDepts)) {
-                        $execMsg .= "<b>DELAY APPROVED BY GM:</b>\n";
+                        $execMsg .= "<b>DELAY APPROVED BY GM (በዋና ስራ አስኪያጅ የተፈቀደ):</b>\n";
                         foreach ($delayApprovedDepts as $item) {
                             $safeDept = htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8');
                             $planInfo = $item['plan_tasks'] > 0 ? " &bull; W{$planWeek} Plan: {$item['plan_tasks']} tasks" : "";
@@ -355,7 +355,7 @@ class DeadlineCheckCommand extends Command
                     }
 
                     if (!empty($lateDepts)) {
-                        $execMsg .= "<b>LATE SUBMISSIONS:</b>\n";
+                        $execMsg .= "<b>LATE SUBMISSIONS (ዘግይተው ያስገቡ):</b>\n";
                         foreach ($lateDepts as $item) {
                             $safeDept = htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8');
                             $lateTimeStr = $item['submitted_at'] ? " &bull; Submitted " . format_ethiopian_time($item['submitted_at'], true) : "";
@@ -365,7 +365,7 @@ class DeadlineCheckCommand extends Command
                     }
 
                     if (!empty($missingDepts)) {
-                        $execMsg .= "<b>NOT SUBMITTED / DELINQUENT:</b>\n";
+                        $execMsg .= "<b>NOT SUBMITTED / DELINQUENT (ያላስገቡ / የቀሩ):</b>\n";
                         foreach ($missingDepts as $item) {
                             $safeDept = htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8');
                             $headName = $item['dept']->head ? $item['dept']->head->full_name : 'No Head Assigned';

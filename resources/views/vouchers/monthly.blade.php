@@ -3,12 +3,6 @@
 @section('title', 'Monthly Plan Voucher - ' . $department->department_name)
 
 @section('content')
-@php
-    $timingStatus = $timingStatus ?? ($submission->status ?? 'DRAFT');
-    $allDepartments = $allDepartments ?? collect([$department]);
-    $strategyPlans = $strategyPlans ?? (isset($plans) ? $plans->where('plan_type', 'STRATEGY') : collect([]));
-    $operationalPlans = $operationalPlans ?? (isset($plans) ? $plans->where('plan_type', 'OPERATIONAL') : collect([]));
-@endphp
 <style>
 /* ══════════════════════════════════════════════════════════
    OFFICIAL VOUCHER STYLING (KALDIS COFFEE PLC)

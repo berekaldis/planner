@@ -110,10 +110,10 @@ class MonthlyPlanReminderCommand extends Command
                         $msg = "<b>Kaldis Coffee PLC — Monthly Plan Reminder</b>\n\n"
                              . "Dear <b>{$safeHeadName}</b> ({$safeDeptName}),\n\n"
                              . "This is a reminder to prepare and submit your department's Monthly Plan Package for <b>{$month} {$year}</b>.\n\n"
-                             . "<b>Submission Cutoff:</b> {$deadlineFormatted}\n"
-                             . "Please align your departmental operational tasks with the active Annual Strategic Goals.\n\n"
+                             . "• <b>Submission Cutoff:</b> {$deadlineFormatted}\n"
+                             . "• Please align your departmental operational tasks with the active Annual Strategic Goals.\n\n"
                              . "<i>Kaldis Coffee PLC — Planning & Performance</i>\n"
-                             . "<i>" . format_ethiopian_datetime() . "</i>";
+                             . "<i>Ethiopian Date: " . format_ethiopian_datetime() . "</i>";
 
                         $replyMarkup = [
                             'inline_keyboard' => [
@@ -156,13 +156,13 @@ class MonthlyPlanReminderCommand extends Command
 
                     if ($telegram->isConfigured() && !empty($chatId)) {
                         $portalUrl = url('/monthly/plans?year=' . urlencode($year) . '&month=' . urlencode($month));
-                        $msg = "<b>Kaldis Monthly Plan Cutoff Escalation</b>\n\n"
+                        $msg = "<b>Kaldis Monthly Plan Cutoff Notice</b>\n\n"
                              . "Attention: <b>{$safeHeadName}</b> ({$safeDeptName})\n\n"
                              . "The official deadline for submitting your department's Monthly Plan Package for <b>{$month} {$year}</b> (Cutoff: {$deadlineFormatted}) has expired.\n\n"
                              . "A <b>Level 1 Escalation</b> has been registered in the system.\n"
                              . "Please contact General Management and submit your package immediately.\n\n"
                              . "<i>Kaldis Coffee PLC — Office of the General Manager</i>\n"
-                             . "<i>" . format_ethiopian_datetime() . "</i>";
+                             . "<i>Ethiopian Date: " . format_ethiopian_datetime() . "</i>";
 
                         $replyMarkup = [
                             'inline_keyboard' => [
@@ -246,8 +246,8 @@ class MonthlyPlanReminderCommand extends Command
                     : "<b>Kaldis Monthly Planning Progress Summary</b>";
 
                 $gmReport = "{$headerTitle}\n";
-                $gmReport .= "<b>Period:</b> {$month} {$year}\n";
-                $gmReport .= "<b>Evaluation Time:</b> " . format_ethiopian_datetime() . "\n\n";
+                $gmReport .= "• <b>Period:</b> {$month} {$year}\n";
+                $gmReport .= "• <b>Evaluation Time:</b> " . format_ethiopian_datetime() . "\n\n";
 
                 $gmReport .= "<b>Company Planning Status:</b>\n";
                 $gmReport .= "• Total Active Departments: <b>{$totalDepts}</b>\n";
@@ -263,7 +263,7 @@ class MonthlyPlanReminderCommand extends Command
                 $gmReport .= "• Planning Compliance Rate: <b>{$complianceRate}%</b>\n\n";
 
                 if (!empty($submittedDepts)) {
-                    $gmReport .= "<b>Submitted & Excused Departments:</b>\n";
+                    $gmReport .= "<b>Submitted &amp; Excused Departments:</b>\n";
                     foreach ($submittedDepts as $item) {
                         $safeDept = htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8');
                         $badge = $item['status'] === 'LATE' ? '(Late)' : ($item['status'] === 'DELAY_APPROVED' ? '(Delay Approved by GM)' : '(On-Time)');
@@ -284,7 +284,7 @@ class MonthlyPlanReminderCommand extends Command
                 }
 
                 $dashboardUrl = url('/management/dashboard?year=' . urlencode($year) . '&month=' . urlencode($month));
-                $gmReport .= "<b>Submission Cutoff:</b> {$deadlineFormatted}\n\n";
+                $gmReport .= "• <b>Submission Cutoff:</b> {$deadlineFormatted}\n\n";
                 $gmReport .= "<i>Kaldis Coffee PLC — Executive Operations</i>";
 
                 $replyMarkup = [

@@ -112,35 +112,25 @@ class WeeklyPlanController extends Controller
             'year' => 'required|string',
             'month' => 'required|string',
             'week_number' => 'required|integer|min:1|max:5',
-            'task_type' => 'nullable|in:PLANNED,NEW_TASK',
+            'task_type' => 'required|in:PLANNED,NEW_TASK',
             'monthly_plan_id' => 'nullable|exists:monthly_plans,id',
-            'plan_type' => 'nullable|string',
             'task_title' => 'required|string|max:255',
-            'task_description' => 'nullable|string',
-            'task_target' => 'nullable|string',
-            'definition_of_done' => 'nullable|string',
-            'expected_result' => 'nullable|string',
-            'priority' => 'nullable|string',
-            'assigned_to' => 'nullable|string|max:150',
-            'responsible_person' => 'nullable|string|max:150',
-            'deadline_date' => 'nullable|date',
-            'due_date' => 'nullable|date',
+            'definition_of_done' => 'required|string',
         ]);
 
-        $taskType = $validated['task_type'] ?? (!empty($validated['monthly_plan_id']) ? 'PLANNED' : 'NEW_TASK');
-        if ($taskType === 'PLANNED' && empty($validated['monthly_plan_id'])) {
-            // If marked planned but no monthly plan was selected, check if one can be matched or fallback
-            $taskType = 'NEW_TASK';
+        if ($validated['task_type'] === 'PLANNED') {
+            if (empty($validated['monthly_plan_id'])) {
+                return back()->withErrors(['monthly_plan_id' => 'Please select the parent monthly plan for this planned task.'])->withInput();
+            }
+            $monthlyPlan = MonthlyPlan::find($validated['monthly_plan_id']);
+            $annualGoalId = $monthlyPlan ? $monthlyPlan->annual_goal_id : null;
+            $planType = 'MONTH_PLAN';
+        } else {
+            $monthlyPlan = null;
+            $validated['monthly_plan_id'] = null;
+            $annualGoalId = null;
+            $planType = 'NEW_TASK';
         }
-
-        $monthlyPlan = ($taskType === 'PLANNED' && !empty($validated['monthly_plan_id']))
-            ? MonthlyPlan::find($validated['monthly_plan_id'])
-            : null;
-
-        // If user selects from Parent Monthly Plan -> Month plan, else New task
-        $planType = $monthlyPlan ? 'MONTH_PLAN' : 'NEW_TASK';
-        $annualGoalId = $monthlyPlan ? $monthlyPlan->annual_goal_id : null;
-        $dod = $validated['definition_of_done'] ?? ($validated['expected_result'] ?? ($validated['task_target'] ?? 'Completed'));
 
         $weeklyPlan = WeeklyPlan::firstOrCreate([
             'department_id' => $validated['department_id'],
@@ -156,20 +146,20 @@ class WeeklyPlanController extends Controller
 
         $task = WeeklyTask::create([
             'weekly_plan_id' => $weeklyPlan->id,
-            'monthly_plan_id' => $monthlyPlan ? $monthlyPlan->id : null,
+            'monthly_plan_id' => $validated['monthly_plan_id'] ?? null,
             'department_id' => $validated['department_id'],
             'year' => $validated['year'],
             'month' => $validated['month'],
             'week_number' => $validated['week_number'],
             'plan_type' => $planType,
-            'task_type' => $taskType,
+            'task_type' => $validated['task_type'],
             'annual_goal_id' => $annualGoalId,
             'task_title' => $validated['task_title'],
-            'task_description' => $validated['task_description'] ?? null,
-            'expected_result' => $dod,
-            'priority' => $validated['priority'] ?? 'MEDIUM',
-            'responsible_person' => $validated['responsible_person'] ?? ($validated['assigned_to'] ?? $user->name),
-            'due_date' => !empty($validated['due_date']) ? $validated['due_date'] : (!empty($validated['deadline_date']) ? $validated['deadline_date'] : null),
+            'task_description' => null,
+            'expected_result' => $validated['definition_of_done'],
+            'priority' => 'MEDIUM',
+            'responsible_person' => null,
+            'due_date' => null,
             'approval_status' => $isGM ? 'APPROVED' : 'PENDING',
             'approved_by' => $isGM ? $user->id : null,
             'approved_at' => $isGM ? now() : null,
@@ -355,7 +345,7 @@ class WeeklyPlanController extends Controller
             'decline_reason' => 'nullable|string|max:1000',
         ]);
 
-        $task = WeeklyTask::with('department')->findOrFail($id);
+        $task = WeeklyTask::with(['department', 'monthlyPlan'])->findOrFail($id);
         $action = strtoupper($validated['action']);
 
         if ($action === 'DECLINE' && empty(trim($validated['decline_reason'] ?? ''))) {
@@ -382,28 +372,36 @@ class WeeklyPlanController extends Controller
             $task->id
         );
 
-        // Telegram Notification to Department Head
+        // Automated Telegram Notification to Department Head
         $dept = $task->department;
-        $deptId = $task->department_id;
-        $notifTitle = "Weekly Task {$action}: " . ($dept->department_code ?? "Dept #{$deptId}");
-        $notifMessage = "General Management has <b>{$action}D</b> the weekly task: <b>" . htmlspecialchars($task->task_title, ENT_QUOTES, 'UTF-8') . "</b>\n"
-            . "• Department: <b>" . htmlspecialchars($dept->department_name ?? 'Department', ENT_QUOTES, 'UTF-8') . "</b>\n"
-            . "• Week: <b>Week {$task->week_number} ({$task->month} {$task->year})</b>\n"
-            . "• Type: <b>" . ($task->task_type === 'NEW_TASK' ? 'New Task' : 'Planned') . "</b>\n";
+        $decisionBadge = $action === 'APPROVE' ? '[APPROVED]' : '[DECLINED]';
+        $notifTitle = "Weekly Task {$decisionBadge}: {$task->task_title}";
+        $notifMessage = "<b>General Management</b> has <b>{$decisionBadge}</b> the weekly task: <b>" . htmlspecialchars($task->task_title, ENT_QUOTES, 'UTF-8') . "</b>\n\n"
+            . "• <b>Department:</b> " . htmlspecialchars($dept->department_name ?? 'Department', ENT_QUOTES, 'UTF-8') . "\n"
+            . "• <b>Period:</b> Week {$task->week_number} ({$task->month} {$task->year})\n";
         if ($action === 'DECLINE') {
-            $notifMessage .= "• <b>Reason:</b> " . htmlspecialchars($task->decline_reason, ENT_QUOTES, 'UTF-8') . "\n";
+            $notifMessage .= "• <b>Reason for Decline:</b> <i>" . htmlspecialchars($task->decline_reason, ENT_QUOTES, 'UTF-8') . "</i>\n";
         }
-        $weeklyUrl = route('weekly.plans', [
-            'department_id' => $deptId,
+        $weekUrl = route('weekly.plans', [
+            'department_id' => $task->department_id,
             'year' => $task->year,
             'month' => $task->month,
             'week' => $task->week_number,
         ]);
-        notify_department_head($deptId, $notifTitle, $notifMessage, $weeklyUrl);
+        notify_department_head((int)$task->department_id, $notifTitle, $notifMessage, $weekUrl);
 
         $msg = $action === 'APPROVE' 
             ? "Weekly Task '{$task->task_title}' has been APPROVED." 
             : "Weekly Task '{$task->task_title}' has been DECLINED.";
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $msg,
+                'approval_status' => $task->approval_status,
+                'decline_reason' => $task->decline_reason,
+            ]);
+        }
 
         return back()->with('success', $msg);
     }

@@ -423,9 +423,10 @@ class PerformanceController extends Controller
 
         // Dispatch GM notification (In-app + Telegram) with Official Vouchers
         $dept = Department::find($deptId);
+        $statusEmoji = ($compliance === 'ON_TIME' || $compliance === 'DELAY_APPROVED') ? '🟢 [ON-TIME]' : '🟡 [LATE]';
         $statusBadge = ($compliance === 'DELAY_APPROVED')
-            ? 'DELAY APPROVED (EXCUSED ON-TIME)'
-            : (($compliance === 'ON_TIME') ? 'ON-TIME SUBMISSION' : 'LATE SUBMISSION');
+            ? '🟢 DELAY APPROVED (EXCUSED ON-TIME)'
+            : (($compliance === 'ON_TIME') ? '🟢 ON-TIME SUBMISSION' : '🟡 LATE SUBMISSION');
         $deptCode = htmlspecialchars($dept->department_code ?? "Dept #{$deptId}", ENT_QUOTES, 'UTF-8');
         $deptName = htmlspecialchars($dept->department_name ?? 'Department', ENT_QUOTES, 'UTF-8');
 
@@ -504,7 +505,7 @@ class PerformanceController extends Controller
                            . "• <b>Binary Execution:</b> <b>{$doneTasks} DONE</b> &bull; <b>{$notDoneTasks} NOT DONE</b> ({$totalTasks} planned)\n"
                            . "• <b>Submission Status:</b> <b>{$statusBadge}</b>\n";
         } else {
-            $notifTitle = "Weekly Performance Report: {$deptCode}";
+            $notifTitle = "Weekly Performance Report: {$deptCode} {$statusBadge}";
             $notifMessage = "<b>{$deptName}</b> has officially submitted their Weekly Performance Report for <b>Week {$validated['week_number']} ({$validated['month']} {$validated['year']})</b>.\n\n"
                           . "<b>WEEK {$validated['week_number']} PERFORMANCE EXECUTION</b>\n"
                           . "• <b>Timing Status:</b> <b>{$statusBadge}</b>\n"
@@ -823,9 +824,9 @@ class PerformanceController extends Controller
         AuditLog::log('GM_FEEDBACK_WEEKLY', 'performance', "GM evaluated Weekly Report Week {$validated['week_number']} for Dept {$validated['department_id']}: {$validated['approval_status']}");
 
         $statusLabel = match($validated['approval_status']) {
-            'APPROVED' => 'APPROVED',
-            'REVISION_REQUESTED' => 'REVISION REQUESTED',
-            default => 'PENDING'
+            'APPROVED' => '[APPROVED]',
+            'REVISION_REQUESTED' => '[REVISION REQUESTED]',
+            default => '[PENDING]'
         };
         $dept = Department::find($validated['department_id']);
         $deptName = $dept ? $dept->name : 'Department';

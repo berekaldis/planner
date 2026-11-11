@@ -3,17 +3,6 @@
 @section('title', 'Weekly Performance Voucher - ' . $department->department_name . ' (Week ' . $selectedWeek . ')')
 
 @section('content')
-@php
-    $timingStatus = $timingStatus ?? ($submission->status ?? 'DRAFT');
-    $allDepartments = $allDepartments ?? collect([$department]);
-    $totalTasks = $totalTasks ?? (isset($tasks) ? $tasks->count() : 0);
-    $doneTasks = $doneTasks ?? 0;
-    $notDoneTasks = $notDoneTasks ?? 0;
-    $completionRate = $completionRate ?? 0;
-    $completionPct = $completionPct ?? ($completionRate ?? 0);
-    $stratTasks = $stratTasks ?? 0;
-    $opsTasks = $opsTasks ?? 0;
-@endphp
 <style>
 /* ══════════════════════════════════════════════════════════
    OFFICIAL WEEKLY PERFORMANCE VOUCHER (KALDIS COFFEE PLC)
@@ -312,9 +301,11 @@
                                 <tr>
                                     <td class="text-center fw-bold text-muted">{{ $idx + 1 }}</td>
                                     <td>
-                                        <span class="badge {{ $task->plan_type === 'STRATEGY' ? 'bg-primary' : 'bg-info text-dark' }} small">
-                                            {{ $task->plan_type }}
-                                        </span>
+                                        @if($task->task_type === 'NEW_TASK' || $task->plan_type === 'NEW_TASK')
+                                            <span class="badge bg-secondary small">New Task</span>
+                                        @else
+                                            <span class="badge bg-primary small">Planned</span>
+                                        @endif
                                     </td>
                                     <td>
                                         <div class="fw-bold text-dark">{{ $task->task_title }}</div>

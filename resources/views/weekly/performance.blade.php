@@ -156,7 +156,7 @@
         <div class="card p-3">
             <span class="text-muted small fw-semibold text-uppercase">Completed (DONE)</span>
             <h3 class="fw-bold my-1 text-success">{{ $doneTasks }}</h3>
-            <div class="small text-muted">Achieved weekly targets</div>
+            <div class="small text-muted">Completed weekly tasks</div>
         </div>
     </div>
     <div class="col-md-3">
@@ -185,7 +185,7 @@
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
-                    <th style="width: 110px;">Task Type</th>
+                    <th style="width: 100px;">Task Type</th>
                     <th>Task &amp; Definition of Done (DOD)</th>
                     <th style="width: 130px;" class="text-center">Status</th>
                     <th>Evaluation Details / Reason Category</th>
@@ -196,15 +196,15 @@
                 @forelse($tasks as $task)
                     <tr>
                         <td>
-                            @if($task->isNewTask())
-                                <span class="badge bg-secondary px-2 py-1">New Task</span>
+                            @if($task->task_type === 'NEW_TASK' || $task->plan_type === 'NEW_TASK')
+                                <span class="badge bg-secondary">New Task</span>
                             @else
-                                <span class="badge bg-primary px-2 py-1">Planned</span>
+                                <span class="badge bg-primary">Planned</span>
                             @endif
                         </td>
                         <td>
                             <strong class="text-dark">{{ $task->task_title }}</strong>
-                            <div class="small text-muted"><strong>Definition of Done (DOD):</strong> {{ $task->expected_result }}</div>
+                            <div class="small text-muted"><strong>DOD:</strong> {{ $task->expected_result }}</div>
                         </td>
                         <td class="text-center">
                             @if($task->result && $task->result->isDone())
@@ -533,7 +533,7 @@
 
                     <div class="mb-3">
                         <label class="form-label small fw-bold text-secondary">Detailed Explanation <span class="text-danger">*</span></label>
-                        <textarea name="reason_explanation" class="form-control" rows="2" placeholder="Specific explanation of why the target was not reached..." required></textarea>
+                        <textarea name="reason_explanation" class="form-control" rows="2" placeholder="Specific explanation of why the task was not completed..." required></textarea>
                     </div>
 
                     <div class="mb-3">

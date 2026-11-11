@@ -179,15 +179,15 @@
             <tbody>
                 @forelse($tasks as $task)
                     @php
-                        $isNewTask = ($task->task_type === 'NEW_TASK' || $task->plan_type === 'NEW_TASK' || empty($task->monthly_plan_id));
+                        $isPlanned = ($task->task_type === 'PLANNED' || $task->plan_type === 'MONTH_PLAN' || !empty($task->monthly_plan_id));
                         $approval = strtoupper($task->approval_status ?? 'PENDING');
                     @endphp
                     <tr>
                         <td>
-                            @if($isNewTask)
-                                <span class="badge bg-secondary px-2 py-1">New Task</span>
-                            @else
+                            @if($isPlanned)
                                 <span class="badge bg-primary px-2 py-1">Planned</span>
+                            @else
+                                <span class="badge bg-secondary px-2 py-1">New Task</span>
                             @endif
                         </td>
                         <td>
@@ -308,60 +308,56 @@
                         <input type="hidden" name="department_id" value="{{ $department->id }}">
                     @endif
 
-                    <!-- Step 1: Task Type Selection -->
+                    <!-- Step 1: Task Type -->
                     <div class="mb-3">
                         <label class="form-label small fw-bold text-secondary text-uppercase">Task Type <span class="text-danger">*</span></label>
                         <div class="row g-2">
                             <div class="col-md-6">
                                 <div class="form-check p-2.5 border rounded-3 bg-light">
-                                    <input class="form-check-input" type="radio" name="task_type" id="taskTypePlanned" value="PLANNED" checked onchange="toggleWeeklyTaskType()">
-                                    <label class="form-check-label fw-semibold text-primary" for="taskTypePlanned">
-                                        <i class="fas fa-calendar-check me-1"></i> Planned
+                                    <input class="form-check-input" type="radio" name="task_type" id="taskTypePlanned" value="PLANNED" checked onchange="toggleTaskType()">
+                                    <label class="form-check-label fw-bold text-primary" for="taskTypePlanned">
+                                        Planned
                                     </label>
-                                    <div class="small text-muted" style="font-size: 0.75rem;">Already planned in the monthly plan</div>
+                                    <div class="small text-muted" style="font-size: 0.75rem;">Already planned in the month</div>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-check p-2.5 border rounded-3 bg-light">
-                                    <input class="form-check-input" type="radio" name="task_type" id="taskTypeNew" value="NEW_TASK" onchange="toggleWeeklyTaskType()">
-                                    <label class="form-check-label fw-semibold text-secondary" for="taskTypeNew">
-                                        <i class="fas fa-plus-circle me-1"></i> New Task
+                                    <input class="form-check-input" type="radio" name="task_type" id="taskTypeNew" value="NEW_TASK" onchange="toggleTaskType()">
+                                    <label class="form-check-label fw-bold text-secondary" for="taskTypeNew">
+                                        New Task
                                     </label>
-                                    <div class="small text-muted" style="font-size: 0.75rem;">Unplanned in month, but planned for this week</div>
+                                    <div class="small text-muted" style="font-size: 0.75rem;">Unplanned in the month, planned in the week</div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Step 2: Parent Monthly Plan (Shown if Planned) -->
-                    <div id="parentMonthlyPlanSection" class="mb-3">
+                    <!-- Step 2: Parent Monthly Plan (Required only for Planned) -->
+                    <div class="mb-3" id="parentMonthlyPlanGroup">
                         <label class="form-label small fw-semibold text-secondary">
-                            Select Monthly Plan <span class="text-danger">*</span>
+                            Parent Monthly Plan <span class="text-danger">*</span>
                         </label>
-                        @if($monthlyPlans->isEmpty())
-                            <div class="alert alert-warning py-2 px-3 small border-0 rounded-3">
-                                <i class="fas fa-exclamation-triangle me-1"></i> No monthly plans found for {{ $selectedMonth }} {{ $selectedYear }}. You can create a <strong>New Task</strong>, or add a Monthly Plan first.
-                            </div>
-                        @else
-                            <select name="monthly_plan_id" id="taskMonthlyPlanSelect" class="form-select" data-no-search="true" onchange="handleMonthlyPlanSelect(this)">
-                                <option value="">-- Choose Parent Monthly Plan --</option>
-                                @foreach($monthlyPlans as $mp)
-                                    <option value="{{ $mp->id }}" data-title="{{ e($mp->title) }}" data-dod="{{ e($mp->definition_of_done) }}" data-target="{{ e($mp->monthly_target) }}">
-                                        [{{ $mp->plan_type }}] {{ $mp->title }} (Target: {{ $mp->monthly_target }})
-                                    </option>
-                                @endforeach
-                            </select>
-                        @endif
+                        <select name="monthly_plan_id" id="taskMonthlyPlanSelect" class="form-select" data-no-search="true" onchange="handleMonthlyPlanSelect(this)" required>
+                            <option value="">-- Select Parent Monthly Plan --</option>
+                            @foreach($monthlyPlans as $mp)
+                                <option value="{{ $mp->id }}" data-dod="{{ e($mp->definition_of_done) }}">
+                                    {{ $mp->title }} (Target: {{ $mp->monthly_target }})
+                                </option>
+                            @endforeach
+                        </select>
+                        <div class="small text-muted mt-1">Select the monthly plan this weekly task executes.</div>
                     </div>
 
-                    <!-- Step 3: Task Information -->
+                    <!-- Step 3: Task Title -->
                     <div class="mb-3">
                         <label class="form-label small fw-semibold text-secondary">Task Title <span class="text-danger">*</span></label>
-                        <input type="text" name="task_title" id="weeklyTaskTitleInput" class="form-control" placeholder="e.g. Complete core module deployment" required>
+                        <input type="text" name="task_title" class="form-control" placeholder="e.g. Complete core module deployment" required>
                     </div>
 
+                    <!-- Step 4: Definition of Done / DOD -->
                     <div class="mb-3">
-                        <label class="form-label small fw-semibold text-secondary">Definition of Done (DOD) <span class="text-danger">*</span></label>
+                        <label class="form-label small fw-semibold text-secondary">Definition of Done / DOD <span class="text-danger">*</span></label>
                         <textarea name="definition_of_done" id="taskDodInput" class="form-control" rows="3" placeholder="Measurable deliverable and completion criteria..." required></textarea>
                     </div>
                 </div>
@@ -384,7 +380,7 @@
                 <input type="hidden" name="action" value="DECLINE">
                 <div class="modal-header bg-danger text-white">
                     <h5 class="modal-title fs-6 fw-bold">
-                        <i class="fas fa-times-circle me-2"></i> Decline Weekly Task
+                        <i class="fas fa-times-circle me-2"></i> Why Decline the Task?
                     </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
@@ -542,37 +538,31 @@
 <script>
     setupLiveSearch('weeklyTaskSearchInput', 'weeklyTasksTable');
 
-    function toggleWeeklyTaskType() {
-        const plannedRadio = document.getElementById('taskTypePlanned');
-        const isPlanned = plannedRadio ? plannedRadio.checked : true;
-        const section = document.getElementById('parentMonthlyPlanSection');
-        const planSelect = document.getElementById('taskMonthlyPlanSelect');
-
-        if (section) {
-            section.style.display = isPlanned ? 'block' : 'none';
-        }
-        if (planSelect) {
-            planSelect.required = isPlanned;
-            if (!isPlanned) {
-                planSelect.value = '';
+    function toggleTaskType() {
+        const isPlanned = document.getElementById('taskTypePlanned').checked;
+        const group = document.getElementById('parentMonthlyPlanGroup');
+        const select = document.getElementById('taskMonthlyPlanSelect');
+        if (group && select) {
+            if (isPlanned) {
+                group.style.display = 'block';
+                select.required = true;
+            } else {
+                group.style.display = 'none';
+                select.required = false;
+                select.value = '';
             }
         }
     }
 
     function handleMonthlyPlanSelect(selectEl) {
-        if (!selectEl || !selectEl.value) return;
-        const opt = selectEl.options[selectEl.selectedIndex];
-        const title = opt.getAttribute('data-title');
-        const dod = opt.getAttribute('data-dod');
-
-        const titleInput = document.getElementById('weeklyTaskTitleInput');
-        const dodInput = document.getElementById('taskDodInput');
-
-        if (titleInput && (!titleInput.value || titleInput.value.length < 5)) {
-            titleInput.value = title;
-        }
-        if (dod && dodInput && (!dodInput.value || dodInput.value.length < 5)) {
-            dodInput.value = dod;
+        if (!selectEl) return;
+        if (selectEl.value && selectEl.value !== '') {
+            const opt = selectEl.options[selectEl.selectedIndex];
+            const dod = opt.getAttribute('data-dod');
+            const dodInput = document.getElementById('taskDodInput');
+            if (dod && dodInput && (!dodInput.value || dodInput.value.length < 5)) {
+                dodInput.value = dod;
+            }
         }
     }
 
@@ -583,22 +573,5 @@
         const modal = new bootstrap.Modal(document.getElementById('declineWeeklyTaskModal'));
         modal.show();
     }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        toggleWeeklyTaskType();
-        const createModal = document.getElementById('createTaskModal');
-        if (createModal) {
-            createModal.addEventListener('shown.bs.modal', function () {
-                toggleWeeklyTaskType();
-            });
-            createModal.addEventListener('hidden.bs.modal', function () {
-                const form = createModal.querySelector('form');
-                if (form) {
-                    form.reset();
-                    toggleWeeklyTaskType();
-                }
-            });
-        }
-    });
 </script>
 @endsection

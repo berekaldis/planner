@@ -312,9 +312,9 @@
                         </div>
                     </div>
                     <div class="small text-muted">
-                        <span class="badge bg-success-subtle text-success border border-success me-1">On-Time</span>
-                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning me-1">Late</span>
-                        <span class="badge bg-danger-subtle text-danger border border-danger">Not Submitted</span>
+                        <span class="badge bg-success-subtle text-success border border-success me-1"><i class="fas fa-circle text-success me-1"></i> On-Time</span>
+                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning me-1"><i class="fas fa-circle text-warning me-1"></i> Late</span>
+                        <span class="badge bg-danger-subtle text-danger border border-danger"><i class="fas fa-circle text-danger me-1"></i> Not Submitted</span>
                     </div>
                 </div>
 
@@ -930,7 +930,7 @@
                 <input type="hidden" name="action" value="DECLINE">
                 <div class="modal-header bg-danger text-white">
                     <h5 class="modal-title fs-6 fw-bold">
-                        <i class="fas fa-times-circle me-2"></i> Decline Item
+                        <i class="fas fa-times-circle me-2"></i> Why Decline the Plan?
                     </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
@@ -1015,11 +1015,6 @@
                         <label class="form-label small fw-semibold text-secondary">Definition of Done (DoD) <span class="text-danger">*</span></label>
                         <textarea name="definition_of_done" class="form-control" rows="2" placeholder="Clear criteria for when this plan is considered complete..." required></textarea>
                     </div>
-
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold text-secondary">Executive Notes (Optional)</label>
-                        <input type="text" name="description" class="form-control" placeholder="Special directions from General Management">
-                    </div>
                 </div>
 
                 <div class="modal-footer bg-light">
@@ -1059,11 +1054,27 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label small fw-semibold text-secondary">Plan Type</label>
-                        <select name="plan_type" class="form-select" data-no-search="true">
-                            <option value="NEW_TASK" selected>New Task</option>
-                            <option value="MONTH_PLAN">Month Plan</option>
-                        </select>
+                        <label class="form-label small fw-bold text-secondary text-uppercase">Task Type <span class="text-danger">*</span></label>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <div class="form-check p-2.5 border rounded-3 bg-light">
+                                    <input class="form-check-input" type="radio" name="task_type" id="gmTaskTypeNew" value="NEW_TASK" checked>
+                                    <label class="form-check-label fw-bold text-secondary" for="gmTaskTypeNew">
+                                        New Task
+                                    </label>
+                                    <div class="small text-muted" style="font-size: 0.75rem;">Ad-hoc weekly task</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check p-2.5 border rounded-3 bg-light">
+                                    <input class="form-check-input" type="radio" name="task_type" id="gmTaskTypePlanned" value="PLANNED">
+                                    <label class="form-check-label fw-bold text-primary" for="gmTaskTypePlanned">
+                                        Planned
+                                    </label>
+                                    <div class="small text-muted" style="font-size: 0.75rem;">From monthly plan</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="mb-3">
@@ -1072,7 +1083,7 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label small fw-semibold text-secondary">Definition of Done (DOD) <span class="text-danger">*</span></label>
+                        <label class="form-label small fw-semibold text-secondary">Definition of Done / DOD <span class="text-danger">*</span></label>
                         <textarea name="definition_of_done" class="form-control" rows="3" placeholder="Measurable deliverable and completion criteria..." required></textarea>
                     </div>
                 </div>

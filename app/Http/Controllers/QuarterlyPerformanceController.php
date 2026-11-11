@@ -462,6 +462,7 @@ class QuarterlyPerformanceController extends Controller
         AuditLog::log('GM_REVIEW_QUARTERLY', 'quarterly', "GM {$validated['approval_status']} for {$submission->department->department_code} ({$submission->quarter} {$submission->year})", $submission->id);
 
         // Notify Department Head
+        $statusIcon = ($validated['approval_status'] === 'APPROVED') ? '[APPROVED]' : '[REVISION REQUESTED]';
         $statusLabel = ($validated['approval_status'] === 'APPROVED') ? 'APPROVED' : 'NEEDS REVISION';
         $voucherUrl = route('quarterly.voucher', [
             'department_id' => $submission->department_id,
@@ -469,12 +470,12 @@ class QuarterlyPerformanceController extends Controller
             'quarter' => $submission->quarter,
         ]);
 
-        $notifTitle = "GM Quarterly Review: {$submission->department->department_code}";
+        $notifTitle = "GM Quarterly Review {$statusIcon}: {$submission->department->department_code}";
         $notifMessage = "General Management has reviewed your <b>Quarterly Performance Report</b> for <b>{$submission->quarter} ({$submission->months}) - {$submission->year}</b>.\n\n"
-                      . "<b>Review Decision:</b> <b>{$statusLabel}</b>\n"
-                      . "<b>GM Directives & Feedback:</b>\n"
+                      . "• <b>Review Decision:</b> <b>{$statusLabel}</b>\n"
+                      . "• <b>GM Directives & Feedback:</b>\n"
                       . "<i>\"" . htmlspecialchars($validated['gm_feedback'], ENT_QUOTES, 'UTF-8') . "\"</i>\n\n"
-                      . "<b>Reviewed By:</b> " . htmlspecialchars($user->full_name ?? $user->username, ENT_QUOTES, 'UTF-8') . " (" . now()->format('Y-m-d H:i') . ")";
+                      . "• <b>Reviewed By:</b> " . htmlspecialchars($user->full_name ?? $user->username, ENT_QUOTES, 'UTF-8') . " (" . now()->format('Y-m-d H:i') . ")";
 
         $replyMarkup = [
             'inline_keyboard' => [

@@ -3,14 +3,6 @@
 @section('title', 'Reports & Tracking Hub - Kaldis PMS')
 
 @section('content')
-@php
-    $quarters = $quarters ?? get_ethiopian_quarters();
-    $complianceRows = $complianceRows ?? [];
-    $totalMonthlySubmitted = $totalMonthlySubmitted ?? 0;
-    $totalQuarterlySubmitted = $totalQuarterlySubmitted ?? 0;
-    $totalWeeklyTasksAll = $totalWeeklyTasksAll ?? 0;
-    $overallWeeklyRate = $overallWeeklyRate ?? 0;
-@endphp
 <!-- Header & Filter Bar -->
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
