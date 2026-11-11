@@ -88,10 +88,11 @@
             --kaldis-footer-height: 3.125rem;
         }
 
-        /* Reset & Root Canvas */
+        /* Reset & Root Canvas (Scaled to 80% default view) */
         html {
             min-height: 100%;
             scroll-behavior: smooth;
+            zoom: 0.8;
         }
 
         body {
