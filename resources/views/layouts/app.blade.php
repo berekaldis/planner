@@ -6,12 +6,12 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Dashboard') | {{ config('kaldis.app_name', 'Kaldis Planning Portal') }}</title>
     
-    <!-- Inline Theme & Sidebar State Initializer (Eliminates Flash) -->
+    <!-- Inline State Initializer (Eliminates Flash) -->
     <script>
         window.APP_BASE_URL = '{{ url('') }}';
         (function() {
-            const savedTheme = localStorage.getItem('kaldis_theme') || 'light';
-            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+            localStorage.removeItem('kaldis_theme');
+            document.documentElement.setAttribute('data-bs-theme', 'light');
             if (localStorage.getItem('sidebar_collapsed') === 'true' && window.innerWidth >= 992) {
                 document.documentElement.classList.add('sidebar-collapsed');
             }
@@ -85,37 +85,6 @@
             --kaldis-sidebar-width: 16.5rem;
             --kaldis-sidebar-collapsed-width: 3.25rem;
             --kaldis-topbar-height: 3.75rem;
-        }
-
-        [data-bs-theme="dark"], .dark {
-            --background: #18181B;
-            --foreground: #FAFAFA;
-            --card: #18181B;
-            --card-foreground: #FAFAFA;
-            --popover: #18181B;
-            --popover-foreground: #FAFAFA;
-            --primary: #FAFAFA;
-            --primary-foreground: #18181B;
-            --secondary: #27272A;
-            --secondary-foreground: #FAFAFA;
-            --muted: #27272A;
-            --muted-foreground: #A1A1AA;
-            --accent: #27272A;
-            --accent-foreground: #FAFAFA;
-            --destructive: #7F1D1D;
-            --destructive-foreground: #FAFAFA;
-            --border: #27272A;
-            --input: #27272A;
-            --ring: #52525B;
-
-            --sidebar: #18181B;
-            --sidebar-foreground: #FAFAFA;
-            --sidebar-primary: #FAFAFA;
-            --sidebar-primary-foreground: #18181B;
-            --sidebar-accent: #27272A;
-            --sidebar-accent-foreground: #FAFAFA;
-            --sidebar-border: #27272A;
-            --sidebar-ring: #52525B;
         }
 
         /* Reset & Root Canvas */
@@ -418,11 +387,6 @@
             flex-shrink: 0;
         }
 
-        [data-bs-theme="dark"] .nav-user-avatar {
-            background-color: #3F3F46;
-            color: #FAFAFA;
-        }
-
         .nav-user-info {
             display: flex;
             flex-direction: column;
@@ -630,25 +594,6 @@
             border: 1px solid var(--border);
             border-radius: 9999px;
             padding: 0.3rem 0.75rem;
-        }
-
-        .theme-toggle-btn {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background-color: transparent;
-            border: 1px solid var(--border);
-            color: var(--foreground);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: background-color 0.15s ease;
-            font-size: 0.85rem;
-        }
-
-        .theme-toggle-btn:hover {
-            background-color: var(--secondary);
         }
 
         /* App Content Body */
@@ -1289,11 +1234,6 @@
                         <i class="far fa-clock text-warning"></i>
                         <span>{{ format_ethiopian_time() }}</span>
                     </span>
-
-                    <!-- Theme Toggle (Light / Dark Mode) -->
-                    <button id="themeToggle" class="theme-toggle-btn shadow-xs" type="button" title="Toggle Light / Dark Mode (Alt+D)" aria-label="Toggle Dark Mode">
-                        <i id="themeToggleIcon" class="fas fa-moon"></i>
-                    </button>
                 </div>
             </header>
 
@@ -1435,7 +1375,7 @@
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
 
     <!-- Core App JS -->
-    <script src="{{ asset('assets/js/app.js') }}?v=3.0.0"></script>
+    <script src="{{ asset('assets/js/app.js') }}?v=3.1.0"></script>
 
     <!-- Enhanced Toast Notification System (Sonner Style) -->
     <script>
@@ -1595,7 +1535,59 @@
                 mNew.addEventListener('input', checkModalMatch);
                 mConf.addEventListener('input', checkModalMatch);
             }
+
+            // Sidebar Menu Live Filter Hookup
+            const sbSearch = document.getElementById('sidebarMenuSearch');
+            if (sbSearch) {
+                let sbTimer;
+                sbSearch.addEventListener('input', function() {
+                    clearTimeout(sbTimer);
+                    sbTimer = setTimeout(() => {
+                        if (typeof window.filterSidebarMenu === 'function') {
+                            window.filterSidebarMenu(this.value);
+                        }
+                    }, 60);
+                });
+                sbSearch.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') {
+                        this.value = '';
+                        if (typeof window.filterSidebarMenu === 'function') {
+                            window.filterSidebarMenu('');
+                        }
+                        this.blur();
+                    }
+                });
+            }
         });
+
+        // Global Table Live Search Helper
+        if (typeof window.setupLiveSearch !== 'function') {
+            window.setupLiveSearch = function(inputId, tableId) {
+                const input = document.getElementById(inputId);
+                const table = document.getElementById(tableId) || (tableId ? document.querySelector(tableId) : null);
+                if (!input || !table) return;
+
+                let debounce;
+                input.addEventListener('input', function () {
+                    clearTimeout(debounce);
+                    debounce = setTimeout(() => {
+                        if (typeof window.runTableSearch === 'function') {
+                            window.runTableSearch(this.value, table);
+                        }
+                    }, 120);
+                });
+
+                input.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape') {
+                        this.value = '';
+                        if (typeof window.runTableSearch === 'function') {
+                            window.runTableSearch('', table);
+                        }
+                        this.blur();
+                    }
+                });
+            };
+        }
     </script>
 
     @yield('scripts')

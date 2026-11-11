@@ -262,7 +262,8 @@
                     <th>Annual Strategic Goal &amp; Definition of Done</th>
                     <th style="width: 200px;">Owner Departments</th>
                     <th style="width: 140px;">Annual Target</th>
-                    <th style="width: 260px;" class="text-center">Status &amp; Action</th>
+                    <th style="width: 95px;">Priority</th>
+                    <th style="width: 160px;" class="text-center no-print">Status &amp; Action</th>
                 </tr>
             </thead>
             <tbody>
@@ -323,27 +324,38 @@
                             <small class="fw-semibold text-dark">{{ $goal->annual_target ?: '—' }}</small>
                         </td>
 
-                        <!-- Status & Action (Shown Together) -->
-                        <td class="text-center status-action-col">
-                            <div class="d-flex align-items-center justify-content-center gap-2">
-                                <span id="badge-{{ $goal->id }}" class="badge {{ $isActive ? 'bg-success text-white' : 'bg-secondary-subtle text-secondary border' }} px-2 py-1 fs-7 shadow-xs">
-                                    <i class="fas {{ $isActive ? 'fa-check-circle' : 'fa-times-circle' }} me-1"></i>
-                                    <span>{{ $isActive ? 'TRUE (Active)' : 'FALSE (Inactive)' }}</span>
-                                </span>
-                                <button type="button" 
-                                        class="btn btn-sm {{ $isActive ? 'btn-outline-danger' : 'btn-kaldis' }} toggle-btn px-2.5 py-1 shadow-xs"
-                                        id="btn-{{ $goal->id }}"
-                                        data-active="{{ $isActive ? 1 : 0 }}"
-                                        onclick="togglePlan({{ $goal->id }})">
-                                    <i class="fas {{ $isActive ? 'fa-times' : 'fa-check' }} me-1"></i>
-                                    <span>{{ $isActive ? 'Set FALSE' : 'Turn TRUE' }}</span>
-                                </button>
-                            </div>
+                        <!-- Priority -->
+                        <td>
+                            @php
+                                $prio = strtoupper($goal->priority ?? 'MEDIUM');
+                                $prioColor = match($prio) {
+                                    'HIGH' => 'danger',
+                                    'MEDIUM' => 'warning',
+                                    'LOW' => 'info',
+                                    default => 'secondary'
+                                };
+                            @endphp
+                            <span class="badge bg-{{ $prioColor }}-subtle text-{{ $prioColor }} border border-{{ $prioColor }}-subtle fs-8 px-2 py-0.5">
+                                {{ $prio }}
+                            </span>
+                        </td>
+
+                        <!-- Combined Status & Action Toggle Button -->
+                        <td class="text-center no-print action-col">
+                            <button type="button" 
+                                    class="btn btn-sm {{ $isActive ? 'btn-success' : 'btn-outline-secondary' }} px-3 py-1.5 shadow-xs fw-semibold rounded-pill toggle-btn"
+                                    id="btn-{{ $goal->id }}"
+                                    data-active="{{ $isActive ? 1 : 0 }}"
+                                    onclick="togglePlan({{ $goal->id }})"
+                                    title="{{ $isActive ? 'Active - Click to Deactivate' : 'Inactive - Click to Activate' }}">
+                                <i class="fas {{ $isActive ? 'fa-check-circle' : 'fa-circle-xmark' }} me-1.5"></i>
+                                <span>{{ $isActive ? 'Active' : 'Inactive' }}</span>
+                            </button>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="text-center py-5 text-muted">
+                        <td colspan="7" class="text-center py-5 text-muted">
                             <div class="p-3 bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
                                 <i class="fas fa-folder-open fa-2x text-muted opacity-50"></i>
                             </div>
@@ -434,10 +446,10 @@
     </div>
     <div class="d-flex align-items-center gap-2">
         <button type="button" class="btn btn-sm btn-success rounded-pill px-3 fw-bold" onclick="bulkSetActivation(true)">
-            <i class="fas fa-check-circle me-1"></i> Turn Active (TRUE)
+            <i class="fas fa-check-circle me-1"></i> Turn Active
         </button>
-        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 fw-bold" onclick="bulkSetActivation(false)">
-            <i class="fas fa-times-circle me-1"></i> Turn Inactive (FALSE)
+        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold" onclick="bulkSetActivation(false)">
+            <i class="fas fa-circle-xmark me-1"></i> Turn Inactive
         </button>
         <button type="button" class="btn btn-sm btn-link text-muted p-1 text-decoration-none" onclick="clearSelection()" title="Cancel Selection">
             <i class="fas fa-xmark fs-5"></i>
@@ -524,18 +536,6 @@
     from { opacity: 0; transform: translate(-50%, 20px); }
     to { opacity: 1; transform: translate(-50%, 0); }
 }
-
-[data-bs-theme=dark] .pagination-circle .circle-page-btn,
-[data-bs-theme=dark] .pagination-circle .circle-nav-btn {
-    background: #1E293B;
-    border-color: #334155;
-    color: #F1F5F9;
-}
-
-[data-bs-theme=dark] .floating-bulk-bar {
-    background: #0F172A !important;
-    border-color: rgba(251, 191, 36, 0.4) !important;
-}
 </style>
 @endsection
 
@@ -557,7 +557,7 @@ function togglePlan(goalId) {
     const newActive = !currentActive;
     btn.disabled = true;
     const originalHtml = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1.5"></i><span>Updating...</span>';
 
     fetch("{{ route('strategy.activation.toggle') }}", {
         method: 'POST',
@@ -606,7 +606,6 @@ function togglePlan(goalId) {
  */
 function updateRowUI(goalId, isActive) {
     const row = document.getElementById('row-' + goalId);
-    const badge = document.getElementById('badge-' + goalId);
     const btn = document.getElementById('btn-' + goalId);
 
     if (row) {
@@ -617,24 +616,15 @@ function updateRowUI(goalId, isActive) {
         }
     }
 
-    if (badge) {
-        if (isActive) {
-            badge.className = 'badge bg-success text-white px-2 py-1 fs-7 shadow-xs';
-            badge.innerHTML = '<i class="fas fa-check-circle me-1"></i><span>TRUE (Active)</span>';
-        } else {
-            badge.className = 'badge bg-secondary-subtle text-secondary border px-2 py-1 fs-7 shadow-xs';
-            badge.innerHTML = '<i class="fas fa-times-circle me-1"></i><span>FALSE (Inactive)</span>';
-        }
-    }
-
     if (btn) {
         btn.setAttribute('data-active', isActive ? 1 : 0);
+        btn.setAttribute('title', isActive ? 'Active - Click to Deactivate' : 'Inactive - Click to Activate');
         if (isActive) {
-            btn.className = 'btn btn-sm btn-outline-danger toggle-btn px-2.5 py-1 shadow-xs';
-            btn.innerHTML = '<i class="fas fa-times me-1"></i><span>Set FALSE</span>';
+            btn.className = 'btn btn-sm btn-success px-3 py-1.5 shadow-xs fw-semibold rounded-pill toggle-btn';
+            btn.innerHTML = '<i class="fas fa-check-circle me-1.5"></i><span>Active</span>';
         } else {
-            btn.className = 'btn btn-sm btn-kaldis toggle-btn px-2.5 py-1 shadow-xs';
-            btn.innerHTML = '<i class="fas fa-check me-1"></i><span>Turn TRUE</span>';
+            btn.className = 'btn btn-sm btn-outline-secondary px-3 py-1.5 shadow-xs fw-semibold rounded-pill toggle-btn';
+            btn.innerHTML = '<i class="fas fa-circle-xmark me-1.5"></i><span>Inactive</span>';
         }
     }
 }

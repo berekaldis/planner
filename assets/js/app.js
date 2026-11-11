@@ -30,53 +30,44 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Global Keyboard Shortcuts
     document.addEventListener('keydown', function (e) {
-        if (e.altKey && (e.key === 's' || e.key === 'S')) { e.preventDefault(); toggleSidebar(); }
-        if (e.altKey && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); toggleTheme(); }
+        if (e.altKey && (e.key === 's' || e.key === 'S')) {
+            e.preventDefault();
+            const searchInput = document.getElementById('sidebarMenuSearch');
+            if (searchInput) {
+                if (document.documentElement.classList.contains('sidebar-collapsed')) {
+                    toggleSidebar();
+                }
+                if (window.innerWidth < 992 && !document.documentElement.classList.contains('mobile-sidebar-open')) {
+                    toggleSidebar();
+                }
+                setTimeout(() => {
+                    searchInput.focus();
+                    searchInput.select();
+                }, 50);
+            } else {
+                toggleSidebar();
+            }
+        }
     });
 });
 
 
 /* ═══════════════════════════════
-   THEME CONTROLLER
+   THEME CONTROLLER (PERMANENT LIGHT)
    ═══════════════════════════════ */
 function initTheme() {
-    const saved = localStorage.getItem('kaldis_theme') || 'light';
-    applyTheme(saved, false);
-
-    const btn = document.getElementById('themeToggle');
-    if (btn) btn.addEventListener('click', toggleTheme);
+    try {
+        localStorage.removeItem('kaldis_theme');
+    } catch (e) {}
+    document.documentElement.setAttribute('data-bs-theme', 'light');
 }
 
 function toggleTheme() {
-    const current = document.documentElement.getAttribute('data-bs-theme') || 'light';
-    const next = current === 'dark' ? 'light' : 'dark';
-    applyTheme(next, true);
-    localStorage.setItem('kaldis_theme', next);
+    // Dark mode permanently disabled
 }
 
 function applyTheme(theme, animate) {
-    if (animate) {
-        document.documentElement.style.transition =
-            'color .3s ease, background-color .3s ease';
-        setTimeout(() => document.documentElement.style.transition = '', 400);
-    }
-    document.documentElement.setAttribute('data-bs-theme', theme);
-
-    const icon = document.getElementById('themeToggleIcon');
-    if (icon) {
-        icon.className = theme === 'dark'
-            ? 'fas fa-sun text-warning'
-            : 'fas fa-moon text-secondary';
-
-        if (animate) {
-            icon.style.animation = 'none';
-            requestAnimationFrame(() => {
-                icon.style.animation = 'themeIconSpin .35s cubic-bezier(.34,1.56,.64,1)';
-            });
-        }
-    }
-
-    window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme } }));
+    document.documentElement.setAttribute('data-bs-theme', 'light');
 }
 
 
@@ -160,7 +151,14 @@ function initSidebar() {
         let debounceTimer;
         searchInput.addEventListener('input', function () {
             clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => filterSidebarMenu(this.value), 120);
+            debounceTimer = setTimeout(() => filterSidebarMenu(this.value), 60);
+        });
+        searchInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                this.value = '';
+                filterSidebarMenu('');
+                this.blur();
+            }
         });
     }
 
@@ -230,30 +228,107 @@ function updateCollapseIcon() {
 }
 
 function filterSidebarMenu(query) {
-    const q = query.toLowerCase().trim();
+    const q = (query || '').toLowerCase().trim();
+    const navScroll = document.getElementById('sidebarNavScroll');
+    if (!navScroll) return;
 
-    // Show/hide each nav-item based on query match
-    document.querySelectorAll('.kaldis-sidebar .nav-item').forEach(item => {
-        const text  = item.textContent.toLowerCase();
-        const match = q === '' || text.includes(q);
-        item.style.display = match ? '' : 'none';
+    const sections = navScroll.querySelectorAll('.nav-group-section');
+    let totalVisible = 0;
+    let noResultsEl = document.getElementById('sidebarNoSearchResults');
+
+    if (q === '') {
+        sections.forEach(section => {
+            section.classList.remove('d-none');
+            const trigger = section.querySelector('.nav-group-trigger');
+            const groupKey = trigger ? trigger.getAttribute('data-group') : null;
+            const itemsContainer = groupKey ? document.getElementById('nav-group-' + groupKey) : null;
+
+            section.querySelectorAll('.nav-sub-item').forEach(item => {
+                item.classList.remove('d-none');
+            });
+
+            if (itemsContainer && trigger) {
+                const hasActive = itemsContainer.querySelector('.nav-sub-item.active') !== null;
+                const savedState = localStorage.getItem('sidebar-group-' + groupKey);
+                if (hasActive || savedState === 'expanded') {
+                    itemsContainer.classList.remove('d-none');
+                    trigger.setAttribute('aria-expanded', 'true');
+                } else if (savedState === 'collapsed') {
+                    itemsContainer.classList.add('d-none');
+                    trigger.setAttribute('aria-expanded', 'false');
+                }
+            }
+        });
+
+        navScroll.querySelectorAll('.single-nav-item').forEach(item => {
+            item.classList.remove('d-none');
+        });
+
+        if (noResultsEl) {
+            noResultsEl.classList.add('d-none');
+        }
+        return;
+    }
+
+    sections.forEach(section => {
+        const trigger = section.querySelector('.nav-group-trigger');
+        const groupLabel = trigger ? (trigger.querySelector('.nav-label')?.textContent || '').toLowerCase() : '';
+        const groupKey = trigger ? trigger.getAttribute('data-group') : null;
+        const itemsContainer = groupKey ? document.getElementById('nav-group-' + groupKey) : null;
+        const subItems = section.querySelectorAll('.nav-sub-item');
+
+        const groupMatches = groupLabel.includes(q);
+        let sectionMatched = 0;
+
+        subItems.forEach(item => {
+            const text = (item.textContent || '').toLowerCase();
+            const title = (item.getAttribute('title') || '').toLowerCase();
+            const match = groupMatches || text.includes(q) || title.includes(q);
+
+            if (match) {
+                item.classList.remove('d-none');
+                sectionMatched++;
+                totalVisible++;
+            } else {
+                item.classList.add('d-none');
+            }
+        });
+
+        if (sectionMatched > 0) {
+            section.classList.remove('d-none');
+            if (itemsContainer && trigger) {
+                itemsContainer.classList.remove('d-none');
+                trigger.setAttribute('aria-expanded', 'true');
+            }
+        } else {
+            section.classList.add('d-none');
+        }
     });
 
-    // Hide section headings whose entire list has no visible items
-    document.querySelectorAll('.kaldis-sidebar .sidebar-heading').forEach(heading => {
-        // Walk forward siblings to find the nearest <ul>
-        let ul = heading.nextElementSibling;
-        while (ul && ul.tagName !== 'UL') {
-            ul = ul.nextElementSibling;
+    navScroll.querySelectorAll('.single-nav-item').forEach(item => {
+        const text = (item.textContent || '').toLowerCase();
+        const title = (item.getAttribute('title') || '').toLowerCase();
+        if (text.includes(q) || title.includes(q)) {
+            item.classList.remove('d-none');
+            totalVisible++;
+        } else {
+            item.classList.add('d-none');
         }
-        if (!ul) {
-            heading.style.display = q === '' ? '' : 'none';
-            return;
-        }
-        const allItems     = ul.querySelectorAll('.nav-item');
-        const visibleCount = Array.from(allItems).filter(item => item.style.display !== 'none').length;
-        heading.style.display = (q === '' || visibleCount > 0) ? '' : 'none';
     });
+
+    if (totalVisible === 0) {
+        if (!noResultsEl) {
+            noResultsEl = document.createElement('div');
+            noResultsEl.id = 'sidebarNoSearchResults';
+            noResultsEl.className = 'text-center py-4 px-3 text-muted small';
+            noResultsEl.innerHTML = '<i class="fas fa-search mb-2 d-block opacity-50" style="font-size: 1.25rem;"></i><span>No menu matches found</span>';
+            navScroll.appendChild(noResultsEl);
+        } else {
+            noResultsEl.classList.remove('d-none');
+        }
+    } else if (noResultsEl) {
+        noResultsEl.classList.add('d-none');
+    }
 }
 
 
@@ -345,6 +420,29 @@ function runTableSearch(query, table) {
         emptyRow.style.display = 'none';
     }
 }
+
+function setupLiveSearch(inputId, tableId) {
+    const input = document.getElementById(inputId);
+    const table = document.getElementById(tableId) || (tableId ? document.querySelector(tableId) : null);
+    if (!input || !table) return;
+
+    let debounce;
+    input.addEventListener('input', function () {
+        clearTimeout(debounce);
+        debounce = setTimeout(() => runTableSearch(this.value, table), 120);
+    });
+
+    input.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            this.value = '';
+            runTableSearch('', table);
+            this.blur();
+        }
+    });
+}
+window.setupLiveSearch = setupLiveSearch;
+window.runTableSearch = runTableSearch;
+window.filterSidebarMenu = filterSidebarMenu;
 
 
 /* ═══════════════════════════════
