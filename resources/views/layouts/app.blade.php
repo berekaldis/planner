@@ -360,6 +360,118 @@
             opacity: 1;
         }
 
+        /* Sidebar Footer (Same size & height as App Footer: 3.125rem / 50px) */
+        .sidebar-footer {
+            height: var(--kaldis-footer-height, 3.125rem);
+            min-height: var(--kaldis-footer-height, 3.125rem);
+            max-height: var(--kaldis-footer-height, 3.125rem);
+            padding: 0 0.5rem;
+            border-top: 1px solid var(--sidebar-border);
+            background-color: var(--sidebar);
+            margin-top: auto;
+            position: relative;
+            display: flex;
+            align-items: center;
+            box-sizing: border-box;
+        }
+
+        .sidebar-footer .dropup {
+            width: 100%;
+            display: flex;
+            align-items: center;
+        }
+
+        .nav-user-btn {
+            width: 100%;
+            height: 2.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.2rem 0.45rem;
+            border-radius: calc(var(--radius) - 3px);
+            border: 1px solid transparent;
+            background: transparent;
+            cursor: pointer;
+            transition: background-color 0.15s ease, border-color 0.15s ease;
+            text-align: left;
+            text-decoration: none;
+        }
+
+        .nav-user-btn:hover, .nav-user-btn[aria-expanded="true"] {
+            background-color: var(--sidebar-accent);
+            border-color: var(--sidebar-border);
+        }
+
+        .nav-user-avatar {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background-color: rgba(217, 119, 6, 0.15);
+            color: #D97706;
+            border: 1px solid rgba(217, 119, 6, 0.25);
+            font-weight: 600;
+            font-size: 0.68rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .nav-user-info {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            flex-grow: 1;
+            line-height: 1.15;
+        }
+
+        .nav-user-name {
+            font-size: 0.775rem;
+            font-weight: 600;
+            color: var(--sidebar-foreground);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.15;
+        }
+
+        .nav-user-role {
+            font-size: 0.65rem;
+            color: var(--muted-foreground);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.1;
+        }
+
+        .sidebar-footer .dropdown-menu {
+            min-width: 240px;
+            margin-bottom: 0.4rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: var(--radius) !important;
+            padding: 0.35rem;
+            background-color: var(--card) !important;
+        }
+
+        .sidebar-footer .dropdown-item {
+            border-radius: calc(var(--radius) - 3px);
+            font-size: 0.8125rem;
+            padding: 0.45rem 0.6rem;
+            transition: background-color 0.12s ease, color 0.12s ease;
+            color: var(--foreground);
+        }
+
+        .sidebar-footer .dropdown-item:hover {
+            background-color: var(--secondary);
+            color: var(--foreground);
+        }
+
+        .sidebar-footer .dropdown-item.text-danger:hover {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: #DC2626 !important;
+        }
+
         /* ══════════════════════════════════════════════════════════
            COLLAPSED SIDEBAR (DESKTOP)
            ══════════════════════════════════════════════════════════ */
@@ -399,6 +511,21 @@
             html.sidebar-collapsed .nav-group-trigger .group-left i {
                 margin: 0;
                 font-size: 1rem;
+            }
+
+            html.sidebar-collapsed .sidebar-footer {
+                height: var(--kaldis-footer-height, 3.125rem);
+                min-height: var(--kaldis-footer-height, 3.125rem);
+                max-height: var(--kaldis-footer-height, 3.125rem);
+                padding: 0;
+                justify-content: center;
+            }
+
+            html.sidebar-collapsed .nav-user-btn {
+                width: 2.25rem;
+                height: 2.25rem;
+                justify-content: center;
+                padding: 0;
             }
         }
 
@@ -553,12 +680,12 @@
             }
         }
 
-        /* App Inset Footer (Down-Left Side Account Menu & Copyright Aligned) */
+        /* App Inset Footer (Matches Sidebar Footer Height & Alignments: 3.125rem / 50px) */
         .app-footer {
             height: var(--kaldis-footer-height, 3.125rem);
             min-height: var(--kaldis-footer-height, 3.125rem);
             max-height: var(--kaldis-footer-height, 3.125rem);
-            padding: 0 1rem;
+            padding: 0 1.25rem;
             border-top: 1px solid var(--border);
             background-color: var(--background);
             display: flex;
@@ -568,104 +695,7 @@
             color: var(--muted-foreground);
             border-bottom-left-radius: var(--radius);
             border-bottom-right-radius: var(--radius);
-            position: relative;
-            z-index: 1020;
-        }
-
-        .footer-account-menu {
-            display: flex;
-            align-items: center;
-        }
-
-        .footer-user-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.2rem 0.55rem;
-            border-radius: calc(var(--radius) - 3px);
-            border: 1px solid transparent;
-            background: transparent;
-            cursor: pointer;
-            transition: background-color 0.15s ease, border-color 0.15s ease;
-            text-align: left;
-            color: var(--foreground);
-            height: 2.25rem;
-            text-decoration: none;
-        }
-
-        .footer-user-btn:hover, .footer-user-btn[aria-expanded="true"] {
-            background-color: var(--secondary);
-            border-color: var(--border);
-        }
-
-        .footer-user-avatar {
-            width: 26px;
-            height: 26px;
-            border-radius: 50%;
-            background-color: rgba(217, 119, 6, 0.15);
-            color: #D97706;
-            border: 1px solid rgba(217, 119, 6, 0.25);
-            font-weight: 600;
-            font-size: 0.68rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-
-        .footer-user-info {
-            display: flex;
-            flex-direction: column;
-            min-width: 0;
-            max-width: 180px;
-            line-height: 1.15;
-        }
-
-        .footer-user-name {
-            font-size: 0.775rem;
-            font-weight: 600;
-            color: var(--foreground);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            line-height: 1.15;
-        }
-
-        .footer-user-role {
-            font-size: 0.65rem;
-            color: var(--muted-foreground);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            line-height: 1.1;
-        }
-
-        .footer-account-menu .dropdown-menu {
-            min-width: 240px;
-            margin-bottom: 0.45rem;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08) !important;
-            border: 1px solid var(--border) !important;
-            border-radius: var(--radius) !important;
-            padding: 0.35rem;
-            background-color: var(--card) !important;
-        }
-
-        .footer-account-menu .dropdown-item {
-            border-radius: calc(var(--radius) - 3px);
-            font-size: 0.8125rem;
-            padding: 0.45rem 0.6rem;
-            transition: background-color 0.12s ease, color 0.12s ease;
-            color: var(--foreground);
-        }
-
-        .footer-account-menu .dropdown-item:hover {
-            background-color: var(--secondary);
-            color: var(--foreground);
-        }
-
-        .footer-account-menu .dropdown-item.text-danger:hover {
-            background-color: rgba(239, 68, 68, 0.1);
-            color: #DC2626 !important;
+            box-sizing: border-box;
         }
 
         @media (max-width: 768px) {
@@ -675,14 +705,8 @@
                 min-height: auto;
                 max-height: none;
                 padding: 0.75rem 1rem;
-                gap: 0.5rem;
+                gap: 0.35rem;
                 align-items: flex-start;
-            }
-            .footer-meta {
-                font-size: 0.75rem;
-                flex-direction: column;
-                gap: 0.25rem !important;
-                align-items: flex-start !important;
             }
         }
 
@@ -1259,6 +1283,49 @@
 
                 </div>
 
+                <!-- Sidebar Footer (Same size and height as .app-footer: 3.125rem / 50px) -->
+                <div class="sidebar-footer">
+                    <div class="dropup w-100">
+                        <button class="nav-user-btn" id="sidebarAccountDropdownBtn" type="button" data-bs-toggle="dropdown" data-bs-auto-close="true" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" title="Account Menu">
+                            <div class="nav-user-avatar">
+                                {{ strtoupper(substr(auth()->user()->full_name ?? auth()->user()->username ?? 'U', 0, 2)) }}
+                            </div>
+                            <div class="nav-user-info">
+                                <span class="nav-user-name">{{ auth()->user()->full_name ?? auth()->user()->username }}</span>
+                                <span class="nav-user-role">{{ auth()->user()->role->display_name ?? auth()->user()->role->name ?? 'User' }}</span>
+                            </div>
+                            <i class="fas fa-up-down text-muted ms-auto fa-up-down" style="font-size: 0.72rem;"></i>
+                        </button>
+                        <ul class="dropdown-menu shadow-lg border border-light-subtle py-1 mb-2" style="border-radius: var(--radius); min-width: 240px; z-index: 1060;">
+                            <li class="px-3 py-2.5 border-bottom border-light-subtle bg-light bg-opacity-50">
+                                <div class="fw-bold text-dark text-truncate" style="font-size: 0.85rem;">{{ auth()->user()->full_name ?? auth()->user()->username }}</div>
+                                <div class="small text-muted text-truncate font-monospace" style="font-size: 0.72rem;">{{ auth()->user()->email ?? auth()->user()->username }}</div>
+                                @if(auth()->user()->department)
+                                    <div class="badge bg-secondary-subtle text-secondary border mt-1.5" style="font-size: 0.68rem;">
+                                        {{ auth()->user()->department->department_name }}
+                                    </div>
+                                @endif
+                            </li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center gap-2 small py-2" href="{{ route('password.change') }}" data-bs-toggle="modal" data-bs-target="#quickChangePasswordModal">
+                                    <i class="fas fa-key text-muted" style="width: 16px;"></i>
+                                    <span>Change Password</span>
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider my-1 border-light-subtle"></li>
+                            <li>
+                                <form method="POST" action="{{ route('logout') }}" class="m-0">
+                                    @csrf
+                                    <button type="submit" class="dropdown-item d-flex align-items-center gap-2 small py-2 text-danger">
+                                        <i class="fas fa-arrow-right-from-bracket" style="width: 16px;"></i>
+                                        <span>Log Out</span>
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
             </div>
         </aside>
 
@@ -1359,54 +1426,13 @@
                 @yield('content')
             </div>
 
-            <!-- Inset App Footer with Down-Left Side Account Menu -->
+            <!-- Inset App Footer (Same size & height as sidebar-footer: 3.125rem / 50px) -->
             <footer class="app-footer">
-                <!-- Down-Left Side: Account Menu (Equal size with footer at end of page) -->
-                <div class="footer-account-menu dropup">
-                    <button class="footer-user-btn" id="footerAccountDropdownBtn" type="button" data-bs-toggle="dropdown" data-bs-auto-close="true" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" title="Account Menu">
-                        <div class="footer-user-avatar">
-                            {{ strtoupper(substr(auth()->user()->full_name ?? auth()->user()->username ?? 'U', 0, 2)) }}
-                        </div>
-                        <div class="footer-user-info">
-                            <span class="footer-user-name">{{ auth()->user()->full_name ?? auth()->user()->username }}</span>
-                            <span class="footer-user-role">{{ auth()->user()->role->display_name ?? auth()->user()->role->name ?? 'User' }}</span>
-                        </div>
-                        <i class="fas fa-chevron-up text-muted ms-1 footer-user-arrow" style="font-size: 0.68rem;"></i>
-                    </button>
-                    <ul class="dropdown-menu shadow-lg border border-light-subtle py-1 mb-2" style="border-radius: var(--radius); min-width: 240px; z-index: 1060;">
-                        <li class="px-3 py-2.5 border-bottom border-light-subtle bg-light bg-opacity-50">
-                            <div class="fw-bold text-dark text-truncate" style="font-size: 0.85rem;">{{ auth()->user()->full_name ?? auth()->user()->username }}</div>
-                            <div class="small text-muted text-truncate font-monospace" style="font-size: 0.72rem;">{{ auth()->user()->email ?? auth()->user()->username }}</div>
-                            @if(auth()->user()->department)
-                                <div class="badge bg-secondary-subtle text-secondary border mt-1.5" style="font-size: 0.68rem;">
-                                    {{ auth()->user()->department->department_name }}
-                                </div>
-                            @endif
-                        </li>
-                        <li>
-                            <a class="dropdown-item d-flex align-items-center gap-2 small py-2" href="{{ route('password.change') }}" data-bs-toggle="modal" data-bs-target="#quickChangePasswordModal">
-                                <i class="fas fa-key text-muted" style="width: 16px;"></i>
-                                <span>Change Password</span>
-                            </a>
-                        </li>
-                        <li><hr class="dropdown-divider my-1 border-light-subtle"></li>
-                        <li>
-                            <form method="POST" action="{{ route('logout') }}" class="m-0">
-                                @csrf
-                                <button type="submit" class="dropdown-item d-flex align-items-center gap-2 small py-2 text-danger">
-                                    <i class="fas fa-arrow-right-from-bracket" style="width: 16px;"></i>
-                                    <span>Log Out</span>
-                                </button>
-                            </form>
-                        </li>
-                    </ul>
+                <div>
+                    &copy; {{ date('Y') }} Kaldis Coffee PLC. All rights reserved.
                 </div>
-
-                <!-- Right Side: Copyright & System Identity -->
-                <div class="d-flex align-items-center gap-2 footer-meta">
-                    <span class="fw-medium text-foreground">&copy; {{ date('Y') }} Kaldis Coffee PLC.</span>
-                    <span class="d-none d-sm-inline">&bull;</span>
-                    <span class="d-none d-sm-inline">Enterprise Strategy &amp; Performance</span>
+                <div class="text-muted small">
+                    Enterprise Strategy &amp; Performance &bull; Developed by <strong>IT Department</strong>
                 </div>
             </footer>
 
@@ -1667,10 +1693,10 @@
                 mConf.addEventListener('input', checkModalMatch);
             }
 
-            // Initialize Footer Account Dropdown with fixed Popper positioning
-            const footerAccountBtn = document.getElementById('footerAccountDropdownBtn');
-            if (footerAccountBtn && window.bootstrap && window.bootstrap.Dropdown) {
-                bootstrap.Dropdown.getOrCreateInstance(footerAccountBtn, {
+            // Initialize Sidebar Account Dropdown with fixed Popper positioning
+            const sidebarAccountBtn = document.getElementById('sidebarAccountDropdownBtn');
+            if (sidebarAccountBtn && window.bootstrap && window.bootstrap.Dropdown) {
+                bootstrap.Dropdown.getOrCreateInstance(sidebarAccountBtn, {
                     popperConfig: function(defaultBsPopperConfig) {
                         return {
                             ...defaultBsPopperConfig,
