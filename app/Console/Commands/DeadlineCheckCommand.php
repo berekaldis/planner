@@ -127,7 +127,7 @@ class DeadlineCheckCommand extends Command
                     'submitted_at' => $submittedAt,
                     'delay_reason' => $delayReason,
                 ];
-                $this->info("✓ Excused (Delay Approved by GM): {$dept->department_name}");
+                $this->info("Excused (Delay Approved by GM): {$dept->department_name}");
             } elseif ($status === 'ON_TIME') {
                 $doneTasks = $report->done_tasks ?? 0;
                 $totalTasks = $report->total_tasks ?? 0;
@@ -231,18 +231,18 @@ class DeadlineCheckCommand extends Command
                         $safeHeadName = htmlspecialchars($head ? $head->full_name : 'Department Head', ENT_QUOTES, 'UTF-8');
                         $perfUrl = url('/weekly/performance?week=' . $week . '&year=' . urlencode($year) . '&month=' . urlencode($month));
 
-                        $msg = "🚨 <b>Kaldis Deadline Escalation Alert</b>\n\n"
+                        $msg = "<b>Kaldis Deadline Escalation Alert</b>\n\n"
                              . "Attention: <b>{$safeHeadName}</b> ({$safeDeptName})\n\n"
                              . "The official weekly submission deadline for <b>{$safeDeptName}</b> (Week {$week} Performance &amp; Week {$planWeek} Plan &bull; {$month} {$year}) expired on <b>Monday 6:30 LT (12:30 PM)</b> without a submitted report.\n\n"
-                             . "⚠️ A <b>Level 1 Escalation</b> has been registered in the system.\n"
+                             . "A <b>Level 1 Escalation</b> has been registered in the system.\n"
                              . "Please evaluate your tasks and submit your execution report immediately.\n\n"
-                             . "☕ <i>Kaldis Coffee PLC — Executive Operations</i>\n"
-                             . "📅 <i>" . format_ethiopian_datetime() . "</i>";
+                             . "<i>Kaldis Coffee PLC — Executive Operations</i>\n"
+                             . "<i>" . format_ethiopian_datetime() . "</i>";
 
                         $replyMarkup = [
                             'inline_keyboard' => [
                                 [
-                                    ['text' => '🌐 Submit Performance Report Now', 'url' => $perfUrl]
+                                    ['text' => 'Submit Performance Report Now', 'url' => $perfUrl]
                                 ]
                             ]
                         ];
@@ -317,25 +317,25 @@ class DeadlineCheckCommand extends Command
             $cacheKey = "gm_weekly_compliance_report_{$year}_{$month}_{$week}_" . date('Ymd');
             if ($force || !Cache::has($cacheKey)) {
                 if (!empty($gmChatIds)) {
-                    $execMsg = "📊 <b>Kaldis Executive Weekly Cutoff Report</b>\n";
-                    $execMsg .= "📅 <b>Cycle:</b> Week {$week} Performance &amp; Week {$planWeek} Plan &bull; {$month} {$year}\n";
-                    $execMsg .= "⏰ <b>Submission Cutoff:</b> Monday 6:30 LT (12:30 PM)\n";
-                    $execMsg .= "📢 <b>Evaluation Broadcast:</b> Monday 9:00 LT (3:00 PM)\n\n";
+                    $execMsg = "<b>Kaldis Executive Weekly Cutoff Report</b>\n";
+                    $execMsg .= "<b>Cycle:</b> Week {$week} Performance &amp; Week {$planWeek} Plan &bull; {$month} {$year}\n";
+                    $execMsg .= "<b>Submission Cutoff:</b> Monday 6:30 LT (12:30 PM)\n";
+                    $execMsg .= "<b>Evaluation Broadcast:</b> Monday 9:00 LT (3:00 PM)\n\n";
 
-                    $execMsg .= "📈 <b>Company Submission Performance:</b>\n";
+                    $execMsg .= "<b>Company Submission Performance:</b>\n";
                     $execMsg .= "• Total Departments: <b>{$totalDepts}</b>\n";
-                    $execMsg .= "• 🟢 Submitted On-Time: <b>{$onTimeCount}</b>\n";
+                    $execMsg .= "• Submitted On-Time: <b>{$onTimeCount}</b>\n";
                     if ($lateCount > 0) {
-                        $execMsg .= "• 🟡 Submitted Late: <b>{$lateCount}</b>\n";
+                        $execMsg .= "• Submitted Late: <b>{$lateCount}</b>\n";
                     }
                     if ($delayApprovedCount > 0) {
-                        $execMsg .= "• 🔵 Delay Approved (Excused): <b>{$delayApprovedCount}</b>\n";
+                        $execMsg .= "• Delay Approved (Excused): <b>{$delayApprovedCount}</b>\n";
                     }
-                    $execMsg .= "• 🔴 Missing / Delinquent: <b>{$missingCount}</b>\n";
-                    $execMsg .= "• 🎯 Submission Compliance: <b>{$complianceRate}%</b>\n\n";
+                    $execMsg .= "• Missing / Delinquent: <b>{$missingCount}</b>\n";
+                    $execMsg .= "• Submission Compliance: <b>{$complianceRate}%</b>\n\n";
 
                     if (!empty($onTimeDepts)) {
-                        $execMsg .= "🟢 <b>ON-TIME SUBMISSIONS (በሰዓቱ ያስገቡ):</b>\n";
+                        $execMsg .= "<b>ON-TIME SUBMISSIONS:</b>\n";
                         foreach ($onTimeDepts as $item) {
                             $safeDept = htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8');
                             $planInfo = $item['plan_tasks'] > 0 ? " &bull; W{$planWeek} Plan: {$item['plan_tasks']} tasks" : "";
@@ -345,7 +345,7 @@ class DeadlineCheckCommand extends Command
                     }
 
                     if (!empty($delayApprovedDepts)) {
-                        $execMsg .= "🔵 <b>DELAY APPROVED BY GM (በዋና ስራ አስኪያጅ የተፈቀደ):</b>\n";
+                        $execMsg .= "<b>DELAY APPROVED BY GM:</b>\n";
                         foreach ($delayApprovedDepts as $item) {
                             $safeDept = htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8');
                             $planInfo = $item['plan_tasks'] > 0 ? " &bull; W{$planWeek} Plan: {$item['plan_tasks']} tasks" : "";
@@ -355,7 +355,7 @@ class DeadlineCheckCommand extends Command
                     }
 
                     if (!empty($lateDepts)) {
-                        $execMsg .= "🟡 <b>LATE SUBMISSIONS (ዘግይተው ያስገቡ):</b>\n";
+                        $execMsg .= "<b>LATE SUBMISSIONS:</b>\n";
                         foreach ($lateDepts as $item) {
                             $safeDept = htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8');
                             $lateTimeStr = $item['submitted_at'] ? " &bull; Submitted " . format_ethiopian_time($item['submitted_at'], true) : "";
@@ -365,7 +365,7 @@ class DeadlineCheckCommand extends Command
                     }
 
                     if (!empty($missingDepts)) {
-                        $execMsg .= "🔴 <b>NOT SUBMITTED / DELINQUENT (ያላስገቡ / የቀሩ):</b>\n";
+                        $execMsg .= "<b>NOT SUBMITTED / DELINQUENT:</b>\n";
                         foreach ($missingDepts as $item) {
                             $safeDept = htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8');
                             $headName = $item['dept']->head ? $item['dept']->head->full_name : 'No Head Assigned';
@@ -376,12 +376,12 @@ class DeadlineCheckCommand extends Command
                     }
 
                     $dashboardUrl = url('/management/dashboard?year=' . urlencode($year) . '&month=' . urlencode($month) . '&week=' . $week);
-                    $execMsg .= "☕ <i>Kaldis Coffee PLC — Planning &amp; Operational Governance</i>";
+                    $execMsg .= "<i>Kaldis Coffee PLC — Planning &amp; Operational Governance</i>";
 
                     $replyMarkup = [
                         'inline_keyboard' => [
                             [
-                                ['text' => '🌐 Open GM Executive Dashboard & Vouchers', 'url' => $dashboardUrl]
+                                ['text' => 'Open GM Executive Dashboard & Vouchers', 'url' => $dashboardUrl]
                             ]
                         ]
                     ];

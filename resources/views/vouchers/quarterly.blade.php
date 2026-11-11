@@ -3,6 +3,17 @@
 @section('title', 'Quarterly Performance Voucher - ' . $department->department_name)
 
 @section('content')
+@php
+    $allDepartments = $allDepartments ?? collect([$department]);
+    $_ethQuarters = get_ethiopian_quarters();
+    $quarterInfo = $quarterInfo ?? ($_ethQuarters[$selectedQuarter ?? 'Q1'] ?? $_ethQuarters['Q1']);
+    $quarterMonths = $quarterMonths ?? ($quarterInfo['months'] ?? []);
+    $totalPlans = $totalPlans ?? (isset($plans) ? $plans->count() : 0);
+    $donePlans = $donePlans ?? 0;
+    $partialPlans = $partialPlans ?? 0;
+    $notDonePlans = $notDonePlans ?? 0;
+    $completionPct = $completionPct ?? 0;
+@endphp
 <style>
 /* ══════════════════════════════════════════════════════════
    OFFICIAL VOUCHER STYLING (KALDIS COFFEE PLC)
@@ -253,9 +264,9 @@
                                 default => ($submission && $submission->status === 'SUBMITTED' ? 'stamp-submitted' : 'stamp-pending')
                             };
                             $stampText = match($appr) {
-                                'APPROVED' => '✓ GM APPROVED',
-                                'REVISION_REQUESTED' => '⚠ REVISION REQUESTED',
-                                default => ($submission && $submission->status === 'SUBMITTED' ? '★ SUBMITTED FOR REVIEW' : 'DRAFT REVIEW')
+                                'APPROVED' => 'GM APPROVED',
+                                'REVISION_REQUESTED' => 'REVISION REQUESTED',
+                                default => ($submission && $submission->status === 'SUBMITTED' ? 'SUBMITTED FOR REVIEW' : 'DRAFT REVIEW')
                             };
                         @endphp
                         <span class="voucher-status-stamp {{ $stampClass }}">

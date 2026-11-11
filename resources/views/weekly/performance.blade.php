@@ -185,8 +185,8 @@
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
-                    <th style="width: 100px;">Type</th>
-                    <th>Task & Target</th>
+                    <th style="width: 110px;">Task Type</th>
+                    <th>Task &amp; Definition of Done (DOD)</th>
                     <th style="width: 130px;" class="text-center">Status</th>
                     <th>Evaluation Details / Reason Category</th>
                     <th style="width: 160px;" class="text-end">Evaluate</th>
@@ -196,15 +196,15 @@
                 @forelse($tasks as $task)
                     <tr>
                         <td>
-                            @if($task->plan_type === 'STRATEGY')
-                                <span class="badge-strategy">Strategy</span>
+                            @if($task->isNewTask())
+                                <span class="badge bg-secondary px-2 py-1">New Task</span>
                             @else
-                                <span class="badge-operational">Operational</span>
+                                <span class="badge bg-primary px-2 py-1">Planned</span>
                             @endif
                         </td>
                         <td>
                             <strong class="text-dark">{{ $task->task_title }}</strong>
-                            <div class="small text-muted"><strong>Target:</strong> {{ $task->expected_result }}</div>
+                            <div class="small text-muted"><strong>Definition of Done (DOD):</strong> {{ $task->expected_result }}</div>
                         </td>
                         <td class="text-center">
                             @if($task->result && $task->result->isDone())

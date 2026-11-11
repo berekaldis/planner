@@ -18,7 +18,7 @@
             <input type="hidden" name="month" value="{{ $selectedMonth }}">
             <input type="hidden" name="week" value="{{ $selectedWeek }}">
             <button type="submit" class="btn btn-outline-primary btn-sm shadow-sm" title="Run automated Telegram reminders and dispatch GM executive summary">
-                <i class="fab fa-telegram-plane text-primary me-1"></i> ⚡ Run Automated Telegram Check
+                <i class="fab fa-telegram-plane text-primary me-1"></i> Run Automated Telegram Check
             </button>
         </form>
         <a href="{{ route('strategy.activation', ['year' => $selectedYear, 'month' => $selectedMonth]) }}" class="btn btn-kaldis btn-sm">
@@ -312,9 +312,9 @@
                         </div>
                     </div>
                     <div class="small text-muted">
-                        <span class="badge bg-success-subtle text-success border border-success me-1">🟢 On-Time</span>
-                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning me-1">🟡 Late</span>
-                        <span class="badge bg-danger-subtle text-danger border border-danger">🔴 Not Submitted</span>
+                        <span class="badge bg-success-subtle text-success border border-success me-1">On-Time</span>
+                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning me-1">Late</span>
+                        <span class="badge bg-danger-subtle text-danger border border-danger">Not Submitted</span>
                     </div>
                 </div>
 
@@ -465,6 +465,12 @@
                  TAB: WEEKLY TASK SCHEDULES (BY DEPT)
                  ───────────────────────────────────────────────────────────── -->
             <div class="tab-pane fade" id="content-weekly-plans" role="tabpanel" aria-labelledby="tab-weekly-plans">
+                <div class="p-3 bg-light border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <span class="text-muted small">Department Weekly Schedules for Week {{ $selectedWeek }} ({{ $selectedMonth }} {{ $selectedYear }})</span>
+                    <button type="button" class="btn btn-sm btn-kaldis" data-bs-toggle="modal" data-bs-target="#gmAddWeeklyTaskModal">
+                        <i class="fas fa-plus me-1"></i> Assign Weekly Task to Department
+                    </button>
+                </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-light">
@@ -570,9 +576,13 @@
                                                     <i class="fas fa-clock me-1"></i> {{ $isWPDelayPending ? 'Review Delay' : 'Delay Decision' }}
                                                 </button>
                                             @endif
+                                            <a href="{{ route('weekly.plans', ['department_id' => $dept->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" 
+                                               class="btn btn-xs btn-outline-primary shadow-sm" title="Review & Approve Weekly Tasks">
+                                                <i class="fas fa-tasks me-1"></i> Review Tasks ({{ $planTasks->count() }})
+                                            </a>
                                             <a href="{{ route('weekly.voucher', ['department_id' => $dept->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek, 'type' => 'plan']) }}" 
                                                class="btn btn-xs btn-kaldis shadow-sm" title="Open Official Plan Voucher">
-                                                <i class="fas fa-file-invoice me-1"></i> View Voucher
+                                                <i class="fas fa-file-invoice me-1"></i> Voucher
                                             </a>
                                             @if($wpStatus === 'NOT_SUBMITTED' && !$isWPDelayPending)
                                                 <form method="POST" action="{{ route('management.remind') }}" class="d-inline" onsubmit="return confirm('Send Telegram reminder to {{ $dept->department_name }} Department Head?');">
@@ -733,12 +743,15 @@
                  ───────────────────────────────────────────────────────────── -->
             <div class="tab-pane fade" id="content-all-plans" role="tabpanel" aria-labelledby="tab-all-plans">
                 <div class="p-3 bg-light border-bottom">
-                    <div class="row g-2 align-items-center">
-                        <div class="col-md-6">
-                            <input type="text" id="gmAllPlansSearch" class="form-control form-control-sm" placeholder="🔍 Filter plans live by department, title, target, or responsible person...">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div class="flex-grow-1" style="max-width: 450px;">
+                            <input type="text" id="gmAllPlansSearch" class="form-control form-control-sm" placeholder="Filter plans live by department, title, or target...">
                         </div>
-                        <div class="col-md-6 text-md-end text-muted small">
-                            Total company-wide monthly plans: <strong>{{ $allMonthlyPlans->count() }}</strong>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="text-muted small">Total: <strong>{{ $allMonthlyPlans->count() }} Plans</strong></span>
+                            <button type="button" class="btn btn-sm btn-kaldis" data-bs-toggle="modal" data-bs-target="#gmAddMonthlyPlanModal">
+                                <i class="fas fa-plus me-1"></i> Add Monthly Plan for Department
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -752,14 +765,16 @@
                                 <th>Goal Link</th>
                                 <th>Plan Title</th>
                                 <th>Target Output</th>
-                                <th>DOD (Definition of Done)</th>
-                                <th class="text-center">Target %</th>
-                                <th class="text-center">Priority</th>
-                                <th>Responsible</th>
+                                <th>Definition of Done (DOD)</th>
+                                <th style="width: 140px;" class="text-center">Approval Status</th>
+                                <th style="width: 130px;" class="text-end">GM Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($allMonthlyPlans as $plan)
+                                @php
+                                    $approval = strtoupper($plan->approval_status ?? 'PENDING');
+                                @endphp
                                 <tr>
                                     <td>
                                         <span class="badge bg-light text-secondary border font-monospace">{{ $plan->department->department_code ?? 'DEPT' }}</span>
@@ -783,17 +798,50 @@
                                     </td>
                                     <td class="text-primary small fw-semibold">{{ $plan->monthly_target }}</td>
                                     <td class="text-muted small" style="max-width: 250px;">{{ $plan->definition_of_done }}</td>
-                                    <td class="text-center font-monospace small">{{ $plan->target_percentage }}%</td>
                                     <td class="text-center">
-                                        <span class="badge {{ $plan->priority === 'HIGH' ? 'bg-danger' : ($plan->priority === 'LOW' ? 'bg-secondary' : 'bg-warning text-dark') }} small">
-                                            {{ $plan->priority }}
-                                        </span>
+                                        @if($approval === 'APPROVED')
+                                            <span class="badge bg-success-subtle text-success border border-success px-2 py-1">
+                                                <i class="fas fa-check-circle me-1"></i> Approved
+                                            </span>
+                                        @elseif($approval === 'DECLINED')
+                                            <div>
+                                                <span class="badge bg-danger-subtle text-danger border border-danger px-2 py-1 mb-1">
+                                                    <i class="fas fa-times-circle me-1"></i> Declined
+                                                </span>
+                                                @if(!empty($plan->decline_reason))
+                                                    <div class="small text-danger fw-semibold" style="font-size: 0.72rem;" title="{{ $plan->decline_reason }}">
+                                                        <strong>Why:</strong> {{ \Illuminate\Support\Str::limit($plan->decline_reason, 35) }}
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        @else
+                                            <span class="badge bg-secondary-subtle text-secondary border px-2 py-1">
+                                                <i class="fas fa-clock me-1"></i> Pending
+                                            </span>
+                                        @endif
                                     </td>
-                                    <td class="small text-muted">{{ $plan->responsible_person ?: 'Team' }}</td>
+                                    <td class="text-end">
+                                        <div class="d-flex align-items-center justify-content-end gap-1">
+                                            @if($approval !== 'APPROVED')
+                                                <form method="POST" action="{{ route('monthly.plans.approval', $plan->id) }}" class="d-inline" onsubmit="return confirm('Approve this monthly plan?');">
+                                                    @csrf
+                                                    <input type="hidden" name="action" value="APPROVE">
+                                                    <button type="submit" class="btn btn-xs btn-success" title="Approve Plan">
+                                                        <i class="fas fa-check"></i>
+                                                    </button>
+                                                </form>
+                                            @endif
+                                            @if($approval !== 'DECLINED')
+                                                <button type="button" class="btn btn-xs btn-outline-danger" title="Decline Plan" onclick="openGmDeclineModal('{{ route('monthly.plans.approval', $plan->id) }}', '{{ addslashes($plan->title) }}')">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            @endif
+                                        </div>
+                                    </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="9" class="text-center py-4 text-muted">No monthly plans found for {{ $selectedMonth }} {{ $selectedYear }}.</td>
+                                    <td colspan="8" class="text-center py-4 text-muted">No monthly plans found for {{ $selectedMonth }} {{ $selectedYear }}.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -868,6 +916,170 @@
                             <i class="fas fa-check-circle me-1"></i> Approve Delay (Mark Excused)
                         </button>
                     </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- Modal: GM Universal Decline Reason Modal -->
+<div class="modal fade" id="gmDeclineModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <form id="gmDeclineForm" method="POST" action="">
+                @csrf
+                <input type="hidden" name="action" value="DECLINE">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title fs-6 fw-bold">
+                        <i class="fas fa-times-circle me-2"></i> Decline Item
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="small text-muted mb-2">You are declining the following item:</p>
+                    <div class="p-2.5 bg-light rounded border mb-3">
+                        <strong class="text-dark" id="gmDeclineItemTitle">—</strong>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary">
+                            Reason for Decline <span class="text-danger">*</span>
+                        </label>
+                        <textarea name="decline_reason" class="form-control" rows="3" placeholder="State why this item was declined and what the department needs to revise..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-danger fw-bold">
+                        <i class="fas fa-times me-1"></i> Confirm Decline
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: GM Add Monthly Plan for Department -->
+<div class="modal fade" id="gmAddMonthlyPlanModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" action="{{ route('monthly.plans.store') }}">
+                @csrf
+                <input type="hidden" name="year" value="{{ $selectedYear }}">
+                <input type="hidden" name="month" value="{{ $selectedMonth }}">
+
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold text-dark fs-6">
+                        <i class="fas fa-plus-circle me-2 text-warning"></i> Add Monthly Plan for Department ({{ $selectedMonth }} {{ $selectedYear }})
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary text-uppercase">Target Department <span class="text-danger">*</span></label>
+                        <select name="department_id" class="form-select" data-no-search="true" required>
+                            @foreach($departments as $d)
+                                <option value="{{ $d->id }}">{{ $d->department_name }} ({{ $d->department_code }})</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary text-uppercase">Plan Type <span class="text-danger">*</span></label>
+                        <select name="plan_type" id="gmPlanTypeSelect" class="form-select" data-no-search="true" onchange="toggleGmPlanType(this)">
+                            <option value="STRATEGY" selected>Strategy Plan (Linked to Annual Goal)</option>
+                            <option value="OPERATIONAL">Operational Plan</option>
+                        </select>
+                    </div>
+
+                    <div id="gmStrategyGoalGroup" class="mb-3">
+                        <label class="form-label small fw-bold text-secondary text-uppercase">Annual Strategy Goal <span class="text-danger">*</span></label>
+                        <select name="annual_goal_id" id="gmAnnualGoalSelect" class="form-select" data-no-search="true">
+                            <option value="">-- Choose Strategy Goal --</option>
+                            @foreach($activatedGoals as $ag)
+                                <option value="{{ $ag->id }}">[{{ $ag->goal_code }}] {{ $ag->goal_title }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Plan Title <span class="text-danger">*</span></label>
+                        <input type="text" name="title" class="form-control" placeholder="e.g. Expand delivery fleet logistics" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Monthly Target <span class="text-danger">*</span></label>
+                        <input type="text" name="monthly_target" class="form-control" placeholder="e.g. Procure and deploy 10 vehicles" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Definition of Done (DoD) <span class="text-danger">*</span></label>
+                        <textarea name="definition_of_done" class="form-control" rows="2" placeholder="Clear criteria for when this plan is considered complete..." required></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Executive Notes (Optional)</label>
+                        <input type="text" name="description" class="form-control" placeholder="Special directions from General Management">
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-kaldis">Save &amp; Assign Plan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: GM Assign Weekly Task to Department -->
+<div class="modal fade" id="gmAddWeeklyTaskModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" action="{{ route('weekly.tasks.store') }}">
+                @csrf
+                <input type="hidden" name="year" value="{{ $selectedYear }}">
+                <input type="hidden" name="month" value="{{ $selectedMonth }}">
+                <input type="hidden" name="week_number" value="{{ $selectedWeek }}">
+
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold text-dark fs-6">
+                        <i class="fas fa-plus-circle me-2 text-warning"></i> Assign Weekly Task to Department (Week {{ $selectedWeek }})
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary text-uppercase">Target Department <span class="text-danger">*</span></label>
+                        <select name="department_id" class="form-select" data-no-search="true" required>
+                            @foreach($departments as $d)
+                                <option value="{{ $d->id }}">{{ $d->department_name }} ({{ $d->department_code }})</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Plan Type</label>
+                        <select name="plan_type" class="form-select" data-no-search="true">
+                            <option value="NEW_TASK" selected>New Task</option>
+                            <option value="MONTH_PLAN">Month Plan</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Task Title <span class="text-danger">*</span></label>
+                        <input type="text" name="task_title" class="form-control" placeholder="e.g. Conduct comprehensive store audits" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Definition of Done (DOD) <span class="text-danger">*</span></label>
+                        <textarea name="definition_of_done" class="form-control" rows="3" placeholder="Measurable deliverable and completion criteria..." required></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-kaldis">Assign Task to Department</button>
                 </div>
             </form>
         </div>
@@ -1011,5 +1223,28 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 });
+
+function openGmDeclineModal(url, title) {
+    const form = document.getElementById('gmDeclineForm');
+    form.action = url;
+    document.getElementById('gmDeclineItemTitle').textContent = title;
+    const modal = new bootstrap.Modal(document.getElementById('gmDeclineModal'));
+    modal.show();
+}
+
+function toggleGmPlanType(selectEl) {
+    const group = document.getElementById('gmStrategyGoalGroup');
+    const goalSelect = document.getElementById('gmAnnualGoalSelect');
+    if (selectEl.value === 'STRATEGY') {
+        group.style.display = 'block';
+        if (goalSelect) goalSelect.required = true;
+    } else {
+        group.style.display = 'none';
+        if (goalSelect) {
+            goalSelect.required = false;
+            goalSelect.value = '';
+        }
+    }
+}
 </script>
 @endsection

@@ -698,7 +698,7 @@ if (!function_exists('notify_gm_submission')) {
 
                 // Format Telegram message cleanly without duplicate URLs
                 $safeTitle = str_contains($title, '<') ? $title : "<b>" . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "</b>";
-                $telegramText = "{$safeTitle}\n\n{$message}\n\n📅 <i>" . format_ethiopian_datetime() . "</i>";
+                $telegramText = "{$safeTitle}\n\n{$message}\n\n<i>" . format_ethiopian_datetime() . "</i>";
 
                 $replyMarkup = $customReplyMarkup;
                 if (empty($replyMarkup) && $voucherUrl) {
@@ -706,7 +706,7 @@ if (!function_exists('notify_gm_submission')) {
                     $replyMarkup = [
                         'inline_keyboard' => [
                             [
-                                ['text' => '📄 View Official Voucher', 'url' => $cleanVoucherUrl]
+                                ['text' => 'View Official Voucher', 'url' => $cleanVoucherUrl]
                             ]
                         ]
                     ];
@@ -786,7 +786,7 @@ if (!function_exists('notify_department_head')) {
             $telegram = app(\App\Services\TelegramService::class);
             if ($telegram && $telegram->isConfigured() && !empty($chatId) && $chatId !== '123456789') {
                 $safeTitle = str_contains($title, '<') ? $title : "<b>" . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "</b>";
-                $telegramText = "{$safeTitle}\n\n{$message}\n\n📅 <i>" . format_ethiopian_datetime() . "</i>";
+                $telegramText = "{$safeTitle}\n\n{$message}\n\n<i>" . format_ethiopian_datetime() . "</i>";
 
                 $replyMarkup = $customReplyMarkup;
                 if (empty($replyMarkup) && $url) {
@@ -794,7 +794,7 @@ if (!function_exists('notify_department_head')) {
                     $replyMarkup = [
                         'inline_keyboard' => [
                             [
-                                ['text' => '📄 View Official Voucher / Portal', 'url' => $cleanUrl]
+                                ['text' => 'View Official Voucher / Portal', 'url' => $cleanUrl]
                             ]
                         ]
                     ];
@@ -954,12 +954,12 @@ if (!function_exists('build_weekly_task_scheduled_notification')) {
         $opsCount = $tasks->where('plan_type', 'OPERATIONAL')->count();
 
         // 1. Notification Title
-        $notifTitle = "📝 Weekly Task Scheduled: {$deptCode}";
+        $notifTitle = "Weekly Task Scheduled: {$deptCode}";
 
         // 2. Scheduled Weekly Tasks Section
         $msg = "<b>{$deptName}</b> has officially submitted their <b>Weekly Task Schedule</b> for <b>Week {$weekNumber} ({$month} {$year})</b>.\n"
-             . "👤 <i>Submitted by:</i> {$submitterName}\n\n"
-             . "📋 <b>WEEK {$weekNumber} SCHEDULED TASKS ({$totalTasks} Total)</b>\n"
+             . "<i>Submitted by:</i> {$submitterName}\n\n"
+             . "<b>WEEK {$weekNumber} SCHEDULED TASKS ({$totalTasks} Total)</b>\n"
              . "• <b>Breakdown:</b> {$stratCount} Strategic | {$opsCount} Operational\n\n";
 
         $displayTasks = $tasks->take(10);
@@ -981,15 +981,15 @@ if (!function_exists('build_weekly_task_scheduled_notification')) {
         $prevYear = $lastWeekPerf['prev_year'] ?? $year;
 
         $msg .= "\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-              . "📊 <b>LAST WEEK PERFORMANCE REPORT (Week {$prevWeek}, {$prevMonth} {$prevYear})</b>\n";
+              . "<b>LAST WEEK PERFORMANCE REPORT (Week {$prevWeek}, {$prevMonth} {$prevYear})</b>\n";
 
         if (!empty($lastWeekPerf['has_data'])) {
             $timingRaw = $lastWeekPerf['timing_status'] ?? 'ON_TIME';
             $timingBadge = match ($timingRaw) {
-                'ON_TIME' => '🟢 ON-TIME',
-                'LATE' => '🟡 LATE',
-                'MISSING' => '🔴 MISSING',
-                default => '⚪ ' . str_replace('_', ' ', $timingRaw),
+                'ON_TIME' => 'ON-TIME',
+                'LATE' => 'LATE',
+                'MISSING' => 'MISSING',
+                default => str_replace('_', ' ', $timingRaw),
             };
 
             $compRate = $lastWeekPerf['completion_rate'];
@@ -1012,7 +1012,7 @@ if (!function_exists('build_weekly_task_scheduled_notification')) {
         // Optional Remarks for current submission
         if (!empty($remarks)) {
             $safeNotes = htmlspecialchars($remarks, ENT_QUOTES, 'UTF-8');
-            $msg .= "\n💬 <b>Department Head Remarks:</b> <i>\"{$safeNotes}\"</i>\n";
+            $msg .= "\n<b>Department Head Remarks:</b> <i>\"{$safeNotes}\"</i>\n";
         }
 
         $msg .= "━━━━━━━━━━━━━━━━━━━━━━━━━━";
@@ -1037,10 +1037,10 @@ if (!function_exists('build_weekly_task_scheduled_notification')) {
         $replyMarkup = [
             'inline_keyboard' => [
                 [
-                    ['text' => "📝 View Week {$weekNumber} Plan Voucher", 'url' => $planVoucherUrl],
+                    ['text' => "View Week {$weekNumber} Plan Voucher", 'url' => $planVoucherUrl],
                 ],
                 [
-                    ['text' => "📊 View Week {$prevWeek} Performance Voucher", 'url' => $perfVoucherUrl],
+                    ['text' => "View Week {$prevWeek} Performance Voucher", 'url' => $perfVoucherUrl],
                 ],
             ]
         ];

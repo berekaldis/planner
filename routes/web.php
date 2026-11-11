@@ -49,6 +49,7 @@ Route::middleware('auth')->group(function () {
     // Monthly Planning
     Route::get('/monthly/plans', [MonthlyPlanController::class, 'index'])->name('monthly.plans');
     Route::post('/monthly/plans', [MonthlyPlanController::class, 'store'])->name('monthly.plans.store');
+    Route::post('/monthly/plans/{id}/approval', [MonthlyPlanController::class, 'reviewApproval'])->name('monthly.plans.approval');
     Route::post('/monthly/submit-package', [MonthlyPlanController::class, 'submitPackage'])->name('monthly.plans.submit_package');
     Route::post('/monthly/delay-reason', [MonthlyPlanController::class, 'submitDelayReason'])->name('monthly.delay_reason');
     Route::post('/monthly/feedback', [MonthlyPlanController::class, 'saveFeedback'])->name('monthly.feedback');
@@ -58,6 +59,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/weekly/plans', [WeeklyPlanController::class, 'index'])->name('weekly.plans');
     Route::get('/weekly/tasks', [WeeklyPlanController::class, 'index'])->name('weekly.tasks');
     Route::post('/weekly/tasks', [WeeklyPlanController::class, 'storeTask'])->name('weekly.tasks.store');
+    Route::post('/weekly/tasks/{id}/approval', [WeeklyPlanController::class, 'reviewTaskApproval'])->name('weekly.tasks.approval');
     Route::post('/weekly/plans/submit', [WeeklyPlanController::class, 'submitPlan'])->name('weekly.plans.submit');
     Route::post('/weekly/plans/delay-reason', [WeeklyPlanController::class, 'submitDelayReason'])->name('weekly.plans.delay_reason');
     Route::delete('/weekly/tasks/{id}', [WeeklyPlanController::class, 'destroyTask'])->name('weekly.tasks.destroy');

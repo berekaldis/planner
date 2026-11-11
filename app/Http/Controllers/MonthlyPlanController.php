@@ -162,10 +162,9 @@ class MonthlyPlanController extends Controller
 
         // Notify GM & Department Head with Official Monthly Plan Voucher
         $dept = Department::find($deptId);
-        $statusEmoji = ($status === 'ON_TIME' || $status === 'DELAY_APPROVED') ? '🟢 [ON-TIME]' : '🟡 [LATE]';
         $statusBadge = ($status === 'DELAY_APPROVED')
-            ? '🟢 DELAY APPROVED (EXCUSED ON-TIME)'
-            : (($status === 'ON_TIME') ? '🟢 ON-TIME SUBMISSION' : '🟡 LATE SUBMISSION');
+            ? 'DELAY APPROVED (EXCUSED ON-TIME)'
+            : (($status === 'ON_TIME') ? 'ON-TIME SUBMISSION' : 'LATE SUBMISSION');
         $deptCode = htmlspecialchars($dept->department_code ?? "Dept #{$deptId}", ENT_QUOTES, 'UTF-8');
         $deptName = htmlspecialchars($dept->department_name ?? 'Department', ENT_QUOTES, 'UTF-8');
 
@@ -175,21 +174,21 @@ class MonthlyPlanController extends Controller
             'month' => $validated['month'],
         ]);
 
-        $notifTitle = "{$statusEmoji} Monthly Plan Package: {$deptCode}";
+        $notifTitle = "Monthly Plan Package: {$deptCode}";
         $notifMessage = "<b>{$deptName}</b> has officially submitted their <b>Monthly Plan Package</b> for <b>{$validated['month']} {$validated['year']}</b>.\n\n"
-                      . "📋 <b>Package Overview:</b>\n"
+                      . "<b>Package Overview:</b>\n"
                       . "• Timing Status: <b>{$statusBadge}</b>\n"
                       . "• Total Monthly Plans: <b>{$totalPlans}</b> ({$stratCount} Strategy, {$opsCount} Operational)\n"
                       . "• Submission Deadline: <b>{$deadlineInfo['deadline_formatted']}</b>";
 
         if (!empty($validated['notes'])) {
-            $notifMessage .= "\n\n💬 <b>Remarks:</b> <i>" . htmlspecialchars($validated['notes'], ENT_QUOTES, 'UTF-8') . "</i>";
+            $notifMessage .= "\n\n<b>Remarks:</b> <i>" . htmlspecialchars($validated['notes'], ENT_QUOTES, 'UTF-8') . "</i>";
         }
 
         $replyMarkup = [
             'inline_keyboard' => [
                 [
-                    ['text' => '📄 View Official Monthly Plan Voucher', 'url' => $voucherUrl]
+                    ['text' => 'View Official Monthly Plan Voucher', 'url' => $voucherUrl]
                 ]
             ]
         ];
@@ -241,10 +240,10 @@ class MonthlyPlanController extends Controller
         AuditLog::log('SUBMIT_DELAY_REASON', 'monthly_plans', "Submitted delay reason for Monthly Plan ({$validated['month']} {$validated['year']}): {$validated['delay_reason']}");
 
         $dept = Department::find($deptId);
-        $notifTitle = "⏳ Monthly Plan Delay Reason: {$dept->department_code}";
+        $notifTitle = "Monthly Plan Delay Reason: {$dept->department_code}";
         $notifMessage = "<b>{$dept->department_name}</b> has submitted a <b>Delay Reason</b> for their Monthly Plan (<b>{$validated['month']} {$validated['year']}</b>):\n\n"
-                      . "📝 <b>Reason:</b> <i>" . htmlspecialchars($validated['delay_reason'], ENT_QUOTES, 'UTF-8') . "</i>\n\n"
-                      . "👉 Please review and approve/reject on the GM Management Dashboard.";
+                      . "<b>Reason:</b> <i>" . htmlspecialchars($validated['delay_reason'], ENT_QUOTES, 'UTF-8') . "</i>\n\n"
+                      . "Please review and approve/reject on the GM Management Dashboard.";
         $gmUrl = route('dashboard.gm', ['year' => $validated['year'], 'month' => $validated['month']]);
         notify_both_gm_and_head($deptId, $notifTitle, $notifMessage, $gmUrl);
 
@@ -280,8 +279,7 @@ class MonthlyPlanController extends Controller
 
         // Automated Telegram Notification to Department Head
         $dept = Department::find($validated['department_id']);
-        $statusEmoji = $validated['approval_status'] === 'APPROVED' ? '✅' : ($validated['approval_status'] === 'REVISION_REQUESTED' ? '⚠️' : 'ℹ️');
-        $notifTitle = "{$statusEmoji} GM Monthly Plan Review: " . ($dept->department_code ?? "Dept #{$validated['department_id']}");
+        $notifTitle = "GM Monthly Plan Review: " . ($dept->department_code ?? "Dept #{$validated['department_id']}");
         $notifMessage = "The General Manager has evaluated the Monthly Plan Package for <b>" . ($dept->department_name ?? 'Department') . "</b> ({$validated['month']} {$validated['year']}):\n\n"
             . "• <b>Decision:</b> <b>{$validated['approval_status']}</b>\n";
         if (!empty($validated['gm_feedback'])) {
@@ -317,7 +315,7 @@ class MonthlyPlanController extends Controller
             'definition_of_done' => 'required|string',
             'monthly_target' => 'required|string',
             'target_percentage' => 'nullable|numeric|min:0|max:100',
-            'priority' => 'required|in:HIGH,MEDIUM,LOW',
+            'priority' => 'nullable|in:HIGH,MEDIUM,LOW',
             'responsible_person' => 'nullable|string|max:100',
         ]);
 
@@ -346,6 +344,17 @@ class MonthlyPlanController extends Controller
 
         $validated['created_by'] = $user->id;
         $validated['target_percentage'] = $validated['target_percentage'] ?? 100.00;
+        $validated['priority'] = $validated['priority'] ?? 'MEDIUM';
+        $validated['responsible_person'] = $validated['responsible_person'] ?? null;
+
+        // If created by GM or SuperAdmin, auto-approve
+        if ($user->isGM() || $user->isSuperAdmin()) {
+            $validated['approval_status'] = 'APPROVED';
+            $validated['approved_by'] = $user->id;
+            $validated['approved_at'] = now();
+        } else {
+            $validated['approval_status'] = 'PENDING';
+        }
 
         $plan = MonthlyPlan::create($validated);
 
@@ -353,13 +362,12 @@ class MonthlyPlanController extends Controller
 
         // Automated Telegram Notification to GM and Department Head
         $dept = Department::find($validated['department_id']);
-        $notifTitle = "📋 New Monthly Plan: " . ($dept->department_code ?? "Dept #{$validated['department_id']}");
+        $notifTitle = "New Monthly Plan: " . ($dept->department_code ?? "Dept #{$validated['department_id']}");
         $notifMessage = "A new monthly plan has been created for <b>" . ($dept->department_name ?? 'Department') . "</b> ({$plan->month} {$plan->year}):\n\n"
             . "• <b>Title:</b> " . htmlspecialchars($plan->title, ENT_QUOTES, 'UTF-8') . "\n"
             . "• <b>Type:</b> {$plan->plan_type}\n"
             . "• <b>Target:</b> " . htmlspecialchars($plan->monthly_target, ENT_QUOTES, 'UTF-8') . "\n"
-            . "• <b>Definition of Done:</b> " . htmlspecialchars($plan->definition_of_done, ENT_QUOTES, 'UTF-8') . "\n"
-            . "• <b>Priority:</b> {$plan->priority}";
+            . "• <b>Definition of Done:</b> " . htmlspecialchars($plan->definition_of_done, ENT_QUOTES, 'UTF-8');
 
         $monthlyUrl = route('monthly.plans', [
             'department_id' => $validated['department_id'],
@@ -370,6 +378,70 @@ class MonthlyPlanController extends Controller
         notify_both_gm_and_head((int)$validated['department_id'], $notifTitle, $notifMessage, $monthlyUrl);
 
         return back()->with('success', 'Monthly plan created successfully and notified on Telegram.');
+    }
+
+    public function reviewApproval(Request $request, $id)
+    {
+        $user = Auth::user();
+        if (!$user->isGM() && !$user->isSuperAdmin()) {
+            abort(403, 'Only General Management can approve or decline monthly plans.');
+        }
+
+        $validated = $request->validate([
+            'action' => 'required|in:APPROVE,DECLINE',
+            'decline_reason' => 'nullable|string|max:1000',
+        ]);
+
+        $plan = MonthlyPlan::with('department')->findOrFail($id);
+        $action = strtoupper($validated['action']);
+
+        if ($action === 'DECLINE' && empty(trim($validated['decline_reason'] ?? ''))) {
+            return back()->withErrors(['decline_reason' => 'Please provide a reason why this plan was declined.'])->withInput();
+        }
+
+        if ($action === 'APPROVE') {
+            $plan->approval_status = 'APPROVED';
+            $plan->decline_reason = null;
+            $plan->approved_by = $user->id;
+            $plan->approved_at = now();
+        } else {
+            $plan->approval_status = 'DECLINED';
+            $plan->decline_reason = trim($validated['decline_reason']);
+            $plan->approved_by = $user->id;
+            $plan->approved_at = now();
+        }
+        $plan->save();
+
+        AuditLog::log(
+            'GM_MONTHLY_PLAN_APPROVAL',
+            'monthly_plans',
+            "GM {$action} Monthly Plan #{$plan->id} ({$plan->title}) for Dept " . ($plan->department->department_code ?? 'DEPT') . ($action === 'DECLINE' ? " Reason: {$plan->decline_reason}" : ""),
+            $plan->id
+        );
+
+        // Telegram Notification to Department Head
+        $dept = $plan->department;
+        $deptId = $plan->department_id;
+        $notifTitle = "Monthly Plan {$action}: " . ($dept->department_code ?? "Dept #{$deptId}");
+        $notifMessage = "General Management has <b>{$action}D</b> the monthly plan: <b>" . htmlspecialchars($plan->title, ENT_QUOTES, 'UTF-8') . "</b>\n"
+            . "• Department: <b>" . htmlspecialchars($dept->department_name ?? 'Department', ENT_QUOTES, 'UTF-8') . "</b>\n"
+            . "• Month: <b>{$plan->month} {$plan->year}</b>\n"
+            . "• Type: <b>{$plan->plan_type}</b>\n";
+        if ($action === 'DECLINE') {
+            $notifMessage .= "• <b>Reason:</b> " . htmlspecialchars($plan->decline_reason, ENT_QUOTES, 'UTF-8') . "\n";
+        }
+        $monthlyUrl = route('monthly.plans', [
+            'department_id' => $deptId,
+            'year' => $plan->year,
+            'month' => $plan->month,
+        ]);
+        notify_department_head($deptId, $notifTitle, $notifMessage, $monthlyUrl);
+
+        $msg = $action === 'APPROVE' 
+            ? "Monthly Plan '{$plan->title}' has been APPROVED." 
+            : "Monthly Plan '{$plan->title}' has been DECLINED.";
+
+        return back()->with('success', $msg);
     }
 
     public function destroy($id)

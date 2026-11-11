@@ -3,6 +3,17 @@
 @section('title', 'Weekly Performance Voucher - ' . $department->department_name . ' (Week ' . $selectedWeek . ')')
 
 @section('content')
+@php
+    $timingStatus = $timingStatus ?? ($submission->status ?? 'DRAFT');
+    $allDepartments = $allDepartments ?? collect([$department]);
+    $totalTasks = $totalTasks ?? (isset($tasks) ? $tasks->count() : 0);
+    $doneTasks = $doneTasks ?? 0;
+    $notDoneTasks = $notDoneTasks ?? 0;
+    $completionRate = $completionRate ?? 0;
+    $completionPct = $completionPct ?? ($completionRate ?? 0);
+    $stratTasks = $stratTasks ?? 0;
+    $opsTasks = $opsTasks ?? 0;
+@endphp
 <style>
 /* ══════════════════════════════════════════════════════════
    OFFICIAL WEEKLY PERFORMANCE VOUCHER (KALDIS COFFEE PLC)

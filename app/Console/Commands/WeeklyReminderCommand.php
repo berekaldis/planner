@@ -105,18 +105,18 @@ class WeeklyReminderCommand extends Command
 
                     if ($telegram->isConfigured() && !empty($chatId)) {
                         $perfUrl = url("/weekly/performance?year=" . urlencode($year) . "&month=" . urlencode($month) . "&week=" . $week);
-                        $msg = "⏰ <b>Kaldis Coffee PLC — Weekly Performance &amp; Plan Reminder</b>\n\n"
+                        $msg = "<b>Kaldis Coffee PLC — Weekly Performance &amp; Plan Reminder</b>\n\n"
                              . "Dear <b>{$safeHeadName}</b> ({$safeDeptName}),\n\n"
                              . "This is a reminder to finalize and submit your department's <b>Weekly Performance Execution Report for Week {$week}</b> and <b>Weekly Task Schedule for Week {$planWeek}</b> ({$month} {$year}).\n\n"
-                             . "📅 <b>Submission Deadline:</b> Monday 6:30 LT (12:30 PM Midday)\n"
-                             . "🎯 Please verify all binary task statuses (DONE / NOT DONE) with root-cause reasons and submit before the cutoff.\n\n"
-                             . "☕ <i>Kaldis Coffee PLC — Planning &amp; Operational Governance</i>\n"
-                             . "📅 <i>" . format_ethiopian_datetime() . "</i>";
+                             . "<b>Submission Deadline:</b> Monday 6:30 LT (12:30 PM Midday)\n"
+                             . "Please verify all binary task statuses (DONE / NOT DONE) with root-cause reasons and submit before the cutoff.\n\n"
+                             . "<i>Kaldis Coffee PLC — Planning &amp; Operational Governance</i>\n"
+                             . "<i>" . format_ethiopian_datetime() . "</i>";
 
                         $replyMarkup = [
                             'inline_keyboard' => [
                                 [
-                                    ['text' => '🌐 Open Weekly Performance in Portal', 'url' => $perfUrl]
+                                    ['text' => 'Open Weekly Performance in Portal', 'url' => $perfUrl]
                                 ]
                             ]
                         ];
@@ -149,17 +149,17 @@ class WeeklyReminderCommand extends Command
 
                     if ($telegram->isConfigured() && !empty($chatId)) {
                         $planUrl = url("/weekly/plans?year=" . urlencode($year) . "&month=" . urlencode($month) . "&week=" . $week);
-                        $msg = "📝 <b>Kaldis Coffee PLC — Weekly Planning Reminder</b>\n\n"
+                        $msg = "<b>Kaldis Coffee PLC — Weekly Planning Reminder</b>\n\n"
                              . "Dear <b>{$safeHeadName}</b> ({$safeDeptName}),\n\n"
                              . "This is a reminder to schedule your department's <b>Weekly Operational Tasks</b> for <b>{$month} {$year}, Week {$week}</b>.\n\n"
-                             . "🎯 Align your weekly deliverables with the active monthly targets and strategic goals.\n\n"
-                             . "☕ <i>Kaldis Coffee PLC — Planning & Operational Governance</i>\n"
-                             . "📅 <i>" . format_ethiopian_datetime() . "</i>";
+                             . "Align your weekly deliverables with the active monthly targets and strategic goals.\n\n"
+                             . "<i>Kaldis Coffee PLC — Planning & Operational Governance</i>\n"
+                             . "<i>" . format_ethiopian_datetime() . "</i>";
 
                         $replyMarkup = [
                             'inline_keyboard' => [
                                 [
-                                    ['text' => '📝 Schedule Tasks in Portal', 'url' => $planUrl]
+                                    ['text' => 'Schedule Tasks in Portal', 'url' => $planUrl]
                                 ]
                             ]
                         ];
@@ -199,11 +199,11 @@ class WeeklyReminderCommand extends Command
 
             if (!empty($gmChatIds)) {
                 $unsubCount = count($unsubmittedDepts);
-                $gmMsg = "📊 <b>Kaldis Weekly Submission Status Digest</b>\n"
-                       . "📅 <b>Period:</b> Week {$week} &bull; {$month} {$year}\n"
-                       . "⏰ <b>Status Check:</b> " . format_ethiopian_datetime() . "\n\n"
+                $gmMsg = "<b>Kaldis Weekly Submission Status Digest</b>\n"
+                       . "<b>Period:</b> Week {$week} &bull; {$month} {$year}\n"
+                       . "<b>Status Check:</b> " . format_ethiopian_datetime() . "\n\n"
                        . "• Total Departments: <b>{$totalDepts}</b>\n"
-                       . "• 🔴 Pending Submissions: <b>{$unsubCount}</b>\n\n";
+                       . "• Pending Submissions: <b>{$unsubCount}</b>\n\n";
 
                 $gmMsg .= "<b>Pending Departments:</b>\n";
                 foreach ($unsubmittedDepts as $item) {
@@ -212,12 +212,12 @@ class WeeklyReminderCommand extends Command
                 }
 
                 $dashboardUrl = url("/management/dashboard?year=" . urlencode($year) . "&month=" . urlencode($month) . "&week=" . $week);
-                $gmMsg .= "☕ <i>Kaldis Coffee PLC — Executive Operations</i>";
+                $gmMsg .= "<i>Kaldis Coffee PLC — Executive Operations</i>";
 
                 $replyMarkup = [
                     'inline_keyboard' => [
                         [
-                            ['text' => '🌐 Open Executive Dashboard', 'url' => $dashboardUrl]
+                            ['text' => 'Open Executive Dashboard', 'url' => $dashboardUrl]
                         ]
                     ]
                 ];

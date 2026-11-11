@@ -423,10 +423,9 @@ class PerformanceController extends Controller
 
         // Dispatch GM notification (In-app + Telegram) with Official Vouchers
         $dept = Department::find($deptId);
-        $statusEmoji = ($compliance === 'ON_TIME' || $compliance === 'DELAY_APPROVED') ? '🟢 [ON-TIME]' : '🟡 [LATE]';
         $statusBadge = ($compliance === 'DELAY_APPROVED')
-            ? '🟢 DELAY APPROVED (EXCUSED ON-TIME)'
-            : (($compliance === 'ON_TIME') ? '🟢 ON-TIME SUBMISSION' : '🟡 LATE SUBMISSION');
+            ? 'DELAY APPROVED (EXCUSED ON-TIME)'
+            : (($compliance === 'ON_TIME') ? 'ON-TIME SUBMISSION' : 'LATE SUBMISSION');
         $deptCode = htmlspecialchars($dept->department_code ?? "Dept #{$deptId}", ENT_QUOTES, 'UTF-8');
         $deptName = htmlspecialchars($dept->department_name ?? 'Department', ENT_QUOTES, 'UTF-8');
 
@@ -482,9 +481,9 @@ class PerformanceController extends Controller
         ]);
 
         if ($nextWeekCount > 0) {
-            $notifTitle = "📝 Weekly Task Scheduled: {$deptCode}";
+            $notifTitle = "Weekly Task Scheduled: {$deptCode}";
             $notifMessage = "<b>{$deptName}</b> has officially submitted their <b>Weekly Task Schedule</b> for <b>Week {$nextWeek} ({$validated['month']} {$validated['year']})</b> along with <b>Week {$validated['week_number']} Performance Report</b>.\n\n"
-                          . "📋 <b>WEEK {$nextWeek} SCHEDULED TASKS ({$nextWeekCount} Total)</b>\n"
+                          . "<b>WEEK {$nextWeek} SCHEDULED TASKS ({$nextWeekCount} Total)</b>\n"
                           . "• <b>Breakdown:</b> {$nextWeekStrat} Strategic | {$nextWeekOps} Operational\n\n";
 
             $displayNext = $nextWeekTasks->take(10);
@@ -500,23 +499,23 @@ class PerformanceController extends Controller
             }
 
             $notifMessage .= "\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                           . "📊 <b>LAST WEEK PERFORMANCE REPORT (Week {$validated['week_number']}, {$validated['month']} {$validated['year']})</b>\n"
+                           . "<b>LAST WEEK PERFORMANCE REPORT (Week {$validated['week_number']}, {$validated['month']} {$validated['year']})</b>\n"
                            . "• <b>Completion Rate:</b> <b>{$completionRate}%</b>\n"
                            . "• <b>Binary Execution:</b> <b>{$doneTasks} DONE</b> &bull; <b>{$notDoneTasks} NOT DONE</b> ({$totalTasks} planned)\n"
                            . "• <b>Submission Status:</b> <b>{$statusBadge}</b>\n";
         } else {
-            $notifTitle = "{$statusEmoji} Weekly Performance Report: {$deptCode}";
+            $notifTitle = "Weekly Performance Report: {$deptCode}";
             $notifMessage = "<b>{$deptName}</b> has officially submitted their Weekly Performance Report for <b>Week {$validated['week_number']} ({$validated['month']} {$validated['year']})</b>.\n\n"
-                          . "📊 <b>WEEK {$validated['week_number']} PERFORMANCE EXECUTION</b>\n"
+                          . "<b>WEEK {$validated['week_number']} PERFORMANCE EXECUTION</b>\n"
                           . "• <b>Timing Status:</b> <b>{$statusBadge}</b>\n"
                           . "• <b>Completion Rate:</b> <b>{$completionRate}%</b>\n"
                           . "• <b>Binary Execution:</b> <b>{$doneTasks} DONE</b> &bull; <b>{$notDoneTasks} NOT DONE</b> ({$totalTasks} planned)\n\n"
-                          . "ℹ️ <i>Notice: No upcoming tasks have been scheduled yet for Week {$nextWeek}.</i>\n";
+                          . "<i>Notice: No upcoming tasks have been scheduled yet for Week {$nextWeek}.</i>\n";
         }
 
         $remarks = !empty($validated['notes']) ? $validated['notes'] : (!empty($validated['report_summary']) ? $validated['report_summary'] : null);
         if (!empty($remarks)) {
-            $notifMessage .= "\n💬 <b>Remarks:</b> <i>" . htmlspecialchars($remarks, ENT_QUOTES, 'UTF-8') . "</i>\n";
+            $notifMessage .= "\n<b>Remarks:</b> <i>" . htmlspecialchars($remarks, ENT_QUOTES, 'UTF-8') . "</i>\n";
         }
 
         $notifMessage .= "━━━━━━━━━━━━━━━━━━━━━━━━━━";
@@ -524,10 +523,10 @@ class PerformanceController extends Controller
         $replyMarkup = [
             'inline_keyboard' => [
                 [
-                    ['text' => "📊 Week {$validated['week_number']} Performance Voucher", 'url' => $perfVoucherUrl],
+                    ['text' => "Week {$validated['week_number']} Performance Voucher", 'url' => $perfVoucherUrl],
                 ],
                 [
-                    ['text' => "📝 Week {$nextWeek} Plan Voucher", 'url' => $planVoucherUrl],
+                    ['text' => "Week {$nextWeek} Plan Voucher", 'url' => $planVoucherUrl],
                 ],
             ]
         ];
@@ -594,10 +593,10 @@ class PerformanceController extends Controller
         AuditLog::log('SUBMIT_DELAY_REASON', 'performance', "Submitted delay reason for Week {$validated['week_number']} Performance Report ({$validated['month']} {$validated['year']})");
 
         $dept = Department::find($deptId);
-        $notifTitle = "⏳ Performance Report Delay Reason: {$dept->department_code}";
+        $notifTitle = "Performance Report Delay Reason: {$dept->department_code}";
         $notifMessage = "<b>{$dept->department_name}</b> has submitted a <b>Delay Reason</b> for Week {$validated['week_number']} Performance Report (<b>{$validated['month']} {$validated['year']}</b>):\n\n"
-                      . "📝 <b>Reason:</b> <i>" . htmlspecialchars($validated['delay_reason'], ENT_QUOTES, 'UTF-8') . "</i>\n\n"
-                      . "👉 Please review and approve/reject on the GM Management Dashboard.";
+                      . "<b>Reason:</b> <i>" . htmlspecialchars($validated['delay_reason'], ENT_QUOTES, 'UTF-8') . "</i>\n\n"
+                      . "Please review and approve/reject on the GM Management Dashboard.";
         $gmUrl = route('dashboard.gm', ['year' => $validated['year'], 'month' => $validated['month'], 'week' => $validated['week_number']]);
         notify_both_gm_and_head($deptId, $notifTitle, $notifMessage, $gmUrl);
 
@@ -824,9 +823,9 @@ class PerformanceController extends Controller
         AuditLog::log('GM_FEEDBACK_WEEKLY', 'performance', "GM evaluated Weekly Report Week {$validated['week_number']} for Dept {$validated['department_id']}: {$validated['approval_status']}");
 
         $statusLabel = match($validated['approval_status']) {
-            'APPROVED' => '✅ APPROVED',
-            'REVISION_REQUESTED' => '⚠️ REVISION REQUESTED',
-            default => '⏳ PENDING'
+            'APPROVED' => 'APPROVED',
+            'REVISION_REQUESTED' => 'REVISION REQUESTED',
+            default => 'PENDING'
         };
         $dept = Department::find($validated['department_id']);
         $deptName = $dept ? $dept->name : 'Department';

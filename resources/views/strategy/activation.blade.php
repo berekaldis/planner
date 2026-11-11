@@ -262,9 +262,7 @@
                     <th>Annual Strategic Goal &amp; Definition of Done</th>
                     <th style="width: 200px;">Owner Departments</th>
                     <th style="width: 140px;">Annual Target</th>
-                    <th style="width: 95px;">Priority</th>
-                    <th style="width: 150px;" class="text-center">Status ({{ $selectedMonth }})</th>
-                    <th style="width: 140px;" class="text-center no-print">Action</th>
+                    <th style="width: 260px;" class="text-center">Status &amp; Action</th>
                 </tr>
             </thead>
             <tbody>
@@ -325,45 +323,27 @@
                             <small class="fw-semibold text-dark">{{ $goal->annual_target ?: '—' }}</small>
                         </td>
 
-                        <!-- Priority -->
-                        <td>
-                            @php
-                                $prio = strtoupper($goal->priority ?? 'MEDIUM');
-                                $prioColor = match($prio) {
-                                    'HIGH' => 'danger',
-                                    'MEDIUM' => 'warning',
-                                    'LOW' => 'info',
-                                    default => 'secondary'
-                                };
-                            @endphp
-                            <span class="badge bg-{{ $prioColor }}-subtle text-{{ $prioColor }} border border-{{ $prioColor }}-subtle fs-8 px-2 py-0.5">
-                                {{ $prio }}
-                            </span>
-                        </td>
-
-                        <!-- Status Badge -->
-                        <td class="text-center status-col">
-                            <span id="badge-{{ $goal->id }}" class="badge {{ $isActive ? 'bg-success text-white' : 'bg-secondary-subtle text-secondary border' }} px-2 py-1 fs-7 shadow-xs">
-                                <i class="fas {{ $isActive ? 'fa-check-circle' : 'fa-times-circle' }} me-1"></i>
-                                <span>{{ $isActive ? 'TRUE (Active)' : 'FALSE (Inactive)' }}</span>
-                            </span>
-                        </td>
-
-                        <!-- 1-Click Action Toggle Button -->
-                        <td class="text-center no-print action-col">
-                            <button type="button" 
-                                    class="btn btn-sm {{ $isActive ? 'btn-outline-danger' : 'btn-kaldis' }} toggle-btn px-2.5 py-1 shadow-xs"
-                                    id="btn-{{ $goal->id }}"
-                                    data-active="{{ $isActive ? 1 : 0 }}"
-                                    onclick="togglePlan({{ $goal->id }})">
-                                <i class="fas {{ $isActive ? 'fa-times' : 'fa-check' }} me-1"></i>
-                                <span>{{ $isActive ? 'Set FALSE' : 'Turn TRUE' }}</span>
-                            </button>
+                        <!-- Status & Action (Shown Together) -->
+                        <td class="text-center status-action-col">
+                            <div class="d-flex align-items-center justify-content-center gap-2">
+                                <span id="badge-{{ $goal->id }}" class="badge {{ $isActive ? 'bg-success text-white' : 'bg-secondary-subtle text-secondary border' }} px-2 py-1 fs-7 shadow-xs">
+                                    <i class="fas {{ $isActive ? 'fa-check-circle' : 'fa-times-circle' }} me-1"></i>
+                                    <span>{{ $isActive ? 'TRUE (Active)' : 'FALSE (Inactive)' }}</span>
+                                </span>
+                                <button type="button" 
+                                        class="btn btn-sm {{ $isActive ? 'btn-outline-danger' : 'btn-kaldis' }} toggle-btn px-2.5 py-1 shadow-xs"
+                                        id="btn-{{ $goal->id }}"
+                                        data-active="{{ $isActive ? 1 : 0 }}"
+                                        onclick="togglePlan({{ $goal->id }})">
+                                    <i class="fas {{ $isActive ? 'fa-times' : 'fa-check' }} me-1"></i>
+                                    <span>{{ $isActive ? 'Set FALSE' : 'Turn TRUE' }}</span>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="text-center py-5 text-muted">
+                        <td colspan="6" class="text-center py-5 text-muted">
                             <div class="p-3 bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
                                 <i class="fas fa-folder-open fa-2x text-muted opacity-50"></i>
                             </div>

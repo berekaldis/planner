@@ -336,7 +336,12 @@ class DashboardController extends Controller
             $currentPhase = 2;
         }
 
+        $departments = Department::where('active', 1)->orderBy('department_name')->get();
+        $activatedGoals = AnnualGoal::where('year', $selectedYear)->where('status', 'ACTIVE')->orderBy('goal_code')->get();
+
         return view('dashboard.gm', compact(
+            'departments',
+            'activatedGoals',
             'selectedYear',
             'selectedMonth',
             'selectedWeek',
@@ -609,13 +614,12 @@ class DashboardController extends Controller
 
             $telegram = app(\App\Services\TelegramService::class);
             if ($telegram && $telegram->isConfigured() && !empty($head->telegram_chat_id) && $head->telegram_chat_id !== '123456789') {
-                $icon = $isApproved ? '✅' : '❌';
-                $tgMsg = "{$icon} <b>Kaldis Executive Notice: Delay Request {$actionLabel}</b>\n\n"
+                $tgMsg = "<b>Kaldis Executive Notice: Delay Request {$actionLabel}</b>\n\n"
                     . "Dear <b>{$head->full_name}</b> ({$department->department_name}),\n\n"
                     . "Your delay justification for <b>{$typeDisplayName}</b> ({$periodLabel}) has been <b>" . strtoupper($actionLabel) . "</b> by General Management.\n\n"
-                    . ($isApproved ? "🟢 <b>Governance Status:</b> Excused on-time submission. This will <b>NOT</b> be marked or penalized as Not Submitted.\n" : "🔴 <b>Governance Status:</b> Please finalize and submit immediately.\n")
-                    . ($notes ? "💬 <b>GM Remarks:</b> <i>{$notes}</i>\n\n" : "\n")
-                    . "☕ <i>Kaldis Coffee PLC — Office of the General Manager</i>";
+                    . ($isApproved ? "<b>Governance Status:</b> Excused on-time submission. This will <b>NOT</b> be marked or penalized as Not Submitted.\n" : "<b>Governance Status:</b> Please finalize and submit immediately.\n")
+                    . ($notes ? "<b>GM Remarks:</b> <i>{$notes}</i>\n\n" : "\n")
+                    . "<i>Kaldis Coffee PLC — Office of the General Manager</i>";
 
                 $telegram->sendMessage($head->telegram_chat_id, $tgMsg);
             }
@@ -655,17 +659,17 @@ class DashboardController extends Controller
         $sent = false;
         if ($telegram && $telegram->isConfigured() && $head && !empty($head->telegram_chat_id)) {
             if ($type === 'MONTHLY') {
-                $msg = "⚠️ <b>Kaldis Executive Reminder: Monthly Plan Required</b>\n\n"
+                $msg = "<b>Kaldis Executive Reminder: Monthly Plan Required</b>\n\n"
                      . "Dear <b>{$head->full_name}</b>,\n"
                      . "The Monthly Plan package for <b>{$dept->department_name}</b> ({$month} {$year}) is currently <b>NOT SUBMITTED</b>.\n\n"
                      . "Please log in to the planning system and submit your department's monthly strategic & operational plans.\n\n"
-                     . "☕ <i>Kaldis Coffee PLC — Office of the General Manager</i>";
+                     . "<i>Kaldis Coffee PLC — Office of the General Manager</i>";
             } else {
-                $msg = "⚠️ <b>Kaldis Executive Reminder: Weekly Performance Report Required</b>\n\n"
+                $msg = "<b>Kaldis Executive Reminder: Weekly Performance Report Required</b>\n\n"
                      . "Dear <b>{$head->full_name}</b>,\n"
                      . "The Weekly Performance Report for <b>{$dept->department_name}</b> ({$month} {$year}, Week {$week}) has not been submitted.\n\n"
                      . "Please evaluate your weekly planned tasks and submit your execution report as soon as possible.\n\n"
-                     . "☕ <i>Kaldis Coffee PLC — Office of the General Manager</i>";
+                     . "<i>Kaldis Coffee PLC — Office of the General Manager</i>";
             }
 
             $res = $telegram->sendMessage($head->telegram_chat_id, $msg);

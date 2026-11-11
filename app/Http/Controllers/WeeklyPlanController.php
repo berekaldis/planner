@@ -112,25 +112,35 @@ class WeeklyPlanController extends Controller
             'year' => 'required|string',
             'month' => 'required|string',
             'week_number' => 'required|integer|min:1|max:5',
+            'task_type' => 'nullable|in:PLANNED,NEW_TASK',
             'monthly_plan_id' => 'nullable|exists:monthly_plans,id',
-            'plan_type' => 'nullable|in:STRATEGY,OPERATIONAL',
+            'plan_type' => 'nullable|string',
             'task_title' => 'required|string|max:255',
             'task_description' => 'nullable|string',
             'task_target' => 'nullable|string',
+            'definition_of_done' => 'nullable|string',
             'expected_result' => 'nullable|string',
-            'priority' => 'required|in:HIGH,MEDIUM,LOW',
+            'priority' => 'nullable|string',
             'assigned_to' => 'nullable|string|max:150',
             'responsible_person' => 'nullable|string|max:150',
             'deadline_date' => 'nullable|date',
             'due_date' => 'nullable|date',
         ]);
 
-        $monthlyPlan = !empty($validated['monthly_plan_id'])
+        $taskType = $validated['task_type'] ?? (!empty($validated['monthly_plan_id']) ? 'PLANNED' : 'NEW_TASK');
+        if ($taskType === 'PLANNED' && empty($validated['monthly_plan_id'])) {
+            // If marked planned but no monthly plan was selected, check if one can be matched or fallback
+            $taskType = 'NEW_TASK';
+        }
+
+        $monthlyPlan = ($taskType === 'PLANNED' && !empty($validated['monthly_plan_id']))
             ? MonthlyPlan::find($validated['monthly_plan_id'])
             : null;
 
-        $planType = $monthlyPlan ? $monthlyPlan->plan_type : ($validated['plan_type'] ?? 'OPERATIONAL');
+        // If user selects from Parent Monthly Plan -> Month plan, else New task
+        $planType = $monthlyPlan ? 'MONTH_PLAN' : 'NEW_TASK';
         $annualGoalId = $monthlyPlan ? $monthlyPlan->annual_goal_id : null;
+        $dod = $validated['definition_of_done'] ?? ($validated['expected_result'] ?? ($validated['task_target'] ?? 'Completed'));
 
         $weeklyPlan = WeeklyPlan::firstOrCreate([
             'department_id' => $validated['department_id'],
@@ -142,6 +152,8 @@ class WeeklyPlanController extends Controller
             'created_by' => $user->id,
         ]);
 
+        $isGM = $user->isGM() || $user->isSuperAdmin();
+
         $task = WeeklyTask::create([
             'weekly_plan_id' => $weeklyPlan->id,
             'monthly_plan_id' => $monthlyPlan ? $monthlyPlan->id : null,
@@ -150,13 +162,17 @@ class WeeklyPlanController extends Controller
             'month' => $validated['month'],
             'week_number' => $validated['week_number'],
             'plan_type' => $planType,
+            'task_type' => $taskType,
             'annual_goal_id' => $annualGoalId,
             'task_title' => $validated['task_title'],
             'task_description' => $validated['task_description'] ?? null,
-            'expected_result' => $validated['expected_result'] ?? ($validated['task_target'] ?? 'Completed'),
-            'priority' => $validated['priority'],
-            'responsible_person' => $validated['responsible_person'] ?? ($validated['assigned_to'] ?? ($user->full_name ?: ($user->username ?: 'Unassigned'))),
+            'expected_result' => $dod,
+            'priority' => $validated['priority'] ?? 'MEDIUM',
+            'responsible_person' => $validated['responsible_person'] ?? ($validated['assigned_to'] ?? $user->name),
             'due_date' => !empty($validated['due_date']) ? $validated['due_date'] : (!empty($validated['deadline_date']) ? $validated['deadline_date'] : null),
+            'approval_status' => $isGM ? 'APPROVED' : 'PENDING',
+            'approved_by' => $isGM ? $user->id : null,
+            'approved_at' => $isGM ? now() : null,
             'created_by' => $user->id,
         ]);
 
@@ -317,14 +333,79 @@ class WeeklyPlanController extends Controller
         AuditLog::log('SUBMIT_DELAY_REASON', 'weekly_plans', "Submitted delay reason for Week {$validated['week_number']} Schedule ({$validated['month']} {$validated['year']})");
 
         $dept = Department::find($deptId);
-        $notifTitle = "⏳ Weekly Schedule Delay Reason: {$dept->department_code}";
+        $notifTitle = "Weekly Schedule Delay Reason: {$dept->department_code}";
         $notifMessage = "<b>{$dept->department_name}</b> has submitted a <b>Delay Reason</b> for Week {$validated['week_number']} Task Schedule (<b>{$validated['month']} {$validated['year']}</b>):\n\n"
-                      . "📝 <b>Reason:</b> <i>" . htmlspecialchars($validated['delay_reason'], ENT_QUOTES, 'UTF-8') . "</i>\n\n"
-                      . "👉 Please review and approve/reject on the GM Management Dashboard.";
+                      . "<b>Reason:</b> <i>" . htmlspecialchars($validated['delay_reason'], ENT_QUOTES, 'UTF-8') . "</i>\n\n"
+                      . "Please review and approve/reject on the GM Management Dashboard.";
         $gmUrl = route('dashboard.gm', ['year' => $validated['year'], 'month' => $validated['month'], 'week' => $validated['week_number']]);
         notify_both_gm_and_head($deptId, $notifTitle, $notifMessage, $gmUrl);
 
         return back()->with('success', 'Delay reason for weekly task schedule submitted successfully to General Management.');
+    }
+
+    public function reviewTaskApproval(Request $request, $id)
+    {
+        $user = Auth::user();
+        if (!$user->isGM() && !$user->isSuperAdmin()) {
+            abort(403, 'Only General Management can approve or decline tasks.');
+        }
+
+        $validated = $request->validate([
+            'action' => 'required|in:APPROVE,DECLINE',
+            'decline_reason' => 'nullable|string|max:1000',
+        ]);
+
+        $task = WeeklyTask::with('department')->findOrFail($id);
+        $action = strtoupper($validated['action']);
+
+        if ($action === 'DECLINE' && empty(trim($validated['decline_reason'] ?? ''))) {
+            return back()->withErrors(['decline_reason' => 'Please provide a reason why this task was declined.'])->withInput();
+        }
+
+        if ($action === 'APPROVE') {
+            $task->approval_status = 'APPROVED';
+            $task->decline_reason = null;
+            $task->approved_by = $user->id;
+            $task->approved_at = now();
+        } else {
+            $task->approval_status = 'DECLINED';
+            $task->decline_reason = trim($validated['decline_reason']);
+            $task->approved_by = $user->id;
+            $task->approved_at = now();
+        }
+        $task->save();
+
+        AuditLog::log(
+            'GM_WEEKLY_TASK_APPROVAL',
+            'weekly_plans',
+            "GM {$action} Weekly Task #{$task->id} ({$task->task_title}) for Dept " . ($task->department->department_code ?? 'DEPT') . ($action === 'DECLINE' ? " Reason: {$task->decline_reason}" : ""),
+            $task->id
+        );
+
+        // Telegram Notification to Department Head
+        $dept = $task->department;
+        $deptId = $task->department_id;
+        $notifTitle = "Weekly Task {$action}: " . ($dept->department_code ?? "Dept #{$deptId}");
+        $notifMessage = "General Management has <b>{$action}D</b> the weekly task: <b>" . htmlspecialchars($task->task_title, ENT_QUOTES, 'UTF-8') . "</b>\n"
+            . "• Department: <b>" . htmlspecialchars($dept->department_name ?? 'Department', ENT_QUOTES, 'UTF-8') . "</b>\n"
+            . "• Week: <b>Week {$task->week_number} ({$task->month} {$task->year})</b>\n"
+            . "• Type: <b>" . ($task->task_type === 'NEW_TASK' ? 'New Task' : 'Planned') . "</b>\n";
+        if ($action === 'DECLINE') {
+            $notifMessage .= "• <b>Reason:</b> " . htmlspecialchars($task->decline_reason, ENT_QUOTES, 'UTF-8') . "\n";
+        }
+        $weeklyUrl = route('weekly.plans', [
+            'department_id' => $deptId,
+            'year' => $task->year,
+            'month' => $task->month,
+            'week' => $task->week_number,
+        ]);
+        notify_department_head($deptId, $notifTitle, $notifMessage, $weeklyUrl);
+
+        $msg = $action === 'APPROVE' 
+            ? "Weekly Task '{$task->task_title}' has been APPROVED." 
+            : "Weekly Task '{$task->task_title}' has been DECLINED.";
+
+        return back()->with('success', $msg);
     }
 
     public function destroyTask($id)

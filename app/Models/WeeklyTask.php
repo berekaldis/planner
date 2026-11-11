@@ -16,6 +16,7 @@ class WeeklyTask extends Model
         'month',
         'week_number',
         'plan_type',
+        'task_type',
         'annual_goal_id',
         'task_title',
         'task_description',
@@ -25,6 +26,10 @@ class WeeklyTask extends Model
         'due_date',
         'dependency',
         'notes',
+        'approval_status',
+        'decline_reason',
+        'approved_by',
+        'approved_at',
         'created_by',
     ];
 
@@ -56,6 +61,36 @@ class WeeklyTask extends Model
     public function challenges()
     {
         return $this->hasMany(WeeklyChallenge::class, 'related_weekly_task_id');
+    }
+
+    public function approver()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function isPlanned(): bool
+    {
+        return strtoupper((string) ($this->task_type ?? 'PLANNED')) !== 'NEW_TASK';
+    }
+
+    public function isNewTask(): bool
+    {
+        return strtoupper((string) ($this->task_type ?? '')) === 'NEW_TASK';
+    }
+
+    public function isApproved(): bool
+    {
+        return strtoupper((string) ($this->approval_status ?? '')) === 'APPROVED';
+    }
+
+    public function isDeclined(): bool
+    {
+        return strtoupper((string) ($this->approval_status ?? '')) === 'DECLINED';
+    }
+
+    public function isPending(): bool
+    {
+        return in_array(strtoupper((string) ($this->approval_status ?? 'PENDING')), ['PENDING', 'SUBMITTED', 'UNDER_REVIEW', ''], true);
     }
 
     public function getTaskTargetAttribute(): ?string

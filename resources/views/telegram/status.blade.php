@@ -251,7 +251,7 @@
 
                         <div class="mb-3">
                             <label class="form-label small fw-semibold text-muted">Message Content</label>
-                            <textarea name="message" id="testMessageText" class="form-control form-control-sm" rows="3" placeholder="Hello from Kaldis Planning &amp; Performance Portal!" required>🔔 [Kaldis Planning Portal Test] Hello! Telegram notification service is fully online.</textarea>
+                            <textarea name="message" id="testMessageText" class="form-control form-control-sm" rows="3" placeholder="Hello from Kaldis Planning &amp; Performance Portal!" required>[Kaldis Planning Portal Test] Hello! Telegram notification service is fully online.</textarea>
                         </div>
 
                         <button type="submit" id="btnSubmitTestMessage" class="btn btn-sm btn-primary w-100 fw-semibold">
@@ -584,16 +584,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 autoBtn.disabled = false;
                 autoBtn.innerHTML = '<i class="fas fa-play"></i> Run Automation';
                 if (data.ok) {
-                    alert('✅ Automation Triggered Successfully!\n\nExecuted at: ' + data.timestamp + '\nOutput: ' + JSON.stringify(data.output, null, 2));
+                    alert('Automation Triggered Successfully!\n\nExecuted at: ' + data.timestamp + '\nOutput: ' + JSON.stringify(data.output, null, 2));
                     setTimeout(() => location.reload(), 1000);
                 } else {
-                    alert('❌ Automation Error: ' + (data.error || 'Execution failed'));
+                    alert('Automation Error: ' + (data.error || 'Execution failed'));
                 }
             })
             .catch(err => {
                 autoBtn.disabled = false;
                 autoBtn.innerHTML = '<i class="fas fa-play"></i> Run Automation';
-                alert('❌ Automation Error: ' + err.message);
+                alert('Automation Error: ' + err.message);
             });
         });
     }
@@ -617,15 +617,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 pingBtn.disabled = false;
                 pingBtn.innerHTML = '<i class="fas fa-rotate"></i> Ping Connection';
                 if (data.ok) {
-                    alert('✅ Telegram Bot Connection OK!\n\nBot: ' + data.result.first_name + ' (@' + data.result.username + ')\nID: ' + data.result.id);
+                    alert('Telegram Bot Connection OK!\n\nBot: ' + data.result.first_name + ' (@' + data.result.username + ')\nID: ' + data.result.id);
                 } else {
-                    alert('❌ Connection Failed:\n' + (data.description || 'Unknown error'));
+                    alert('Connection Failed:\n' + (data.description || 'Unknown error'));
                 }
             })
             .catch(err => {
                 pingBtn.disabled = false;
                 pingBtn.innerHTML = '<i class="fas fa-rotate"></i> Ping Connection';
-                alert('❌ Network / Server Error: ' + err.message);
+                alert('Network / Server Error: ' + err.message);
             });
         });
     }

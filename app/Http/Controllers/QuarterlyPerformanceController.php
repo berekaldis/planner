@@ -404,30 +404,29 @@ class QuarterlyPerformanceController extends Controller
             'quarter' => $validated['quarter'],
         ]);
 
-        $scoreColor = $completionPct >= 80 ? '🟢' : ($completionPct >= 50 ? '🟡' : '🔴');
-        $notifTitle = "📊 [QUARTERLY PERFORMANCE] {$validated['quarter']} - {$deptCode}";
-        $notifMessage = "🏢 <b>{$deptName}</b> has officially submitted their <b>Quarterly Performance Report</b> for <b>{$validated['quarter']} ({$monthsStr}) - {$validated['year']}</b>.\n\n"
-                      . "📈 <b>Performance Summary:</b>\n"
-                      . "• Score: {$scoreColor} <b>{$completionPct}% Overall Completion</b>\n"
+        $notifTitle = "[QUARTERLY PERFORMANCE] {$validated['quarter']} - {$deptCode}";
+        $notifMessage = "<b>{$deptName}</b> has officially submitted their <b>Quarterly Performance Report</b> for <b>{$validated['quarter']} ({$monthsStr}) - {$validated['year']}</b>.\n\n"
+                      . "<b>Performance Summary:</b>\n"
+                      . "• Score: <b>{$completionPct}% Overall Completion</b>\n"
                       . "• Total Monthly Plans: <b>{$totalPlans}</b>\n"
                       . "• Completed (Done): <b>{$donePlans}</b> | Partial: <b>{$partialPlans}</b> | Not Done: <b>{$notDonePlans}</b>\n"
                       . "• Submitted By: <b>" . htmlspecialchars($user->full_name ?? $user->username, ENT_QUOTES, 'UTF-8') . "</b>\n"
                       . "• Timestamp: <b>" . now()->format('Y-m-d H:i') . "</b>\n\n"
-                      . "📋 <b>Executive Summary:</b>\n"
+                      . "<b>Executive Summary:</b>\n"
                       . "<i>\"" . htmlspecialchars(substr($validated['executive_summary'], 0, 300), ENT_QUOTES, 'UTF-8') . (strlen($validated['executive_summary']) > 300 ? '...' : '') . "\"</i>\n";
 
         if (!empty($validated['challenges'])) {
-            $notifMessage .= "\n⚠️ <b>Key Challenges:</b>\n"
+            $notifMessage .= "\n<b>Key Challenges:</b>\n"
                           . "<i>\"" . htmlspecialchars(substr($validated['challenges'], 0, 200), ENT_QUOTES, 'UTF-8') . "\"</i>\n";
         }
 
         $replyMarkup = [
             'inline_keyboard' => [
                 [
-                    ['text' => "📑 View Official Quarterly Voucher", 'url' => $voucherUrl],
+                    ['text' => "View Official Quarterly Voucher", 'url' => $voucherUrl],
                 ],
                 [
-                    ['text' => "🔍 Review & Approve in PMS", 'url' => $reviewUrl],
+                    ['text' => "Review & Approve in PMS", 'url' => $reviewUrl],
                 ],
             ]
         ];
@@ -463,7 +462,6 @@ class QuarterlyPerformanceController extends Controller
         AuditLog::log('GM_REVIEW_QUARTERLY', 'quarterly', "GM {$validated['approval_status']} for {$submission->department->department_code} ({$submission->quarter} {$submission->year})", $submission->id);
 
         // Notify Department Head
-        $statusIcon = ($validated['approval_status'] === 'APPROVED') ? '✅ [APPROVED]' : '⚠️ [REVISION REQUESTED]';
         $statusLabel = ($validated['approval_status'] === 'APPROVED') ? 'APPROVED' : 'NEEDS REVISION';
         $voucherUrl = route('quarterly.voucher', [
             'department_id' => $submission->department_id,
@@ -471,17 +469,17 @@ class QuarterlyPerformanceController extends Controller
             'quarter' => $submission->quarter,
         ]);
 
-        $notifTitle = "{$statusIcon} GM Quarterly Review: {$submission->department->department_code}";
+        $notifTitle = "GM Quarterly Review: {$submission->department->department_code}";
         $notifMessage = "General Management has reviewed your <b>Quarterly Performance Report</b> for <b>{$submission->quarter} ({$submission->months}) - {$submission->year}</b>.\n\n"
-                      . "⚖️ <b>Review Decision:</b> <b>{$statusLabel}</b>\n"
-                      . "💬 <b>GM Directives & Feedback:</b>\n"
+                      . "<b>Review Decision:</b> <b>{$statusLabel}</b>\n"
+                      . "<b>GM Directives & Feedback:</b>\n"
                       . "<i>\"" . htmlspecialchars($validated['gm_feedback'], ENT_QUOTES, 'UTF-8') . "\"</i>\n\n"
-                      . "👤 <b>Reviewed By:</b> " . htmlspecialchars($user->full_name ?? $user->username, ENT_QUOTES, 'UTF-8') . " (" . now()->format('Y-m-d H:i') . ")";
+                      . "<b>Reviewed By:</b> " . htmlspecialchars($user->full_name ?? $user->username, ENT_QUOTES, 'UTF-8') . " (" . now()->format('Y-m-d H:i') . ")";
 
         $replyMarkup = [
             'inline_keyboard' => [
                 [
-                    ['text' => "📑 View Updated Quarterly Voucher", 'url' => $voucherUrl],
+                    ['text' => "View Updated Quarterly Voucher", 'url' => $voucherUrl],
                 ],
             ]
         ];

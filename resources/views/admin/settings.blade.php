@@ -131,7 +131,7 @@
                                         <select name="monthly_plan_deadline_day" class="form-select">
                                             @for($d = 1; $d <= 30; $d++)
                                                 <option value="{{ $d }}" {{ $savedMonthlyDay === $d ? 'selected' : '' }}>
-                                                    Day {{ $d }} of Ethiopian Month {{ $d === 26 ? '★ (Official Due Date: Day 26)' : '' }}
+                                                    Day {{ $d }} of Ethiopian Month {{ $d === 26 ? '(Official Due Date: Day 26)' : '' }}
                                                 </option>
                                             @endfor
                                         </select>

@@ -3,6 +3,14 @@
 @section('title', 'Reports & Tracking Hub - Kaldis PMS')
 
 @section('content')
+@php
+    $quarters = $quarters ?? get_ethiopian_quarters();
+    $complianceRows = $complianceRows ?? [];
+    $totalMonthlySubmitted = $totalMonthlySubmitted ?? 0;
+    $totalQuarterlySubmitted = $totalQuarterlySubmitted ?? 0;
+    $totalWeeklyTasksAll = $totalWeeklyTasksAll ?? 0;
+    $overallWeeklyRate = $overallWeeklyRate ?? 0;
+@endphp
 <!-- Header & Filter Bar -->
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
@@ -159,7 +167,7 @@
                                         </span>
                                     @else
                                         <span class="badge {{ $mSub->status === 'ON_TIME' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-warning-subtle text-warning border border-warning-subtle' }}">
-                                            {{ $mSub->status === 'ON_TIME' ? '✓ On-Time' : '⚠ Late' }}
+                                            {{ $mSub->status === 'ON_TIME' ? 'On-Time' : 'Late' }}
                                         </span>
                                     @endif
                                     <span class="badge bg-light text-dark border">{{ $row['monthly_plans_total'] }} Plans</span>

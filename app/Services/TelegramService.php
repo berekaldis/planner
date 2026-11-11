@@ -398,23 +398,23 @@ class TelegramService
             $deptName = $user->department ? $user->department->department_name : 'Corporate Management';
             $roleName = $user->role ? ($user->role->display_name ?? $user->role->name) : 'User';
 
-            $msg = "☕ <b>Welcome to Kaldis Coffee Planning Portal</b>\n\n";
+            $msg = "<b>Welcome to Kaldis Coffee Planning Portal</b>\n\n";
             $msg .= "Hello <b>{$firstName}</b>!\n";
-            $msg .= "👤 Account: <b>{$user->full_name}</b> (@{$user->username})\n";
-            $msg .= "🏢 Department: <b>{$deptName}</b>\n";
-            $msg .= "🛡️ Role: <b>{$roleName}</b>\n\n";
-            $msg .= "✅ <i>Your Telegram account is successfully linked to Kaldis Planner.</i>\n\n";
+            $msg .= "Account: <b>{$user->full_name}</b> (@{$user->username})\n";
+            $msg .= "Department: <b>{$deptName}</b>\n";
+            $msg .= "Role: <b>{$roleName}</b>\n\n";
+            $msg .= "<i>Your Telegram account is successfully linked to Kaldis Planner.</i>\n\n";
             $msg .= "<b>Available Commands:</b>\n";
-            $msg .= "📊 /status — View weekly tasks & execution progress\n";
-            $msg .= "📑 /report — Check weekly report submission status\n";
-            $msg .= "🏆 /achievement &lt;text&gt; — Log a weekly achievement\n";
-            $msg .= "⚠️ /challenge &lt;text&gt; — Log a weekly blocker or issue\n";
-            $msg .= "❓ /help — How to use this bot";
+            $msg .= "• /status — View weekly tasks & execution progress\n";
+            $msg .= "• /report — Check weekly report submission status\n";
+            $msg .= "• /achievement &lt;text&gt; — Log a weekly achievement\n";
+            $msg .= "• /challenge &lt;text&gt; — Log a weekly blocker or issue\n";
+            $msg .= "• /help — How to use this bot";
         } else {
-            $msg = "☕ <b>Kaldis Coffee PLC — Planning & Reporting Bot</b>\n\n";
+            $msg = "<b>Kaldis Coffee PLC — Planning & Reporting Bot</b>\n\n";
             $msg .= "Hello <b>{$firstName}</b>!\n";
             $msg .= "Your Telegram Chat ID is: <code>{$chatId}</code>\n\n";
-            $msg .= "⚠️ <i>Your Telegram account is not yet bound to a portal user.</i>\n\n";
+            $msg .= "<i>Your Telegram account is not yet bound to a portal user.</i>\n\n";
             $msg .= "<b>How to Link Your Account:</b>\n";
             $msg .= "1. Log in to the Kaldis Planning Portal.\n";
             $msg .= "2. Go to <b>User Accounts</b> or ask your IT Administrator.\n";
@@ -431,7 +431,7 @@ class TelegramService
     private function cmdStatus(int|string $chatId, ?User $user): void
     {
         if (!$user) {
-            $this->sendMessage($chatId, "⚠️ Please bind your Telegram Chat ID <code>{$chatId}</code> in the portal first.");
+            $this->sendMessage($chatId, "Please bind your Telegram Chat ID <code>{$chatId}</code> in the portal first.");
             return;
         }
 
@@ -451,11 +451,11 @@ class TelegramService
 
             $rate = $totalTasks > 0 ? round(($doneTasks / $totalTasks) * 100, 1) : 0;
 
-            $msg = "📊 <b>Company Performance Status ({$month} {$year})</b>\n\n";
-            $msg .= "🏢 Active Departments: <b>{$totalDepts}</b>\n";
-            $msg .= "📝 Scheduled Tasks: <b>{$totalTasks}</b>\n";
-            $msg .= "✅ Completed Tasks: <b>{$doneTasks}</b>\n";
-            $msg .= "📈 Overall Completion Rate: <b>{$rate}%</b>\n\n";
+            $msg = "<b>Company Performance Status ({$month} {$year})</b>\n\n";
+            $msg .= "Active Departments: <b>{$totalDepts}</b>\n";
+            $msg .= "Scheduled Tasks: <b>{$totalTasks}</b>\n";
+            $msg .= "Completed Tasks: <b>{$doneTasks}</b>\n";
+            $msg .= "Overall Completion Rate: <b>{$rate}%</b>\n\n";
             $msg .= "Use the web portal for complete department breakdowns and executive scorecards.";
 
             $this->sendMessage($chatId, $msg);
@@ -475,13 +475,13 @@ class TelegramService
         $pending = $total - ($done + $notDone);
         $rate = $total > 0 ? round(($done / $total) * 100, 1) : 0;
 
-        $msg = "📊 <b>Department Performance ({$dept->department_code})</b>\n";
-        $msg .= "📅 Period: <b>{$month} {$year} — Week {$week}</b>\n\n";
+        $msg = "<b>Department Performance ({$dept->department_code})</b>\n";
+        $msg .= "Period: <b>{$month} {$year} — Week {$week}</b>\n\n";
         $msg .= "• Total Tasks: <b>{$total}</b>\n";
-        $msg .= "• ✅ DONE: <b>{$done}</b>\n";
-        $msg .= "• ❌ NOT DONE: <b>{$notDone}</b>\n";
-        $msg .= "• ⏳ Pending Evaluation: <b>{$pending}</b>\n";
-        $msg .= "• 🎯 Progress Rate: <b>{$rate}%</b>\n";
+        $msg .= "• DONE: <b>{$done}</b>\n";
+        $msg .= "• NOT DONE: <b>{$notDone}</b>\n";
+        $msg .= "• Pending Evaluation: <b>{$pending}</b>\n";
+        $msg .= "• Progress Rate: <b>{$rate}%</b>\n";
 
         $this->sendMessage($chatId, $msg);
     }
@@ -492,7 +492,7 @@ class TelegramService
     private function cmdReport(int|string $chatId, ?User $user): void
     {
         if (!$user || !$user->department) {
-            $this->sendMessage($chatId, "⚠️ Please access the portal to view full company-wide reports.");
+            $this->sendMessage($chatId, "Please access the portal to view full company-wide reports.");
             return;
         }
 
@@ -507,15 +507,15 @@ class TelegramService
             ->where('week_number', $week)
             ->first();
 
-        $statusText = $sub ? ($sub->status === 'ON_TIME' ? '✅ ON TIME' : ($sub->status === 'LATE' ? '⚠️ LATE' : $sub->status)) : '⏳ NOT YET SUBMITTED';
+        $statusText = $sub ? ($sub->status === 'ON_TIME' ? 'ON TIME' : ($sub->status === 'LATE' ? 'LATE' : $sub->status)) : 'NOT YET SUBMITTED';
 
-        $msg = "📑 <b>Weekly Report Status — {$dept->department_name}</b>\n";
-        $msg .= "📅 Week {$week} ({$month} {$year})\n\n";
+        $msg = "<b>Weekly Report Status — {$dept->department_name}</b>\n";
+        $msg .= "Week {$week} ({$month} {$year})\n\n";
         $msg .= "Status: <b>{$statusText}</b>\n";
         if ($sub && $sub->submitted_at) {
             $msg .= "Submitted At: <b>" . Carbon::parse($sub->submitted_at)->format('M d, Y h:i A') . "</b>\n";
         }
-        $msg .= "\n⏰ Regular weekly submission deadline is <b>Monday 6:30 LT (12:30 PM)</b>.";
+        $msg .= "\nRegular weekly submission deadline is <b>Monday 6:30 LT (12:30 PM)</b>.";
 
         $this->sendMessage($chatId, $msg);
     }
@@ -526,12 +526,12 @@ class TelegramService
     private function cmdAchievement(int|string $chatId, ?User $user, string $text): void
     {
         if (!$user || !$user->department) {
-            $this->sendMessage($chatId, "⚠️ Only registered department personnel can log weekly achievements.");
+            $this->sendMessage($chatId, "Only registered department personnel can log weekly achievements.");
             return;
         }
 
         if (empty($text)) {
-            $this->sendMessage($chatId, "ℹ️ <b>Usage:</b>\n<code>/achievement Completed setup of POS terminals across 5 branches without downtime</code>");
+            $this->sendMessage($chatId, "<b>Usage:</b>\n<code>/achievement Completed setup of POS terminals across 5 branches without downtime</code>");
             return;
         }
 
@@ -548,10 +548,10 @@ class TelegramService
             'created_by' => $user->id,
         ]);
 
-        $msg = "🏆 <b>Weekly Achievement Logged!</b>\n\n";
-        $msg .= "🏢 Department: <b>{$user->department->department_code}</b>\n";
-        $msg .= "📝 <i>\"{$text}\"</i>\n\n";
-        $msg .= "✅ This achievement is now visible in the company-wide feed.";
+        $msg = "<b>Weekly Achievement Logged!</b>\n\n";
+        $msg .= "Department: <b>{$user->department->department_code}</b>\n";
+        $msg .= "<i>\"{$text}\"</i>\n\n";
+        $msg .= "This achievement is now visible in the company-wide feed.";
 
         $this->sendMessage($chatId, $msg);
     }
@@ -562,12 +562,12 @@ class TelegramService
     private function cmdChallenge(int|string $chatId, ?User $user, string $text): void
     {
         if (!$user || !$user->department) {
-            $this->sendMessage($chatId, "⚠️ Only registered department personnel can log weekly challenges.");
+            $this->sendMessage($chatId, "Only registered department personnel can log weekly challenges.");
             return;
         }
 
         if (empty($text)) {
-            $this->sendMessage($chatId, "ℹ️ <b>Usage:</b>\n<code>/challenge Delay in network router delivery from supplier</code>");
+            $this->sendMessage($chatId, "<b>Usage:</b>\n<code>/challenge Delay in network router delivery from supplier</code>");
             return;
         }
 
@@ -584,10 +584,10 @@ class TelegramService
             'created_by' => $user->id,
         ]);
 
-        $msg = "⚠️ <b>Weekly Challenge / Blocker Logged</b>\n\n";
-        $msg .= "🏢 Department: <b>{$user->department->department_code}</b>\n";
-        $msg .= "📝 <i>\"{$text}\"</i>\n\n";
-        $msg .= "📢 General Management and cross-functional teams have been alerted.";
+        $msg = "<b>Weekly Challenge / Blocker Logged</b>\n\n";
+        $msg .= "Department: <b>{$user->department->department_code}</b>\n";
+        $msg .= "<i>\"{$text}\"</i>\n\n";
+        $msg .= "General Management and cross-functional teams have been alerted.";
 
         $this->sendMessage($chatId, $msg);
     }
@@ -597,7 +597,7 @@ class TelegramService
      */
     private function cmdHelp(int|string $chatId, ?User $user): void
     {
-        $msg = "📖 <b>Kaldis Coffee Planning Bot Guide</b>\n\n";
+        $msg = "<b>Kaldis Coffee Planning Bot Guide</b>\n\n";
         $msg .= "<b>Available Commands:</b>\n";
         $msg .= "• /start — Welcome message & account binding status\n";
         $msg .= "• /status — Check weekly progress & completion stats\n";
@@ -626,11 +626,11 @@ class TelegramService
         $deadlineDay = kaldis_setting('weekly_deadline_day', 'Monday');
         $deadlineTime = kaldis_setting('weekly_deadline_time', '12:30');
 
-        $text = "☕ <b>Kaldis Coffee PLC — Weekly Report Reminder</b>\n\n";
+        $text = "<b>Kaldis Coffee PLC — Weekly Report Reminder</b>\n\n";
         $text .= "Dear <b>{$head->full_name}</b> ({$department->department_name}),\n\n";
         $text .= "This is a reminder to finalize and submit your department's <b>Week {$weekNumber}</b> Performance Report for <b>{$month} {$year}</b>.\n\n";
-        $text .= "⏰ <b>Submission Deadline:</b> {$deadlineDay} at 6:30 LT ({$deadlineTime})\n";
-        $text .= "🌐 Please evaluate all tasks as <b>DONE</b> or <b>NOT DONE</b> in the portal:\n";
+        $text .= "<b>Submission Deadline:</b> {$deadlineDay} at 6:30 LT ({$deadlineTime})\n";
+        $text .= "Please evaluate all tasks as <b>DONE</b> or <b>NOT DONE</b> in the portal:\n";
         $text .= "<code>http://localhost/Planner/weekly/performance</code>";
 
         $res = $this->sendMessage($head->telegram_chat_id, $text);
@@ -664,11 +664,11 @@ class TelegramService
         $year = kaldis_setting('current_planning_year', config('kaldis.current_planning_year', '2019 E.C.'));
         $month = kaldis_setting('current_planning_month', config('kaldis.current_planning_month', 'Meskerem'));
 
-        $text = "🚨 <b>Kaldis Coffee PLC — Report Escalation Alert</b>\n\n";
-        $text .= "⚠️ <b>Department:</b> {$department->department_name} ({$department->department_code})\n";
-        $text .= "🔴 <b>Escalation Level:</b> {$level}\n";
-        $text .= "📉 <b>Missed Submission Weeks:</b> {$missedWeeks} week(s)\n";
-        $text .= "📅 <b>Planning Period:</b> {$month} {$year}\n\n";
+        $text = "<b>Kaldis Coffee PLC — Report Escalation Alert</b>\n\n";
+        $text .= "<b>Department:</b> {$department->department_name} ({$department->department_code})\n";
+        $text .= "<b>Escalation Level:</b> {$level}\n";
+        $text .= "<b>Missed Submission Weeks:</b> {$missedWeeks} week(s)\n";
+        $text .= "<b>Planning Period:</b> {$month} {$year}\n\n";
         $text .= "Immediate submission or formal explanation is required.\n";
         $text .= "Access Portal: <code>http://localhost/Planner</code>";
 

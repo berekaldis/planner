@@ -27,6 +27,10 @@ class MonthlyPlan extends Model
         'actual_result',
         'achievement_percentage',
         'completion_notes',
+        'approval_status',
+        'decline_reason',
+        'approved_by',
+        'approved_at',
         'active',
         'created_by',
     ];
@@ -67,6 +71,26 @@ class MonthlyPlan extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function approver()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function isApproved(): bool
+    {
+        return strtoupper((string) ($this->approval_status ?? '')) === 'APPROVED';
+    }
+
+    public function isDeclined(): bool
+    {
+        return strtoupper((string) ($this->approval_status ?? '')) === 'DECLINED';
+    }
+
+    public function isPending(): bool
+    {
+        return in_array(strtoupper((string) ($this->approval_status ?? 'PENDING')), ['PENDING', 'SUBMITTED', 'UNDER_REVIEW', ''], true);
     }
 
     public function isStrategy(): bool

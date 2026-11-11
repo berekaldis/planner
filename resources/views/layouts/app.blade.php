@@ -18,10 +18,10 @@
         })();
     </script>
 
-    <!-- Google Fonts: Inter & Plus Jakarta Sans & JetBrains Mono -->
+    <!-- Google Fonts: Instrument Sans (Matching CompanySystem Shadcn/UI) & JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     
     <!-- Bootstrap 5.3 & FontAwesome 6 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -31,7 +31,7 @@
     <link href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css" rel="stylesheet">
     
-    <!-- Favicon with Strict Transparent Multi-Resolution and Cache Busting -->
+    <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v=3">
     <link rel="shortcut icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v=3">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}?v=3">
@@ -42,618 +42,847 @@
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
 
     <!-- Kaldis Design System Core Stylesheet with Cache Busting -->
-    <link href="{{ asset('assets/css/style.css') }}?v=3.0.0" rel="stylesheet">
+    <link href="{{ asset('assets/css/style.css') }}?v=4.0.0" rel="stylesheet">
 
     <style>
         /* ══════════════════════════════════════════════════════════
-           KALDIS LUXURY OBSIDIAN & WARM ROASTED GOLD SIDEBAR THEME
+           COMPANYSYSTEM-ALIGNED INSET APPSHELL & SHADCN SURFACES
            ══════════════════════════════════════════════════════════ */
         :root {
-            --kaldis-sidebar-bg: #0F141C !important;
+            --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --background: #FFFFFF;
+            --foreground: #18181B;
+            --card: #FFFFFF;
+            --card-foreground: #18181B;
+            --popover: #FFFFFF;
+            --popover-foreground: #18181B;
+            --primary: #18181B;
+            --primary-foreground: #FAFAFA;
+            --secondary: #F4F4F5;
+            --secondary-foreground: #18181B;
+            --muted: #F4F4F5;
+            --muted-foreground: #71717A;
+            --accent: #F4F4F5;
+            --accent-foreground: #18181B;
+            --destructive: #EF4444;
+            --destructive-foreground: #FAFAFA;
+            --border: #E4E4E7;
+            --input: #E4E4E7;
+            --ring: #D4D4D8;
+            --radius: 0.625rem;
+
+            --sidebar: #FAFAFA;
+            --sidebar-foreground: #18181B;
+            --sidebar-primary: #18181B;
+            --sidebar-primary-foreground: #FAFAFA;
+            --sidebar-accent: #F4F4F5;
+            --sidebar-accent-foreground: #18181B;
+            --sidebar-border: #E4E4E7;
+            --sidebar-ring: #D4D4D8;
+
+            --kaldis-gold: #D97706;
+            --kaldis-gold-hover: #B45309;
+            --kaldis-sidebar-width: 16.5rem;
+            --kaldis-sidebar-collapsed-width: 3.25rem;
+            --kaldis-topbar-height: 3.75rem;
         }
 
-        .kaldis-sidebar,
-        [data-bs-theme="dark"] .kaldis-sidebar {
-            background: #0F141C !important;
-            background-image: 
-                radial-gradient(ellipse 95% 55% at 50% -10%, rgba(217, 119, 6, 0.16) 0%, transparent 68%),
-                radial-gradient(ellipse 80% 40% at 50% 100%, rgba(15, 23, 42, 0.45) 0%, transparent 65%),
-                linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, rgba(0, 0, 0, 0.32) 100%) !important;
-            border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
-            box-shadow: 4px 0 28px rgba(0, 0, 0, 0.25) !important;
+        [data-bs-theme="dark"], .dark {
+            --background: #18181B;
+            --foreground: #FAFAFA;
+            --card: #18181B;
+            --card-foreground: #FAFAFA;
+            --popover: #18181B;
+            --popover-foreground: #FAFAFA;
+            --primary: #FAFAFA;
+            --primary-foreground: #18181B;
+            --secondary: #27272A;
+            --secondary-foreground: #FAFAFA;
+            --muted: #27272A;
+            --muted-foreground: #A1A1AA;
+            --accent: #27272A;
+            --accent-foreground: #FAFAFA;
+            --destructive: #7F1D1D;
+            --destructive-foreground: #FAFAFA;
+            --border: #27272A;
+            --input: #27272A;
+            --ring: #52525B;
+
+            --sidebar: #18181B;
+            --sidebar-foreground: #FAFAFA;
+            --sidebar-primary: #FAFAFA;
+            --sidebar-primary-foreground: #18181B;
+            --sidebar-accent: #27272A;
+            --sidebar-accent-foreground: #FAFAFA;
+            --sidebar-border: #27272A;
+            --sidebar-ring: #52525B;
+        }
+
+        /* Reset & Root Canvas */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-sans);
+            background-color: var(--sidebar);
+            color: var(--foreground);
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Inset AppShell Container */
+        .app-shell {
+            display: flex;
+            width: 100%;
+            min-height: 100vh;
+            background-color: var(--sidebar);
+            position: relative;
+        }
+
+        /* ══════════════════════════════════════════════════════════
+           SIDEBAR COMPONENT (MATCHING COMPANYSYSTEM APPSIDEBAR)
+           ══════════════════════════════════════════════════════════ */
+        .kaldis-sidebar {
+            width: var(--kaldis-sidebar-width) !important;
+            min-width: var(--kaldis-sidebar-width) !important;
+            max-width: var(--kaldis-sidebar-width) !important;
+            height: 100vh;
+            position: sticky;
+            top: 0;
+            display: flex !important;
+            flex-direction: column !important;
+            background-color: var(--sidebar) !important;
+            background-image: none !important;
+            border-right: 1px solid var(--sidebar-border) !important;
+            box-shadow: none !important;
+            transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s ease !important;
+            z-index: 1040;
+            overflow: hidden;
+            user-select: none;
         }
 
         .sidebar-inner-wrapper {
-            height: 100% !important;
-            min-height: 0 !important;
-            display: flex !important;
-            flex-direction: column !important;
-            overflow: hidden !important;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
         }
 
-        /* Enhanced Sidebar Nav Scroll & Highly Visible Scrollbar */
-        .sidebar-nav-scroll {
-            overflow-y: auto !important;
-            overflow-x: hidden !important;
-            min-height: 0 !important;
-            flex: 1 1 auto !important;
-            padding: 0.35rem 0.75rem 3rem 0.75rem !important;
-            scrollbar-width: thin !important;
-            scrollbar-color: rgba(255, 255, 255, 0.25) rgba(0, 0, 0, 0.20) !important;
-            -webkit-overflow-scrolling: touch;
+        /* Sidebar Brand Header */
+        .sidebar-brand-header {
+            height: 3.75rem;
+            min-height: 3.75rem;
+            display: flex;
+            align-items: center;
+            padding: 0 1rem;
+            border-bottom: 1px solid var(--sidebar-border);
+            gap: 0.75rem;
         }
 
-        .sidebar-nav-scroll::-webkit-scrollbar {
-            width: 5px !important;
+        .sidebar-brand-logo-badge {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: var(--sidebar-primary);
+            color: var(--sidebar-primary-foreground);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            flex-shrink: 0;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
         }
 
-        .sidebar-nav-scroll::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.15) !important;
-            border-radius: 8px !important;
+        .sidebar-brand-logo-img {
+            width: 26px;
+            height: 26px;
+            object-fit: contain;
         }
 
-        .sidebar-nav-scroll::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.25) !important;
-            border-radius: 8px !important;
-            border: 1px solid rgba(0, 0, 0, 0.10) !important;
+        .sidebar-brand-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--sidebar-foreground);
+            line-height: 1.2;
+            letter-spacing: -0.01em;
+            margin: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .sidebar-nav-scroll::-webkit-scrollbar-thumb:hover {
-            background: rgba(245, 158, 11, 0.60) !important;
+        .sidebar-brand-subtitle {
+            font-size: 0.7rem;
+            color: var(--muted-foreground);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        /* Typography & Nav Items On Luxury Obsidian */
-        .kaldis-sidebar .sidebar-heading {
-            color: rgba(255, 255, 255, 0.40) !important;
-            font-size: 0.65rem !important;
-            font-weight: 700 !important;
-            letter-spacing: 0.12em !important;
-            text-transform: uppercase !important;
-            padding: 1.15rem 0.75rem 0.35rem !important;
-        }
-
-        .kaldis-sidebar .sidebar-heading::after {
-            background: rgba(255, 255, 255, 0.08) !important;
-        }
-
-        .kaldis-sidebar .nav-link {
-            color: rgba(255, 255, 255, 0.76) !important;
-            font-size: 0.85rem !important;
-            font-weight: 500 !important;
-            border-radius: 9px !important;
-            margin: 2px 0 !important;
-            padding: 0.52rem 0.75rem !important;
-            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        }
-
-        .kaldis-sidebar .nav-link:hover {
-            background: rgba(255, 255, 255, 0.08) !important;
-            color: #FFFFFF !important;
-        }
-
-        .kaldis-sidebar .nav-link.active {
-            background: linear-gradient(135deg, rgba(217, 119, 6, 0.22) 0%, rgba(180, 83, 9, 0.12) 100%) !important;
-            color: #FFFFFF !important;
-            font-weight: 600 !important;
-            box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.25) !important;
-        }
-
-        .kaldis-sidebar .nav-link.active::before {
-            background: linear-gradient(180deg, #F59E0B, #D97706) !important;
-            box-shadow: 0 0 8px rgba(245, 158, 11, 0.65) !important;
-        }
-
-        .kaldis-sidebar .nav-link.active .nav-icon-wrap {
-            background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%) !important;
-            color: #FFFFFF !important;
-            box-shadow: 0 4px 12px rgba(217, 119, 6, 0.40) !important;
-        }
-
-        .kaldis-sidebar .nav-link.active .sidebar-chevron {
-            color: #F59E0B !important;
+        /* Sidebar Search Box */
+        .sidebar-search-box {
+            padding: 0.75rem 0.875rem 0.25rem 0.875rem;
         }
 
         .sidebar-search-box .input-group {
-            background: rgba(255, 255, 255, 0.06) !important;
-            border: 1px solid rgba(255, 255, 255, 0.10) !important;
-            border-radius: 9px !important;
+            background-color: var(--background) !important;
+            border: 1px solid var(--sidebar-border) !important;
+            border-radius: calc(var(--radius) - 2px) !important;
+            padding: 2px 6px;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+            transition: all 0.15s ease;
         }
 
         .sidebar-search-box .input-group:focus-within {
-            background: rgba(255, 255, 255, 0.10) !important;
-            border-color: rgba(245, 158, 11, 0.45) !important;
-            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15) !important;
-        }
-
-        .sidebar-search-box input {
-            color: #FFFFFF !important;
-        }
-
-        .sidebar-search-box input::placeholder {
-            color: rgba(255, 255, 255, 0.35) !important;
+            border-color: var(--sidebar-ring) !important;
+            box-shadow: 0 0 0 1px var(--sidebar-ring) !important;
         }
 
         .sidebar-search-box .input-group-text {
-            color: rgba(255, 255, 255, 0.45) !important;
-        }
-
-        .sidebar-user-section {
-            background: rgba(0, 0, 0, 0.28) !important;
-            border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
-        }
-
-        .sidebar-user-card:hover {
-            background: rgba(255, 255, 255, 0.08) !important;
-        }
-
-        .sidebar-edge-toggle {
-            background: #1E293B !important;
-            border: 1px solid rgba(255, 255, 255, 0.20) !important;
-            color: rgba(255, 255, 255, 0.75) !important;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
-        }
-
-        .sidebar-edge-toggle:hover {
-            color: #F59E0B !important;
-            border-color: rgba(245, 158, 11, 0.5) !important;
-            background: #0F172A !important;
-            box-shadow: 0 0 14px rgba(245, 158, 11, 0.35) !important;
-        }
-        /* ══════════════════════════════════════════════════════════
-           EXACT MATCH FOR USER SCREENSHOT (media_1791907933701.png)
-           SHADCN / RADIX STYLE SEARCHABLE SELECT POP-OVER
-           ══════════════════════════════════════════════════════════ */
-        .ts-wrapper.form-control, .ts-wrapper.form-select {
-            padding: 0;
-            border: none;
-            box-shadow: none;
-            background: transparent;
-        }
-
-        .ts-wrapper {
-            position: relative !important;
-            width: 100% !important;
-        }
-
-        .ts-wrapper.dropdown-active {
-            z-index: 1070 !important;
-        }
-
-        /* Stacking Context & Overflow Elevation */
-        .filter-bar {
-            position: relative !important;
-            z-index: 30;
-            overflow: visible !important;
-        }
-
-        .filter-bar:has(.dropdown-active),
-        .filter-bar:has(.ts-wrapper.focus),
-        .filter-bar:focus-within {
-            z-index: 1065 !important;
-        }
-
-        .card:has(.dropdown-active),
-        .card:has(.ts-wrapper.dropdown-active) {
-            position: relative !important;
-            z-index: 1055 !important;
-            overflow: visible !important;
-        }
-
-        .card-body:has(.dropdown-active),
-        .card-header:has(.dropdown-active) {
-            overflow: visible !important;
-        }
-
-        .modal-content:has(.dropdown-active),
-        .modal-body:has(.dropdown-active) {
-            overflow: visible !important;
-        }
-
-        .table-responsive:has(.dropdown-active),
-        .table-responsive:has(.ts-wrapper.dropdown-active) {
-            overflow: visible !important;
-        }
-
-        /* Closed / Active Trigger Control */
-        .ts-control {
-            background-color: #F9FAFB !important;
-            border: 1px solid #E5E7EB !important;
-            border-radius: 8px !important;
-            padding: 0.45rem 2.25rem 0.45rem 0.85rem !important;
-            font-size: 0.875rem !important;
-            font-weight: 500 !important;
-            color: #111827 !important;
-            min-height: 38px !important;
-            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04) !important;
-            position: relative !important;
-            cursor: pointer !important;
-            display: flex !important;
-            align-items: center !important;
-            transition: all 0.15s ease !important;
-        }
-
-        /* Small variation for filter bars and compact views */
-        .ts-wrapper.form-select-sm .ts-control,
-        .form-select-sm + .ts-wrapper .ts-control {
-            min-height: 31px !important;
-            padding: 0.25rem 2rem 0.25rem 0.65rem !important;
-            font-size: 0.8125rem !important;
-            border-radius: 6px !important;
-        }
-
-        /* Chevrons Up/Down Icon (↕) exactly matching screenshot */
-        .ts-wrapper .ts-control::after {
-            content: '' !important;
-            position: absolute !important;
-            top: 50% !important;
-            right: 11px !important;
-            transform: translateY(-50%) !important;
-            width: 14px !important;
-            height: 14px !important;
-            background-repeat: no-repeat !important;
-            background-position: center !important;
-            background-size: contain !important;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 15 5 5 5-5'/%3E%3Cpath d='m7 9 5-5 5 5'/%3E%3C/svg%3E") !important;
-            border: none !important;
-            pointer-events: none !important;
-            transition: none !important;
-        }
-
-        /* Focus state for trigger */
-        .ts-wrapper.focus .ts-control,
-        .ts-wrapper.dropdown-active .ts-control {
-            border-color: #D1D5DB !important;
-            background-color: #FFFFFF !important;
-            box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.12) !important;
-        }
-
-        /* Clean item text in trigger for single select - ABSOLUTELY NO BADGE APPEARANCE */
-        .ts-wrapper:not(.multi) .ts-control .item,
-        .ts-wrapper.single .ts-control .item {
             background: transparent !important;
-            background-color: transparent !important;
             border: none !important;
-            box-shadow: none !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            color: #111827 !important;
-            font-weight: 500 !important;
-            font-size: 0.875rem !important;
-            border-radius: 0 !important;
-            display: inline-block !important;
-            vertical-align: middle !important;
-            white-space: nowrap !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-            max-width: calc(100% - 24px) !important;
-            pointer-events: none !important;
+            color: var(--muted-foreground) !important;
+            font-size: 0.75rem;
+            padding: 0 4px;
         }
 
-        /* Keep any input inside trigger visually unobtrusive without breaking browser focus */
-        .ts-wrapper.has-items .ts-control .items-placeholder {
-            display: none !important;
-        }
-        .ts-wrapper.single.has-items .ts-control > input:not(.items-placeholder) {
-            opacity: 0 !important;
-            width: 1px !important;
-            position: absolute !important;
-            pointer-events: none !important;
-        }
-
-        .ts-control .items-placeholder {
-            border: none !important;
-            outline: none !important;
-            box-shadow: none !important;
+        .sidebar-search-box input {
             background: transparent !important;
-            color: #6B7280 !important;
-            font-size: 0.875rem !important;
-            font-weight: 500 !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            cursor: pointer !important;
-            pointer-events: none !important;
-        }
-
-        /* Floating Popover Container - Strictly Anchored Under Input */
-        .ts-dropdown,
-        .ts-wrapper > .ts-dropdown {
-            position: absolute !important;
-            top: 100% !important;
-            left: 0 !important;
-            width: 100% !important;
-            min-width: 100% !important;
-            max-width: 100% !important;
-            box-sizing: border-box !important;
-            border: 1px solid #E5E7EB !important;
-            border-radius: 8px !important;
-            box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.14), 0 4px 10px -2px rgba(0, 0, 0, 0.08) !important;
-            background: #FFFFFF !important;
-            padding: 0 !important;
-            margin-top: 4px !important;
-            overflow: hidden !important;
-            z-index: 1080 !important;
-            animation: reactPopFade 0.15s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        @keyframes reactPopFade {
-            from { opacity: 0; transform: translateY(-4px) scale(0.98); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-
-        /* Embedded Search Input Header (Top of Popover) */
-        .ts-dropdown .dropdown-input-wrap {
-            position: relative !important;
-            padding: 8px 12px 8px 34px !important;
-            border-bottom: 1px solid #E5E7EB !important;
-            background: #FFFFFF !important;
-            margin: 0 !important;
-        }
-
-        /* Magnifying Glass Icon (🔍) inside Search Header */
-        .ts-dropdown .dropdown-input-wrap::before {
-            content: '' !important;
-            position: absolute !important;
-            top: 50% !important;
-            left: 11px !important;
-            transform: translateY(-50%) !important;
-            width: 14px !important;
-            height: 14px !important;
-            background-repeat: no-repeat !important;
-            background-position: center !important;
-            background-size: contain !important;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'%3E%3C/line%3E%3C/svg%3E") !important;
-            pointer-events: none !important;
-        }
-
-        /* Search input element */
-        .ts-dropdown .dropdown-input,
-        .plugin-dropdown_input.focus .ts-dropdown .dropdown-input {
             border: none !important;
-            outline: none !important;
+            font-size: 0.8125rem;
+            color: var(--sidebar-foreground) !important;
             box-shadow: none !important;
-            background: transparent !important;
-            width: 100% !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            font-size: 0.875rem !important;
-            font-family: inherit !important;
-            color: #111827 !important;
+            padding: 0.3rem 0.4rem;
         }
-        .ts-dropdown .dropdown-input::placeholder {
-            color: #6B7280 !important;
-            font-size: 0.875rem !important;
+
+        .sidebar-search-box input::placeholder {
+            color: var(--muted-foreground) !important;
+            font-size: 0.8125rem;
             opacity: 0.85;
         }
 
-        /* Options list container */
-        .ts-dropdown .ts-dropdown-content {
-            padding: 4px !important;
-            max-height: 220px !important;
-            overflow-y: auto !important;
+        /* Sidebar Nav Scroll */
+        .sidebar-nav-scroll {
+            flex: 1 1 auto;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 0.5rem 0.65rem 1.5rem 0.65rem;
         }
-        .ts-dropdown .ts-dropdown-content::-webkit-scrollbar {
-            width: 5px;
+
+        /* Accordion Section Group (Matching CompanySystem NavMain) */
+        .nav-group-section {
+            margin-bottom: 0.25rem;
         }
-        .ts-dropdown .ts-dropdown-content::-webkit-scrollbar-track {
+
+        .nav-group-trigger {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 0.65rem;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--sidebar-foreground);
             background: transparent;
-        }
-        .ts-dropdown .ts-dropdown-content::-webkit-scrollbar-thumb {
-            background: #E2E8F0;
-            border-radius: 4px;
-        }
-        .ts-dropdown .ts-dropdown-content::-webkit-scrollbar-thumb:hover {
-            background: #CBD5E1;
+            border: none;
+            border-radius: calc(var(--radius) - 2px);
+            cursor: pointer;
+            transition: background-color 0.15s ease, color 0.15s ease;
+            text-align: left;
         }
 
-        /* Individual Option Items */
-        .ts-dropdown .option {
-            padding: 7px 12px !important;
-            font-size: 0.875rem !important;
-            color: #1F2937 !important;
-            border-radius: 6px !important;
-            margin-bottom: 1px !important;
-            cursor: pointer !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: space-between !important;
-            white-space: normal !important;
-            word-break: break-word !important;
-            line-height: 1.35 !important;
-            transition: background-color 0.1s ease !important;
+        .nav-group-trigger:hover {
+            background-color: var(--sidebar-accent);
+            color: var(--sidebar-accent-foreground);
         }
-        .ts-dropdown .option:hover,
-        .ts-dropdown .option.active {
-            background-color: #F3F4F6 !important;
-            color: #111827 !important;
+
+        .nav-group-trigger .group-left {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            min-width: 0;
         }
-        .ts-dropdown .option.selected {
-            background-color: #F3F4F6 !important;
-            color: #111827 !important;
-            font-weight: 500 !important;
-        }
-        .ts-dropdown .option.selected::after {
-            content: '✓';
-            color: #059669;
-            font-weight: 700;
+
+        .nav-group-trigger .group-left i {
+            width: 16px;
             font-size: 0.85rem;
-            margin-left: 8px !important;
-            flex-shrink: 0 !important;
+            color: var(--muted-foreground);
+            transition: color 0.15s ease;
         }
 
-        /* Multi-select Pills / Tags */
-        .ts-wrapper.multi .ts-control .item {
-            background: #F3F4F6 !important;
-            border: 1px solid #E5E7EB !important;
-            color: #1F2937 !important;
-            border-radius: 6px !important;
-            font-weight: 500 !important;
-            font-size: 0.8rem !important;
-            padding: 2px 8px !important;
-            margin: 2px 4px 2px 0 !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            gap: 4px !important;
-        }
-        .ts-wrapper.multi .ts-control .item .remove {
-            color: #9CA3AF !important;
-            margin-left: 4px !important;
-            border-left: none !important;
-            padding: 0 2px !important;
-            cursor: pointer !important;
-            text-decoration: none !important;
-            font-weight: bold !important;
-            line-height: 1 !important;
-            font-size: 0.95rem !important;
-        }
-        .ts-wrapper.multi .ts-control .item .remove:hover {
-            color: #EF4444 !important;
+        .nav-group-trigger:hover .group-left i {
+            color: var(--sidebar-foreground);
         }
 
-        /* Dark Theme Support */
-        [data-bs-theme="dark"] .ts-control {
-            background-color: #1F2937 !important;
-            border-color: #374151 !important;
-            color: #F9FAFB !important;
-        }
-        [data-bs-theme="dark"] .ts-control .items-placeholder {
-            color: #9CA3AF !important;
-        }
-        [data-bs-theme="dark"] .ts-wrapper:not(.multi) .ts-control .item,
-        [data-bs-theme="dark"] .ts-wrapper.single .ts-control .item {
-            color: #F9FAFB !important;
-        }
-        [data-bs-theme="dark"] .ts-dropdown,
-        [data-bs-theme="dark"] .ts-wrapper > .ts-dropdown {
-            background-color: #111827 !important;
-            border-color: #374151 !important;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4) !important;
-        }
-        [data-bs-theme="dark"] .ts-dropdown .dropdown-input-wrap {
-            background-color: #111827 !important;
-            border-bottom-color: #374151 !important;
-        }
-        [data-bs-theme="dark"] .ts-dropdown .dropdown-input {
-            color: #F9FAFB !important;
-        }
-        [data-bs-theme="dark"] .ts-dropdown .option {
-            color: #D1D5DB !important;
-        }
-        [data-bs-theme="dark"] .ts-dropdown .option:hover,
-        [data-bs-theme="dark"] .ts-dropdown .option.active {
-            background-color: #1F2937 !important;
-            color: #F9FAFB !important;
-        }
-        [data-bs-theme="dark"] .ts-dropdown .option.selected {
-            background-color: #1F2937 !important;
-            color: #F9FAFB !important;
-        }
-        [data-bs-theme="dark"] .ts-wrapper.multi .ts-control .item {
-            background: #374151 !important;
-            border-color: #4B5563 !important;
-            color: #F9FAFB !important;
+        .nav-group-trigger .group-chevron {
+            font-size: 0.68rem;
+            color: var(--muted-foreground);
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* ══════════════════════════════════════════════════════════
-           ENHANCED LUXURY TOAST NOTIFICATION STACK
-           ══════════════════════════════════════════════════════════ */
-        .react-toast-container {
-            position: fixed;
-            top: 24px;
-            right: 24px;
-            z-index: 10999;
+        .nav-group-trigger[aria-expanded="true"] .group-chevron {
+            transform: rotate(90deg);
+        }
+
+        /* Submenu Items under Section */
+        .nav-group-items {
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            pointer-events: none;
-            max-width: 440px;
-            width: calc(100vw - 36px);
+            gap: 1px;
+            padding-left: 1.65rem;
+            margin-top: 2px;
+            border-left: 1px solid var(--sidebar-border);
+            margin-left: 1.15rem;
         }
-        .react-toast {
-            pointer-events: auto;
-            background: rgba(255, 255, 255, 0.98);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(226, 232, 240, 0.95);
-            border-left: 4px solid var(--k-gold, #D97706);
-            border-radius: 14px;
-            box-shadow: 0 16px 36px -6px rgba(15, 23, 42, 0.16), 0 4px 12px -2px rgba(15, 23, 42, 0.08);
-            padding: 14px 16px;
+
+        .nav-sub-item {
             display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            position: relative;
+            align-items: center;
+            gap: 0.55rem;
+            padding: 0.42rem 0.65rem;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: var(--muted-foreground);
+            border-radius: calc(var(--radius) - 3px);
+            text-decoration: none;
+            transition: background-color 0.12s ease, color 0.12s ease;
+            white-space: nowrap;
             overflow: hidden;
-            animation: toastSpringIn 0.30s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, box-shadow 0.2s ease;
-        }
-        .react-toast:hover {
-            box-shadow: 0 20px 40px -6px rgba(15, 23, 42, 0.22), 0 6px 16px -2px rgba(15, 23, 42, 0.12);
-        }
-        .react-toast.toast-hiding {
-            opacity: 0;
-            transform: translateX(110%) scale(0.92);
-        }
-        @keyframes toastSpringIn {
-            from { opacity: 0; transform: translateY(-24px) scale(0.92); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
+            text-overflow: ellipsis;
         }
 
-        /* Toast Accent Variants */
-        .react-toast.toast-success { border-left-color: #10B981 !important; }
-        .react-toast.toast-warning { border-left-color: #F59E0B !important; }
-        .react-toast.toast-error,
-        .react-toast.toast-danger { border-left-color: #EF4444 !important; }
-        .react-toast.toast-info { border-left-color: #3B82F6 !important; }
+        .nav-sub-item i {
+            font-size: 0.8rem;
+            width: 14px;
+            text-align: center;
+            opacity: 0.8;
+            flex-shrink: 0;
+        }
 
-        /* Toast Icon Wrap */
-        .react-toast-icon-wrap {
-            width: 38px;
-            height: 38px;
-            border-radius: 10px;
+        .nav-sub-item:hover {
+            background-color: var(--sidebar-accent);
+            color: var(--sidebar-foreground);
+            text-decoration: none;
+        }
+
+        .nav-sub-item.active {
+            background-color: var(--sidebar-accent);
+            color: var(--sidebar-foreground);
+            font-weight: 600;
+        }
+
+        .nav-sub-item.active i {
+            color: var(--kaldis-gold);
+            opacity: 1;
+        }
+
+        /* Sidebar Footer & User Profile (Matching CompanySystem NavUser) */
+        .sidebar-footer {
+            padding: 0.65rem 0.75rem;
+            border-top: 1px solid var(--sidebar-border);
+            background-color: var(--sidebar);
+            margin-top: auto;
+        }
+
+        .nav-user-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            padding: 0.45rem 0.6rem;
+            border-radius: calc(var(--radius) - 2px);
+            border: 1px solid transparent;
+            background: transparent;
+            cursor: pointer;
+            transition: background-color 0.15s ease, border-color 0.15s ease;
+            text-align: left;
+        }
+
+        .nav-user-btn:hover, .nav-user-btn[aria-expanded="true"] {
+            background-color: var(--sidebar-accent);
+            border-color: var(--sidebar-border);
+        }
+
+        .nav-user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: #E4E4E7;
+            color: #18181B;
+            font-weight: 600;
+            font-size: 0.75rem;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            font-size: 1.15rem;
-            transition: transform 0.2s ease;
-        }
-        .react-toast:hover .react-toast-icon-wrap {
-            transform: scale(1.08);
-        }
-        .toast-success .react-toast-icon-wrap {
-            background: rgba(16, 185, 129, 0.12);
-            color: #10B981;
-        }
-        .toast-warning .react-toast-icon-wrap {
-            background: rgba(245, 158, 11, 0.15);
-            color: #D97706;
-        }
-        .toast-error .react-toast-icon-wrap,
-        .toast-danger .react-toast-icon-wrap {
-            background: rgba(239, 68, 68, 0.12);
-            color: #EF4444;
-        }
-        .toast-info .react-toast-icon-wrap {
-            background: rgba(59, 130, 246, 0.12);
-            color: #3B82F6;
         }
 
-        /* Toast Progress Countdown */
+        [data-bs-theme="dark"] .nav-user-avatar {
+            background-color: #3F3F46;
+            color: #FAFAFA;
+        }
+
+        .nav-user-info {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            flex-grow: 1;
+        }
+
+        .nav-user-name {
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: var(--sidebar-foreground);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.25;
+        }
+
+        .nav-user-role {
+            font-size: 0.7rem;
+            color: var(--muted-foreground);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.2;
+        }
+
+        /* ══════════════════════════════════════════════════════════
+           COLLAPSED SIDEBAR (DESKTOP)
+           ══════════════════════════════════════════════════════════ */
+        @media (min-width: 992px) {
+            html.sidebar-collapsed .kaldis-sidebar,
+            body.sidebar-collapsed .kaldis-sidebar {
+                width: var(--kaldis-sidebar-collapsed-width) !important;
+                min-width: var(--kaldis-sidebar-collapsed-width) !important;
+                max-width: var(--kaldis-sidebar-collapsed-width) !important;
+            }
+
+            html.sidebar-collapsed .sidebar-brand-title,
+            html.sidebar-collapsed .sidebar-brand-subtitle,
+            html.sidebar-collapsed .sidebar-search-box,
+            html.sidebar-collapsed .nav-group-trigger .nav-label,
+            html.sidebar-collapsed .nav-group-trigger .group-chevron,
+            html.sidebar-collapsed .nav-group-items,
+            html.sidebar-collapsed .nav-user-info,
+            html.sidebar-collapsed .nav-user-btn i.fa-up-down {
+                display: none !important;
+            }
+
+            html.sidebar-collapsed .sidebar-brand-header {
+                justify-content: center;
+                padding: 0;
+            }
+
+            html.sidebar-collapsed .nav-group-trigger {
+                justify-content: center;
+                padding: 0.65rem 0;
+            }
+
+            html.sidebar-collapsed .nav-group-trigger .group-left {
+                justify-content: center;
+            }
+
+            html.sidebar-collapsed .nav-group-trigger .group-left i {
+                margin: 0;
+                font-size: 1rem;
+            }
+
+            html.sidebar-collapsed .nav-user-btn {
+                justify-content: center;
+                padding: 0.4rem 0;
+            }
+        }
+
+        /* Mobile Off-Canvas Sidebar */
+        @media (max-width: 991.98px) {
+            .kaldis-sidebar {
+                position: fixed !important;
+                top: 0 !important;
+                left: -100% !important;
+                bottom: 0 !important;
+                height: 100vh !important;
+                width: 17.5rem !important;
+                min-width: 17.5rem !important;
+                z-index: 1060 !important;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25) !important;
+            }
+
+            .mobile-sidebar-open .kaldis-sidebar {
+                left: 0 !important;
+            }
+
+            .sidebar-backdrop {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background-color: rgba(0, 0, 0, 0.45);
+                backdrop-filter: blur(3px);
+                z-index: 1050;
+            }
+
+            .mobile-sidebar-open .sidebar-backdrop {
+                display: block;
+            }
+        }
+
+        /* ══════════════════════════════════════════════════════════
+           INSET CONTAINER & APP CONTENT (MATCHING COMPANYSYSTEM)
+           ══════════════════════════════════════════════════════════ */
+        .sidebar-inset-container {
+            flex: 1 1 auto;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--background);
+            transition: all 0.2s ease;
+        }
+
+        @media (min-width: 992px) {
+            .sidebar-inset-container {
+                margin: 0.5rem 0.5rem 0.5rem 0;
+                border-radius: var(--radius);
+                border: 1px solid var(--border);
+                box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+                min-height: calc(100vh - 1rem);
+                overflow: hidden;
+            }
+        }
+
+        /* App Sidebar Header (Top Inset Header) */
+        .app-sidebar-header {
+            height: 3.75rem;
+            min-height: 3.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.25rem;
+            border-bottom: 1px solid var(--border);
+            background-color: var(--background);
+            position: sticky;
+            top: 0;
+            z-index: 1030;
+        }
+
+        /* Sidebar Trigger Button (Shadcn Ghost Button) */
+        .sidebar-trigger-btn {
+            width: 32px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: calc(var(--radius) - 3px);
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--foreground);
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: background-color 0.15s ease, border-color 0.15s ease;
+            padding: 0;
+        }
+
+        .sidebar-trigger-btn:hover {
+            background-color: var(--secondary);
+            border-color: var(--border);
+        }
+
+        /* Breadcrumbs */
+        .breadcrumbs-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8125rem;
+            color: var(--muted-foreground);
+        }
+
+        .breadcrumb-sep {
+            color: var(--muted-foreground);
+            opacity: 0.5;
+            font-size: 0.7rem;
+        }
+
+        .breadcrumb-link {
+            color: var(--muted-foreground);
+            text-decoration: none;
+            transition: color 0.15s ease;
+        }
+
+        .breadcrumb-link:hover {
+            color: var(--foreground);
+        }
+
+        .breadcrumb-current {
+            color: var(--foreground);
+            font-weight: 500;
+        }
+
+        /* Inset Header Utilities (Ethiopian Date/Time & Theme Toggle) */
+        .header-util-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--muted-foreground);
+            background-color: var(--secondary);
+            border: 1px solid var(--border);
+            border-radius: 9999px;
+            padding: 0.3rem 0.75rem;
+        }
+
+        .theme-toggle-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: transparent;
+            border: 1px solid var(--border);
+            color: var(--foreground);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+            font-size: 0.85rem;
+        }
+
+        .theme-toggle-btn:hover {
+            background-color: var(--secondary);
+        }
+
+        /* App Content Body */
+        .app-content-body {
+            flex: 1 0 auto;
+            padding: 1.5rem;
+            background-color: var(--background);
+            min-width: 0;
+        }
+
+        @media (max-width: 768px) {
+            .app-content-body {
+                padding: 1rem;
+            }
+        }
+
+        /* App Inset Footer */
+        .app-footer {
+            padding: 0.85rem 1.5rem;
+            border-top: 1px solid var(--border);
+            background-color: var(--background);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8125rem;
+            color: var(--muted-foreground);
+        }
+
+        /* ══════════════════════════════════════════════════════════
+           CARDS, TABLES, BUTTONS & FORM STYLING
+           ══════════════════════════════════════════════════════════ */
+        .card {
+            background-color: var(--card) !important;
+            color: var(--card-foreground) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: var(--radius) !important;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04) !important;
+            margin-bottom: 1.25rem;
+        }
+
+        .card-header {
+            background-color: transparent !important;
+            border-bottom: 1px solid var(--border) !important;
+            padding: 1rem 1.25rem !important;
+        }
+
+        .card-title {
+            font-size: 0.95rem !important;
+            font-weight: 600 !important;
+            color: var(--foreground) !important;
+            letter-spacing: -0.01em !important;
+            margin: 0 !important;
+        }
+
+        .card-body {
+            padding: 1.25rem !important;
+        }
+
+        /* Shadcn Button Variants */
+        .btn-primary, .btn-kaldis {
+            background-color: var(--primary) !important;
+            color: var(--primary-foreground) !important;
+            border: 1px solid transparent !important;
+            border-radius: calc(var(--radius) - 2px) !important;
+            font-weight: 500 !important;
+            font-size: 0.875rem !important;
+            padding: 0.45rem 0.95rem !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+            transition: opacity 0.15s ease, background-color 0.15s ease !important;
+        }
+
+        .btn-primary:hover, .btn-kaldis:hover {
+            opacity: 0.92 !important;
+            color: var(--primary-foreground) !important;
+        }
+
+        .btn-secondary {
+            background-color: var(--secondary) !important;
+            color: var(--secondary-foreground) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: calc(var(--radius) - 2px) !important;
+            font-weight: 500 !important;
+            font-size: 0.875rem !important;
+            padding: 0.45rem 0.95rem !important;
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--muted) !important;
+            color: var(--secondary-foreground) !important;
+        }
+
+        .btn-outline-secondary {
+            background-color: var(--background) !important;
+            border-color: var(--border) !important;
+            color: var(--foreground) !important;
+            border-radius: calc(var(--radius) - 2px) !important;
+            font-weight: 500 !important;
+            font-size: 0.875rem !important;
+        }
+
+        .btn-outline-secondary:hover {
+            background-color: var(--secondary) !important;
+            border-color: var(--border) !important;
+            color: var(--foreground) !important;
+        }
+
+        /* Form Controls */
+        .form-control, .form-select {
+            background-color: var(--background) !important;
+            border: 1px solid var(--input) !important;
+            color: var(--foreground) !important;
+            border-radius: calc(var(--radius) - 2px) !important;
+            font-size: 0.875rem !important;
+            padding: 0.5rem 0.75rem !important;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--foreground) !important;
+            box-shadow: 0 0 0 1px var(--foreground) !important;
+            color: var(--foreground) !important;
+            background-color: var(--background) !important;
+        }
+
+        /* Clean Table Dividers */
+        .table {
+            --bs-table-bg: transparent !important;
+            --bs-table-color: var(--foreground) !important;
+            --bs-table-border-color: var(--border) !important;
+            color: var(--foreground) !important;
+            font-size: 0.875rem !important;
+        }
+
+        .table thead th {
+            font-size: 0.75rem !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.05em !important;
+            color: var(--muted-foreground) !important;
+            font-weight: 600 !important;
+            border-bottom: 1px solid var(--border) !important;
+            padding: 0.75rem 1rem !important;
+            background-color: var(--muted) !important;
+        }
+
+        .table tbody td {
+            padding: 0.8rem 1rem !important;
+            border-bottom: 1px solid var(--border) !important;
+            vertical-align: middle !important;
+        }
+
+        .table tbody tr:hover td {
+            background-color: var(--accent) !important;
+        }
+
+        /* Badges */
+        .badge {
+            border-radius: 6px !important;
+            font-weight: 500 !important;
+            padding: 0.3em 0.65em !important;
+            font-size: 0.75rem !important;
+        }
+
+        /* ══════════════════════════════════════════════════════════
+           TOAST NOTIFICATIONS (SONNER STYLE)
+           ══════════════════════════════════════════════════════════ */
+        .react-toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 380px;
+            width: calc(100vw - 40px);
+            pointer-events: none;
+        }
+
+        .react-toast {
+            pointer-events: auto;
+            background-color: var(--card);
+            color: var(--card-foreground);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            padding: 0.85rem 1rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            position: relative;
+            overflow: hidden;
+            animation: toastSlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes toastSlideIn {
+            from { opacity: 0; transform: translateY(-10px) scale(0.96); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .react-toast.toast-hiding {
+            opacity: 0;
+            transform: translateY(-8px) scale(0.96);
+            transition: all 0.2s ease;
+        }
+
+        .react-toast-icon-wrap {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 1rem;
+            margin-top: 1px;
+        }
+
+        .toast-success .react-toast-icon-wrap { color: #10B981; }
+        .toast-warning .react-toast-icon-wrap { color: #F59E0B; }
+        .toast-error .react-toast-icon-wrap, .toast-danger .react-toast-icon-wrap { color: #EF4444; }
+        .toast-info .react-toast-icon-wrap { color: #3B82F6; }
+
         .react-toast-progress {
             position: absolute;
             bottom: 0;
             left: 0;
-            height: 3.5px;
-            background: var(--k-gold, #D97706);
+            height: 2px;
+            background: var(--kaldis-gold);
             width: 100%;
             animation: toastProgress linear forwards;
         }
-        .react-toast:hover .react-toast-progress {
-            animation-play-state: paused;
-        }
+
         .toast-success .react-toast-progress { background: #10B981; }
         .toast-warning .react-toast-progress { background: #F59E0B; }
-        .toast-error .react-toast-progress,
-        .toast-danger .react-toast-progress { background: #EF4444; }
+        .toast-error .react-toast-progress { background: #EF4444; }
         .toast-info .react-toast-progress { background: #3B82F6; }
 
         @keyframes toastProgress {
@@ -661,147 +890,46 @@
             to { width: 0%; }
         }
 
-        /* Dark Mode Toast */
-        [data-bs-theme="dark"] .react-toast {
-            background: rgba(15, 23, 42, 0.95);
-            border-color: rgba(51, 65, 85, 0.85);
-            color: #F8FAFC;
-            box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4);
-        }
-        [data-bs-theme="dark"] .react-toast .react-toast-title {
-            color: #F8FAFC !important;
-        }
-        [data-bs-theme="dark"] .react-toast .react-toast-body {
-            color: #CBD5E1 !important;
-        }
-
         /* ══════════════════════════════════════════════════════════
-           ENHANCED CONSISTENT ALERTS (BOOTSTRAP 5 CUSTOMIZATION)
+           TOMSELECT SHADCN POPOVER STYLE
            ══════════════════════════════════════════════════════════ */
-        .alert {
-            border-radius: 12px !important;
-            border-width: 1px !important;
-            border-left-width: 4px !important;
-            padding: 0.95rem 1.15rem !important;
-            box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.05);
-        }
-        .alert-success {
-            border-left-color: #10B981 !important;
-            background-color: rgba(16, 185, 129, 0.08) !important;
-            border-color: rgba(16, 185, 129, 0.25) !important;
-            color: #065F46 !important;
-        }
-        .alert-warning {
-            border-left-color: #F59E0B !important;
-            background-color: rgba(245, 158, 11, 0.10) !important;
-            border-color: rgba(245, 158, 11, 0.25) !important;
-            color: #92400E !important;
-        }
-        .alert-danger {
-            border-left-color: #EF4444 !important;
-            background-color: rgba(239, 68, 68, 0.08) !important;
-            border-color: rgba(239, 68, 68, 0.25) !important;
-            color: #991B1B !important;
-        }
-        .alert-info {
-            border-left-color: #3B82F6 !important;
-            background-color: rgba(59, 130, 246, 0.08) !important;
-            border-color: rgba(59, 130, 246, 0.25) !important;
-            color: #1E40AF !important;
-        }
-        [data-bs-theme="dark"] .alert-success {
-            background-color: rgba(16, 185, 129, 0.15) !important;
-            color: #6EE7B7 !important;
-        }
-        [data-bs-theme="dark"] .alert-warning {
-            background-color: rgba(245, 158, 11, 0.15) !important;
-            color: #FCD34D !important;
-        }
-        [data-bs-theme="dark"] .alert-danger {
-            background-color: rgba(239, 68, 68, 0.15) !important;
-            color: #FCA5A5 !important;
-        }
-        [data-bs-theme="dark"] .alert-info {
-            background-color: rgba(59, 130, 246, 0.15) !important;
-            color: #93C5FD !important;
-        }
-
-        /* ══════════════════════════════════════════════════════════
-           REACT-STYLE PILL TABS
-           ══════════════════════════════════════════════════════════ */
-        .react-nav-pills {
-            background: #F1F5F9;
-            padding: 4px;
-            border-radius: 12px;
-            display: inline-flex;
-            gap: 4px;
-            border: 1px solid #E2E8F0;
-        }
-        .react-nav-pills .nav-link {
-            border-radius: 9px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            padding: 6px 14px;
-            color: #64748B;
+        .ts-wrapper.form-control, .ts-wrapper.form-select {
+            padding: 0;
             border: none;
-            transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
+            box-shadow: none;
+            background: transparent;
         }
-        .react-nav-pills .nav-link.active,
-        .react-nav-pills .nav-link:hover {
-            background: #FFFFFF;
-            color: #0F172A;
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08);
+        .ts-wrapper { position: relative !important; width: 100% !important; }
+        .ts-control {
+            border: 1px solid var(--input) !important;
+            border-radius: calc(var(--radius) - 2px) !important;
+            padding: 0.5rem 0.75rem !important;
+            font-size: 0.875rem !important;
+            background-color: var(--background) !important;
+            color: var(--foreground) !important;
+            box-shadow: none !important;
         }
-        .react-nav-pills .nav-link.active {
-            color: #B45309;
+        .ts-control:focus, .ts-wrapper.focus .ts-control {
+            border-color: var(--foreground) !important;
+            box-shadow: 0 0 0 1px var(--foreground) !important;
         }
-        [data-bs-theme="dark"] .react-nav-pills {
-            background: #0F172A;
-            border-color: #1E293B;
+        .ts-dropdown {
+            border: 1px solid var(--border) !important;
+            border-radius: var(--radius) !important;
+            background-color: var(--popover) !important;
+            color: var(--popover-foreground) !important;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1) !important;
+            padding: 4px !important;
         }
-        [data-bs-theme="dark"] .react-nav-pills .nav-link {
-            color: #94A3B8;
+        .ts-dropdown .option {
+            padding: 6px 10px !important;
+            font-size: 0.875rem !important;
+            border-radius: calc(var(--radius) - 4px) !important;
+            color: var(--popover-foreground) !important;
         }
-        [data-bs-theme="dark"] .react-nav-pills .nav-link.active,
-        [data-bs-theme="dark"] .react-nav-pills .nav-link:hover {
-            background: #1E293B;
-            color: #FBBF24;
-        }
-
-        /* High-Priority Modal Layering & Stacking Context Fix */
-        .modal {
-            z-index: 1060 !important;
-        }
-        .modal-dialog {
-            z-index: 1065 !important;
-            position: relative;
-        }
-        .modal-backdrop {
-            z-index: 1050 !important;
-        }
-        .modal-backdrop.show {
-            opacity: 0.5 !important;
-            backdrop-filter: blur(4px) !important;
-            -webkit-backdrop-filter: blur(4px) !important;
-        }
-
-        /* React-Style Modal Scale Transition */
-        .modal.fade .modal-dialog {
-            transform: scale(0.96);
-            transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        .modal.show .modal-dialog {
-            transform: scale(1);
-        }
-
-        /* Page Entrance Animation (Opacity only to prevent stacking-context isolation) */
-        @keyframes fadeInContent {
-            from { opacity: 0; }
-            to   { opacity: 1; }
+        .ts-dropdown .option:hover, .ts-dropdown .option.active {
+            background-color: var(--accent) !important;
+            color: var(--accent-foreground) !important;
         }
     </style>
 
@@ -809,474 +937,543 @@
 </head>
 <body>
 
-    <!-- Top Navigation Bar -->
-    <nav class="navbar navbar-expand kaldis-navbar sticky-top">
-        <div class="container-fluid px-3 d-flex align-items-center justify-content-between">
-            
-            <!-- Left: Brand Logo & Title -->
-            <div class="d-flex align-items-center">
-                <a class="navbar-brand d-flex align-items-center m-0 text-decoration-none" href="{{ route('dashboard') }}">
-                    <img src="{{ asset('assets/images/logo.png') }}" alt="Kaldis Coffee" class="kaldis-brand-img me-2 rounded-circle" style="background: transparent !important;" onerror="this.src='{{ asset('images/logo.png') }}'">
-                    <div class="lh-sm">
-                        <div class="brand-title">KALDIS COFFEE PLC</div>
-                        <div class="brand-subtitle">PLANNING &amp; PERFORMANCE</div>
-                    </div>
-                </a>
-            </div>
-
-            <!-- Right: Period Badges, Theme Toggle, User Profile -->
-            <div class="d-flex align-items-center gap-2 gap-md-3 ms-auto">
-                <span class="badge period-badge py-2 px-3 shadow-sm d-none d-sm-inline-flex" title="Ethiopian Date">
-                    <i class="far fa-calendar-alt text-warning me-1"></i> {{ format_et_calendar() }}
-                </span>
-                <span class="badge period-badge py-2 px-3 shadow-sm d-none d-md-inline-flex" title="Ethiopian Time (East Africa Time)">
-                    <i class="far fa-clock text-warning me-1"></i> {{ format_ethiopian_time() }}
-                </span>
-
-                <!-- Theme Toggle Button (Light Mode / Dark Mode) -->
-                <button id="themeToggle" class="btn btn-outline-secondary btn-sm rounded-circle d-flex align-items-center justify-content-center shadow-sm" 
-                        style="width: 36px; height: 36px;" type="button" title="Toggle Light / Dark Mode (Alt+D)" aria-label="Toggle Dark Mode">
-                    <i id="themeToggleIcon" class="fas fa-moon text-secondary"></i>
-                </button>
-
-                <!-- User Profile Dropdown -->
-                <div class="dropdown">
-                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle d-flex align-items-center gap-2 user-profile-btn shadow-sm" type="button" data-bs-toggle="dropdown">
-                        <div class="rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center fw-bold" style="width: 26px; height: 26px; font-size: 0.8rem;">
-                            {{ strtoupper(substr(auth()->user()->full_name ?? auth()->user()->username ?? 'U', 0, 1)) }}
-                        </div>
-                        <span class="d-none d-sm-inline fw-semibold small user-profile-name">
-                            {{ auth()->user()->full_name ?? auth()->user()->username }}
-                        </span>
-                        <span class="badge bg-warning text-dark text-uppercase d-none d-md-inline" style="font-size: 0.65rem;">
-                            {{ auth()->user()->role->display_name ?? auth()->user()->role->name ?? '' }}
-                        </span>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow">
-                        <li>
-                            <div class="dropdown-item-text">
-                                <small class="text-muted d-block">Signed in as</small>
-                                <strong>{{ auth()->user()->username }}</strong>
-                                @if(auth()->user()->department)
-                                    <div class="small text-muted">{{ auth()->user()->department->department_name }}</div>
-                                @endif
-                            </div>
-                        </li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li>
-                            <a class="dropdown-item d-flex align-items-center" href="{{ route('password.change') }}" data-bs-toggle="modal" data-bs-target="#quickChangePasswordModal">
-                                <i class="fas fa-key me-2 text-warning" style="width: 16px;"></i>
-                                <span>Change Password</span>
-                            </a>
-                        </li>
-                        <li><hr class="dropdown-divider"></li>
-                        @if(auth()->user()->isSuperAdmin())
-                            <li><a class="dropdown-item" href="{{ route('admin.settings') }}"><i class="fas fa-sliders me-2 text-muted"></i> System Settings</a></li>
-                            <li><a class="dropdown-item" href="{{ route('admin.audit') }}"><i class="fas fa-history me-2 text-muted"></i> Audit Trail</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                        @endif
-                        <li>
-                            <form method="POST" action="{{ route('logout') }}">
-                                @csrf
-                                <button type="submit" class="dropdown-item text-danger small">
-                                    <i class="fas fa-sign-out-alt me-2"></i> Log Out
-                                </button>
-                            </form>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </nav>
-
     <!-- Mobile Sidebar Backdrop Overlay -->
     <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
 
-    <!-- App Wrapper (Sidebar + Main Content) -->
-    <div class="app-wrapper">
-        <!-- Sidebar Navigation -->
+    <!-- Master Inset AppShell Container -->
+    <div class="app-shell" id="appShell">
+        
+        <!-- ══════════════════════════════════════════════════════════
+             FULL-HEIGHT LEFT SIDEBAR (MATCHING COMPANYSYSTEM)
+             ══════════════════════════════════════════════════════════ -->
         <aside class="kaldis-sidebar" id="kaldisSidebar">
-            <!-- Floating Edge Toggle (Desktop) — Outside inner-wrapper so overflow:hidden cannot clip it -->
-            <button id="sidebarEdgeToggle" class="sidebar-edge-toggle d-none d-lg-flex" type="button" 
-                    title="Toggle Sidebar (Alt+S)" aria-label="Toggle Sidebar">
-                <i class="fas fa-chevron-left edge-chevron"></i>
-            </button>
-
             <div class="sidebar-inner-wrapper">
-                <!-- Mobile Drawer Close Header (Only shown on mobile screen when drawer is open) -->
-                <div class="sidebar-mobile-header d-flex align-items-center justify-content-between px-3 py-3 border-bottom d-lg-none" style="border-color: rgba(255,255,255,0.08) !important;">
-                    <div class="d-flex align-items-center gap-2">
-                        <img src="{{ asset('assets/images/logo.png') }}" alt="Kaldis Coffee" style="width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid rgba(251,191,36,0.5);" onerror="this.src='{{ asset('images/logo.png') }}'">
-                        <span class="fw-bold small" style="color: rgba(255,255,255,0.80); letter-spacing: 0.06em; font-size: 0.78rem;">KALDIS PLANNER</span>
-                    </div>
-                    <button class="btn btn-sm p-1 border-0" id="sidebarMobileClose" type="button" aria-label="Close Sidebar" style="color: rgba(255,255,255,0.40); background: rgba(255,255,255,0.06); border-radius: 6px;">
+                
+                <!-- Sidebar Header / Brand Logo -->
+                <div class="sidebar-brand-header">
+                    <a href="{{ route('dashboard') }}" class="d-flex align-items-center gap-2.5 text-decoration-none w-100 overflow-hidden">
+                        <div class="sidebar-brand-logo-badge">
+                            <img src="{{ asset('assets/images/logo.png') }}" alt="Kaldis" class="sidebar-brand-logo-img" onerror="this.src='{{ asset('images/logo.png') }}'">
+                        </div>
+                        <div class="d-flex flex-column min-w-0">
+                            <h1 class="sidebar-brand-title">Kaldis Coffee</h1>
+                            <span class="sidebar-brand-subtitle">Planning Portal</span>
+                        </div>
+                    </a>
+                    <!-- Mobile Close Button -->
+                    <button class="btn btn-sm btn-link text-muted p-1 border-0 d-lg-none ms-auto" id="sidebarMobileClose" type="button" aria-label="Close Sidebar">
                         <i class="fas fa-xmark fs-5"></i>
                     </button>
                 </div>
 
-                <!-- Modern Search Menu Box with Shortcut Badge -->
+                <!-- Sidebar Search Box -->
                 <div class="sidebar-search-box">
-                    <div class="input-group input-group-sm">
-                        <span class="input-group-text">
-                            <i class="fas fa-search"></i>
-                        </span>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
                         <input type="text" id="sidebarMenuSearch" class="form-control" placeholder="Search menu..." autocomplete="off">
                         <span class="input-group-text pe-1 d-none d-lg-flex">
-                            <kbd class="bg-white border text-muted px-1.5 py-0.5 rounded shadow-xs" style="font-size: 0.65rem;">Alt+S</kbd>
+                            <kbd class="bg-muted border text-muted px-1.5 py-0.5 rounded" style="font-size: 0.65rem;">Alt+S</kbd>
                         </span>
                     </div>
                 </div>
 
-                <!-- Navigation List -->
-                <div class="sidebar-nav-scroll flex-grow-1">
-                    <!-- Dashboards -->
-                    <div class="sidebar-heading">Dashboards</div>
-                    <ul class="nav flex-column mb-3">
-                        <li class="nav-item">
-                            <a class="nav-link {{ (request()->routeIs('dashboard') || request()->routeIs('overview')) ? 'active' : '' }}" href="{{ route('overview') }}" 
-                                data-bs-toggle="tooltip" data-bs-placement="right" title="Overview">
-                                <span class="nav-icon-wrap icon-dashboard"><i class="fas fa-house"></i></span>
-                                <span class="nav-text">Overview</span>
-                                <i class="fas fa-chevron-right sidebar-chevron"></i>
+                <!-- Sidebar Navigation (Collapsible Accordion Groups) -->
+                <div class="sidebar-nav-scroll custom-scrollbar" id="sidebarNavScroll">
+                    
+                    <!-- 1. Dashboards Group -->
+                    <div class="nav-group-section">
+                        @php
+                            $isDashActive = request()->routeIs('overview') || request()->routeIs('dashboard*') || request()->routeIs('management.plans');
+                        @endphp
+                        <button class="nav-group-trigger" type="button" data-group="dashboards" aria-expanded="{{ $isDashActive ? 'true' : 'false' }}">
+                            <span class="group-left">
+                                <i class="fas fa-layer-group"></i>
+                                <span class="nav-label">Dashboards</span>
+                            </span>
+                            <i class="fas fa-chevron-right group-chevron"></i>
+                        </button>
+                        <div class="nav-group-items {{ $isDashActive ? '' : 'd-none' }}" id="nav-group-dashboards">
+                            <a href="{{ route('overview') }}" class="nav-sub-item {{ (request()->routeIs('dashboard') || request()->routeIs('overview')) ? 'active' : '' }}" title="Overview">
+                                <i class="fas fa-house"></i>
+                                <span>Overview</span>
                             </a>
-                        </li>
-                        @if(auth()->user()->isGM() || auth()->user()->isSuperAdmin())
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('dashboard.gm') ? 'active' : '' }}" href="{{ route('dashboard.gm') }}" 
-                                   data-bs-toggle="tooltip" data-bs-placement="right" title="GM Executive Dashboard">
-                                    <span class="nav-icon-wrap icon-dashboard"><i class="fas fa-chart-line"></i></span>
-                                    <span class="nav-text">GM Dashboard</span>
-                                    <i class="fas fa-chevron-right sidebar-chevron"></i>
+                            @if(auth()->user()->isGM() || auth()->user()->isSuperAdmin())
+                                <a href="{{ route('dashboard.gm') }}" class="nav-sub-item {{ request()->routeIs('dashboard.gm') ? 'active' : '' }}" title="GM Executive Dashboard">
+                                    <i class="fas fa-chart-line"></i>
+                                    <span>GM Dashboard</span>
                                 </a>
-                            </li>
-                        @endif
-                        @if(auth()->user()->department_id || auth()->user()->canAccessAllDepartments())
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('dashboard.department') ? 'active' : '' }}" href="{{ route('dashboard.department') }}" 
-                                   data-bs-toggle="tooltip" data-bs-placement="right" title="Department Workspace">
-                                    <span class="nav-icon-wrap icon-dashboard"><i class="fas fa-building-user"></i></span>
-                                    <span class="nav-text">Department Workspace</span>
-                                    <i class="fas fa-chevron-right sidebar-chevron"></i>
+                            @endif
+                            @if(auth()->user()->department_id || auth()->user()->canAccessAllDepartments())
+                                <a href="{{ route('dashboard.department') }}" class="nav-sub-item {{ request()->routeIs('dashboard.department') ? 'active' : '' }}" title="Department Workspace">
+                                    <i class="fas fa-building-user"></i>
+                                    <span>Department Workspace</span>
                                 </a>
-                            </li>
-                        @endif
-                    </ul>
+                            @endif
+                        </div>
+                    </div>
 
-                    <!-- Strategic Alignment -->
-                    <div class="sidebar-heading">Strategic Alignment</div>
-                    <ul class="nav flex-column mb-3">
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('strategy.annual') ? 'active' : '' }}" href="{{ route('strategy.annual') }}" 
-                               data-bs-toggle="tooltip" data-bs-placement="right" title="Annual Strategy Plan">
-                                <span class="nav-icon-wrap icon-strategy"><i class="fas fa-bullseye"></i></span>
-                                <span class="nav-text">Annual Strategy Plan</span>
-                                <i class="fas fa-chevron-right sidebar-chevron"></i>
+                    <!-- 2. Strategic Alignment Group -->
+                    <div class="nav-group-section">
+                        @php
+                            $isStratActive = request()->routeIs('strategy.*');
+                        @endphp
+                        <button class="nav-group-trigger" type="button" data-group="strategy" aria-expanded="{{ $isStratActive ? 'true' : 'false' }}">
+                            <span class="group-left">
+                                <i class="fas fa-bullseye"></i>
+                                <span class="nav-label">Strategic Alignment</span>
+                            </span>
+                            <i class="fas fa-chevron-right group-chevron"></i>
+                        </button>
+                        <div class="nav-group-items {{ $isStratActive ? '' : 'd-none' }}" id="nav-group-strategy">
+                            <a href="{{ route('strategy.annual') }}" class="nav-sub-item {{ request()->routeIs('strategy.annual') ? 'active' : '' }}" title="Annual Strategy Plan">
+                                <i class="fas fa-crosshairs"></i>
+                                <span>Annual Strategy Plan</span>
                             </a>
-                        </li>
-                        @if(auth()->user()->isGM() || auth()->user()->isSuperAdmin())
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('strategy.activation') ? 'active' : '' }}" href="{{ route('strategy.activation') }}" 
-                                   data-bs-toggle="tooltip" data-bs-placement="right" title="GM Monthly Activation">
-                                    <span class="nav-icon-wrap icon-strategy"><i class="fas fa-toggle-on"></i></span>
-                                    <span class="nav-text">GM Monthly Activation</span>
-                                    <i class="fas fa-chevron-right sidebar-chevron"></i>
+                            @if(auth()->user()->isGM() || auth()->user()->isSuperAdmin())
+                                <a href="{{ route('strategy.activation') }}" class="nav-sub-item {{ request()->routeIs('strategy.activation') ? 'active' : '' }}" title="GM Monthly Activation">
+                                    <i class="fas fa-toggle-on"></i>
+                                    <span>GM Monthly Activation</span>
                                 </a>
-                            </li>
-                        @endif
-                    </ul>
+                            @endif
+                        </div>
+                    </div>
 
-                    <!-- Operational Planning -->
-                    <div class="sidebar-heading">Operational Planning</div>
-                    <ul class="nav flex-column mb-3">
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('monthly.plans*') ? 'active' : '' }}" href="{{ route('monthly.plans') }}" 
-                               data-bs-toggle="tooltip" data-bs-placement="right" title="Monthly Plans">
-                                <span class="nav-icon-wrap icon-planning"><i class="fas fa-calendar-days"></i></span>
-                                <span class="nav-text">Monthly Plans</span>
-                                <i class="fas fa-chevron-right sidebar-chevron"></i>
+                    <!-- 3. Operational Planning Group -->
+                    <div class="nav-group-section">
+                        @php
+                            $isPlanActive = request()->routeIs('monthly.plans*') || request()->routeIs('weekly.plans*') || request()->routeIs('weekly.tasks*');
+                        @endphp
+                        <button class="nav-group-trigger" type="button" data-group="planning" aria-expanded="{{ $isPlanActive ? 'true' : 'false' }}">
+                            <span class="group-left">
+                                <i class="fas fa-calendar-days"></i>
+                                <span class="nav-label">Operational Planning</span>
+                            </span>
+                            <i class="fas fa-chevron-right group-chevron"></i>
+                        </button>
+                        <div class="nav-group-items {{ $isPlanActive ? '' : 'd-none' }}" id="nav-group-planning">
+                            <a href="{{ route('monthly.plans') }}" class="nav-sub-item {{ request()->routeIs('monthly.plans*') ? 'active' : '' }}" title="Monthly Plans">
+                                <i class="fas fa-calendar"></i>
+                                <span>Monthly Plans</span>
                             </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('weekly.plans*') ? 'active' : '' }}" href="{{ route('weekly.plans') }}" 
-                               data-bs-toggle="tooltip" data-bs-placement="right" title="Weekly Plans">
-                                <span class="nav-icon-wrap icon-planning"><i class="fas fa-list-check"></i></span>
-                                <span class="nav-text">Weekly Plans</span>
-                                <i class="fas fa-chevron-right sidebar-chevron"></i>
+                            <a href="{{ route('weekly.plans') }}" class="nav-sub-item {{ request()->routeIs('weekly.plans*') ? 'active' : '' }}" title="Weekly Plans">
+                                <i class="fas fa-list-check"></i>
+                                <span>Weekly Plans</span>
                             </a>
-                        </li>
-                    </ul>
+                        </div>
+                    </div>
 
-                    <!-- Execution & Performance -->
-                    <div class="sidebar-heading">Execution &amp; Performance</div>
-                    <ul class="nav flex-column mb-3">
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('weekly.performance*') ? 'active' : '' }}" href="{{ route('weekly.performance') }}" 
-                               data-bs-toggle="tooltip" data-bs-placement="right" title="Weekly Performance">
-                                <span class="nav-icon-wrap icon-performance"><i class="fas fa-clipboard-check"></i></span>
-                                <span class="nav-text">Weekly Performance</span>
-                                <i class="fas fa-chevron-right sidebar-chevron"></i>
+                    <!-- 4. Execution & Performance Group -->
+                    <div class="nav-group-section">
+                        @php
+                            $isPerfActive = request()->routeIs('weekly.performance*') || request()->routeIs('performance.*');
+                        @endphp
+                        <button class="nav-group-trigger" type="button" data-group="performance" aria-expanded="{{ $isPerfActive ? 'true' : 'false' }}">
+                            <span class="group-left">
+                                <i class="fas fa-chart-simple"></i>
+                                <span class="nav-label">Execution &amp; Performance</span>
+                            </span>
+                            <i class="fas fa-chevron-right group-chevron"></i>
+                        </button>
+                        <div class="nav-group-items {{ $isPerfActive ? '' : 'd-none' }}" id="nav-group-performance">
+                            <a href="{{ route('weekly.performance') }}" class="nav-sub-item {{ request()->routeIs('weekly.performance*') ? 'active' : '' }}" title="Weekly Performance">
+                                <i class="fas fa-clipboard-check"></i>
+                                <span>Weekly Performance</span>
                             </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('performance.weekly*') ? 'active' : '' }}" href="{{ route('performance.weekly') }}" 
-                               data-bs-toggle="tooltip" data-bs-placement="right" title="Weekly Scorecard">
-                                <span class="nav-icon-wrap icon-performance"><i class="fas fa-table"></i></span>
-                                <span class="nav-text">Weekly Scorecard</span>
-                                <i class="fas fa-chevron-right sidebar-chevron"></i>
+                            <a href="{{ route('performance.weekly') }}" class="nav-sub-item {{ request()->routeIs('performance.weekly*') ? 'active' : '' }}" title="Weekly Scorecard">
+                                <i class="fas fa-table"></i>
+                                <span>Weekly Scorecard</span>
                             </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('performance.monthly*') ? 'active' : '' }}" href="{{ route('performance.monthly') }}" 
-                               data-bs-toggle="tooltip" data-bs-placement="right" title="Monthly Rollup">
-                                <span class="nav-icon-wrap icon-performance"><i class="fas fa-calendar-check"></i></span>
-                                <span class="nav-text">Monthly Rollup</span>
-                                <i class="fas fa-chevron-right sidebar-chevron"></i>
+                            <a href="{{ route('performance.monthly') }}" class="nav-sub-item {{ request()->routeIs('performance.monthly*') ? 'active' : '' }}" title="Monthly Rollup">
+                                <i class="fas fa-calendar-check"></i>
+                                <span>Monthly Rollup</span>
                             </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('performance.not_done*') ? 'active' : '' }}" href="{{ route('performance.not_done') }}" 
-                               data-bs-toggle="tooltip" data-bs-placement="right" title="Why Not Done Analysis">
-                                <span class="nav-icon-wrap icon-performance"><i class="fas fa-circle-exclamation"></i></span>
-                                <span class="nav-text">Why Not Done Analysis</span>
-                                <i class="fas fa-chevron-right sidebar-chevron"></i>
+                            <a href="{{ route('performance.not_done') }}" class="nav-sub-item {{ request()->routeIs('performance.not_done*') ? 'active' : '' }}" title="Why Not Done Analysis">
+                                <i class="fas fa-circle-exclamation"></i>
+                                <span>Why Not Done</span>
                             </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('performance.achievements*') ? 'active' : '' }}" href="{{ route('performance.achievements') }}" 
-                               data-bs-toggle="tooltip" data-bs-placement="right" title="Achievements Feed">
-                                <span class="nav-icon-wrap icon-performance"><i class="fas fa-award"></i></span>
-                                <span class="nav-text">Achievements Feed</span>
-                                <i class="fas fa-chevron-right sidebar-chevron"></i>
+                            <a href="{{ route('performance.achievements') }}" class="nav-sub-item {{ request()->routeIs('performance.achievements*') ? 'active' : '' }}" title="Achievements Feed">
+                                <i class="fas fa-award"></i>
+                                <span>Achievements Feed</span>
                             </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('performance.challenges*') ? 'active' : '' }}" href="{{ route('performance.challenges') }}" 
-                               data-bs-toggle="tooltip" data-bs-placement="right" title="Challenges Tracker">
-                                <span class="nav-icon-wrap icon-performance"><i class="fas fa-triangle-exclamation"></i></span>
-                                <span class="nav-text">Challenges Tracker</span>
-                                <i class="fas fa-chevron-right sidebar-chevron"></i>
+                            <a href="{{ route('performance.challenges') }}" class="nav-sub-item {{ request()->routeIs('performance.challenges*') ? 'active' : '' }}" title="Challenges Tracker">
+                                <i class="fas fa-triangle-exclamation"></i>
+                                <span>Challenges Tracker</span>
                             </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('performance.quarterly*') ? 'active' : '' }}" href="{{ route('performance.quarterly') }}" 
-                               data-bs-toggle="tooltip" data-bs-placement="right" title="Quarterly Performance">
-                                <span class="nav-icon-wrap icon-performance"><i class="fas fa-layer-group"></i></span>
-                                <span class="nav-text">Quarterly Performance</span>
-                                <i class="fas fa-chevron-right sidebar-chevron"></i>
+                            <a href="{{ route('performance.quarterly') }}" class="nav-sub-item {{ request()->routeIs('performance.quarterly*') ? 'active' : '' }}" title="Quarterly Performance">
+                                <i class="fas fa-chart-pie"></i>
+                                <span>Quarterly Performance</span>
                             </a>
-                        </li>
-                    </ul>
+                        </div>
+                    </div>
 
+                    <!-- 5. Reports & Governance Group -->
                     @if(auth()->user()->isSuperAdmin() || auth()->user()->isGM() || auth()->user()->isHROfficer())
-                        <!-- Governance & Reports -->
-                        <div class="sidebar-heading">Reports &amp; Governance</div>
-                        <ul class="nav flex-column mb-3">
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('admin.reports*') ? 'active' : '' }}" href="{{ route('admin.reports') }}" 
-                                   data-bs-toggle="tooltip" data-bs-placement="right" title="Reports &amp; Tracking">
-                                    <span class="nav-icon-wrap icon-performance"><i class="fas fa-chart-pie"></i></span>
-                                    <span class="nav-text">Reports &amp; Tracking</span>
-                                    <i class="fas fa-chevron-right sidebar-chevron"></i>
+                        <div class="nav-group-section">
+                            @php
+                                $isReportsActive = request()->routeIs('admin.reports*');
+                            @endphp
+                            <button class="nav-group-trigger" type="button" data-group="reports" aria-expanded="{{ $isReportsActive ? 'true' : 'false' }}">
+                                <span class="group-left">
+                                    <i class="fas fa-file-lines"></i>
+                                    <span class="nav-label">Governance &amp; Reports</span>
+                                </span>
+                                <i class="fas fa-chevron-right group-chevron"></i>
+                            </button>
+                            <div class="nav-group-items {{ $isReportsActive ? '' : 'd-none' }}" id="nav-group-reports">
+                                <a href="{{ route('admin.reports') }}" class="nav-sub-item {{ request()->routeIs('admin.reports*') ? 'active' : '' }}" title="Reports &amp; Tracking">
+                                    <i class="fas fa-chart-column"></i>
+                                    <span>Reports &amp; Tracking</span>
                                 </a>
-                            </li>
-                        </ul>
+                            </div>
+                        </div>
                     @endif
 
+                    <!-- 6. System Administration Group (Super Admin) -->
                     @if(auth()->user()->isSuperAdmin())
-                        <!-- System Administration -->
-                        <div class="sidebar-heading">System Administration</div>
-                        <ul class="nav flex-column mb-3">
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}" href="{{ route('admin.dashboard') }}" 
-                                   data-bs-toggle="tooltip" data-bs-placement="right" title="Admin Overview">
-                                    <span class="nav-icon-wrap icon-admin"><i class="fas fa-gauge-high"></i></span>
-                                    <span class="nav-text">Admin Overview</span>
-                                    <i class="fas fa-chevron-right sidebar-chevron"></i>
+                        <div class="nav-group-section">
+                            @php
+                                $isAdminActive = request()->routeIs('admin.dashboard') || request()->routeIs('admin.users*') || request()->routeIs('admin.departments*') || request()->routeIs('admin.settings*') || request()->routeIs('telegram.*') || request()->routeIs('admin.audit*');
+                            @endphp
+                            <button class="nav-group-trigger" type="button" data-group="admin" aria-expanded="{{ $isAdminActive ? 'true' : 'false' }}">
+                                <span class="group-left">
+                                    <i class="fas fa-gear"></i>
+                                    <span class="nav-label">System Administration</span>
+                                </span>
+                                <i class="fas fa-chevron-right group-chevron"></i>
+                            </button>
+                            <div class="nav-group-items {{ $isAdminActive ? '' : 'd-none' }}" id="nav-group-admin">
+                                <a href="{{ route('admin.dashboard') }}" class="nav-sub-item {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}" title="Admin Overview">
+                                    <i class="fas fa-gauge-high"></i>
+                                    <span>Admin Overview</span>
                                 </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('admin.users*') ? 'active' : '' }}" href="{{ route('admin.users') }}" 
-                                   data-bs-toggle="tooltip" data-bs-placement="right" title="User Accounts">
-                                    <span class="nav-icon-wrap icon-admin"><i class="fas fa-users-gear"></i></span>
-                                    <span class="nav-text">User Accounts</span>
-                                    <i class="fas fa-chevron-right sidebar-chevron"></i>
+                                <a href="{{ route('admin.users') }}" class="nav-sub-item {{ request()->routeIs('admin.users*') ? 'active' : '' }}" title="User Accounts">
+                                    <i class="fas fa-users-gear"></i>
+                                    <span>User Accounts</span>
                                 </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('admin.departments*') ? 'active' : '' }}" href="{{ route('admin.departments') }}" 
-                                   data-bs-toggle="tooltip" data-bs-placement="right" title="Departments">
-                                    <span class="nav-icon-wrap icon-admin"><i class="fas fa-sitemap"></i></span>
-                                    <span class="nav-text">Departments</span>
-                                    <i class="fas fa-chevron-right sidebar-chevron"></i>
+                                <a href="{{ route('admin.departments') }}" class="nav-sub-item {{ request()->routeIs('admin.departments*') ? 'active' : '' }}" title="Departments">
+                                    <i class="fas fa-sitemap"></i>
+                                    <span>Departments</span>
                                 </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('admin.settings*') ? 'active' : '' }}" href="{{ route('admin.settings') }}" 
-                                   data-bs-toggle="tooltip" data-bs-placement="right" title="System Settings">
-                                    <span class="nav-icon-wrap icon-admin"><i class="fas fa-sliders"></i></span>
-                                    <span class="nav-text">System Settings</span>
-                                    <i class="fas fa-chevron-right sidebar-chevron"></i>
+                                <a href="{{ route('admin.settings') }}" class="nav-sub-item {{ request()->routeIs('admin.settings*') ? 'active' : '' }}" title="System Settings">
+                                    <i class="fas fa-sliders"></i>
+                                    <span>System Settings</span>
                                 </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('telegram.*') ? 'active' : '' }}" href="{{ route('telegram.status') }}" 
-                                   data-bs-toggle="tooltip" data-bs-placement="right" title="Telegram Bot &amp; Webhook">
-                                    <span class="nav-icon-wrap icon-admin"><i class="fab fa-telegram"></i></span>
-                                    <span class="nav-text">Telegram &amp; Bot</span>
-                                    <i class="fas fa-chevron-right sidebar-chevron"></i>
+                                <a href="{{ route('telegram.status') }}" class="nav-sub-item {{ request()->routeIs('telegram.*') ? 'active' : '' }}" title="Telegram Bot &amp; Webhook">
+                                    <i class="fab fa-telegram"></i>
+                                    <span>Telegram &amp; Bot</span>
                                 </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('admin.audit*') ? 'active' : '' }}" href="{{ route('admin.audit') }}" 
-                                   data-bs-toggle="tooltip" data-bs-placement="right" title="Audit Trail">
-                                    <span class="nav-icon-wrap icon-admin"><i class="fas fa-fingerprint"></i></span>
-                                    <span class="nav-text">Audit Trail</span>
-                                    <i class="fas fa-chevron-right sidebar-chevron"></i>
+                                <a href="{{ route('admin.audit') }}" class="nav-sub-item {{ request()->routeIs('admin.audit*') ? 'active' : '' }}" title="Audit Trail">
+                                    <i class="fas fa-fingerprint"></i>
+                                    <span>Audit Trail</span>
                                 </a>
-                            </li>
-                        </ul>
+                            </div>
+                        </div>
                     @endif
+
                 </div>
 
-                <!-- Integrated User Profile Card & Collapse Footer -->
-                <div class="sidebar-user-section">
-                    <div class="sidebar-user-card">
-                        <div class="sidebar-avatar-wrap">
-                            {{ strtoupper(substr(auth()->user()->full_name ?? auth()->user()->username ?? 'U', 0, 1)) }}
-                            <span class="sidebar-online-dot" title="Active"></span>
-                        </div>
-                        <div class="sidebar-user-info overflow-hidden">
-                            <div class="fw-bold small text-truncate text-white">{{ auth()->user()->full_name ?? auth()->user()->username }}</div>
-                            <div class="text-white-50" style="font-size: 0.7rem;">{{ auth()->user()->role->display_name ?? auth()->user()->role->name ?? 'User' }}</div>
-                        </div>
-                        <form method="POST" action="{{ route('logout') }}" class="ms-auto mb-0">
-                            @csrf
-                            <button type="submit" class="btn btn-sm p-1 border-0" title="Log Out" style="color: rgba(255,255,255,0.30); background: transparent; transition: color 0.15s ease;" onmouseover="this.style.color='#FB7185'" onmouseout="this.style.color='rgba(255,255,255,0.30)'">
-                                <i class="fas fa-arrow-right-from-bracket"></i>
-                            </button>
-                        </form>
+                <!-- Sidebar Footer User Profile (Matching CompanySystem NavUser) -->
+                <div class="sidebar-footer">
+                    <div class="dropdown dropup w-100">
+                        <button class="nav-user-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Account Menu">
+                            <div class="nav-user-avatar">
+                                {{ strtoupper(substr(auth()->user()->full_name ?? auth()->user()->username ?? 'U', 0, 2)) }}
+                            </div>
+                            <div class="nav-user-info">
+                                <span class="nav-user-name">{{ auth()->user()->full_name ?? auth()->user()->username }}</span>
+                                <span class="nav-user-role">{{ auth()->user()->role->display_name ?? auth()->user()->role->name ?? 'User' }}</span>
+                            </div>
+                            <i class="fas fa-ellipsis-vertical text-muted ms-auto" style="font-size: 0.8rem;"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-md border border-border w-100 mb-2 py-1" style="border-radius: var(--radius); min-width: 220px;">
+                            <li class="px-3 py-2 border-bottom border-border">
+                                <div class="small fw-semibold text-foreground text-truncate">{{ auth()->user()->full_name ?? auth()->user()->username }}</div>
+                                <div class="small text-muted text-truncate">{{ auth()->user()->email ?? auth()->user()->username }}</div>
+                                @if(auth()->user()->department)
+                                    <div class="badge bg-secondary text-secondary-foreground border mt-1" style="font-size: 0.68rem;">
+                                        {{ auth()->user()->department->department_name }}
+                                    </div>
+                                @endif
+                            </li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center gap-2 small py-2" href="{{ route('password.change') }}" data-bs-toggle="modal" data-bs-target="#quickChangePasswordModal">
+                                    <i class="fas fa-key text-muted" style="width: 14px;"></i>
+                                    <span>Change Password</span>
+                                </a>
+                            </li>
+                            @if(auth()->user()->isSuperAdmin())
+                                <li>
+                                    <a class="dropdown-item d-flex align-items-center gap-2 small py-2" href="{{ route('admin.settings') }}">
+                                        <i class="fas fa-sliders text-muted" style="width: 14px;"></i>
+                                        <span>System Settings</span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item d-flex align-items-center gap-2 small py-2" href="{{ route('admin.audit') }}">
+                                        <i class="fas fa-history text-muted" style="width: 14px;"></i>
+                                        <span>Audit Trail</span>
+                                    </a>
+                                </li>
+                            @endif
+                            <li><hr class="dropdown-divider my-1 border-border"></li>
+                            <li>
+                                <form method="POST" action="{{ route('logout') }}" class="m-0">
+                                    @csrf
+                                    <button type="submit" class="dropdown-item d-flex align-items-center gap-2 small py-2 text-danger">
+                                        <i class="fas fa-arrow-right-from-bracket" style="width: 14px;"></i>
+                                        <span>Log Out</span>
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
                     </div>
                 </div>
+
             </div>
         </aside>
 
-        <!-- Content Wrapper (Main Content Area + Footer) -->
-        <div class="content-wrapper" style="flex:1; display:flex; flex-direction:column; min-width:0;">
-            <!-- Main Content Area -->
-            <main class="main-content">
-                <!-- Flash Notifications -->
+        <!-- ══════════════════════════════════════════════════════════
+             RIGHT INSET CONTENT CONTAINER (MATCHING COMPANYSYSTEM)
+             ══════════════════════════════════════════════════════════ -->
+        <main class="sidebar-inset-container" id="sidebarInsetContainer">
+            
+            <!-- Inset Header (Sidebar Trigger + Breadcrumbs + Utilities) -->
+            <header class="app-sidebar-header">
+                <!-- Left: Sidebar Trigger & Breadcrumbs -->
+                <div class="d-flex align-items-center gap-3">
+                    <button class="sidebar-trigger-btn sidebar-toggle-btn" id="sidebarToggle" type="button" title="Toggle Sidebar (Alt+S)" aria-label="Toggle Sidebar">
+                        <i class="fas fa-bars-staggered"></i>
+                    </button>
+
+                    <!-- Dynamic Breadcrumbs Hierarchy matching CompanySystem -->
+                    @php
+                        $routeName = request()->route() ? request()->route()->getName() : '';
+                        $sectionTitle = 'Dashboard';
+                        $pageTitle = trim($__env->yieldContent('title'));
+
+                        if (str_starts_with($routeName, 'strategy.')) {
+                            $sectionTitle = 'Strategic Alignment';
+                        } elseif (str_starts_with($routeName, 'monthly.') || str_starts_with($routeName, 'weekly.plans')) {
+                            $sectionTitle = 'Operational Planning';
+                        } elseif (str_starts_with($routeName, 'weekly.performance') || str_starts_with($routeName, 'performance.')) {
+                            $sectionTitle = 'Execution & Performance';
+                        } elseif (str_starts_with($routeName, 'admin.reports')) {
+                            $sectionTitle = 'Governance & Reports';
+                        } elseif (str_starts_with($routeName, 'admin.') || str_starts_with($routeName, 'telegram.')) {
+                            $sectionTitle = 'System Administration';
+                        } elseif (str_starts_with($routeName, 'management.')) {
+                            $sectionTitle = 'Management';
+                        } elseif (str_starts_with($routeName, 'department.')) {
+                            $sectionTitle = 'Department Workspace';
+                        }
+                    @endphp
+
+                    <div class="breadcrumbs-container d-none d-sm-flex align-items-center">
+                        <a href="{{ route('dashboard') }}" class="breadcrumb-link">Home</a>
+                        <span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span>
+                        <span class="breadcrumb-link">{{ $sectionTitle }}</span>
+                        @if($pageTitle && $pageTitle !== 'Dashboard' && $pageTitle !== $sectionTitle)
+                            <span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span>
+                            <span class="breadcrumb-current">{{ Str::limit($pageTitle, 32) }}</span>
+                        @endif
+                    </div>
+                </div>
+
+                <!-- Right: Ethiopian Calendar, Time, Theme Toggle -->
+                <div class="d-flex align-items-center gap-2 gap-md-2.5 ms-auto">
+                    <span class="header-util-badge d-none d-md-inline-flex" title="Ethiopian Date">
+                        <i class="far fa-calendar-alt text-warning"></i>
+                        <span>{{ format_et_calendar() }}</span>
+                    </span>
+                    <span class="header-util-badge d-none d-lg-inline-flex" title="East Africa Time">
+                        <i class="far fa-clock text-warning"></i>
+                        <span>{{ format_ethiopian_time() }}</span>
+                    </span>
+
+                    <!-- Theme Toggle (Light / Dark Mode) -->
+                    <button id="themeToggle" class="theme-toggle-btn shadow-xs" type="button" title="Toggle Light / Dark Mode (Alt+D)" aria-label="Toggle Dark Mode">
+                        <i id="themeToggleIcon" class="fas fa-moon"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Main Content Viewport -->
+            <div class="app-content-body flex-grow-1">
+                <!-- Flash Alerts -->
                 @if(session('success'))
-                    <div class="alert alert-success alert-dismissible fade show shadow-sm mb-4" role="alert">
-                        <i class="fas fa-check-circle me-2"></i> {{ session('success') }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    <div class="alert alert-success alert-dismissible fade show shadow-xs mb-4 border-0 d-flex align-items-center gap-2" role="alert" style="background-color: rgba(16, 185, 129, 0.1); color: #047857; border-radius: 8px;">
+                        <i class="fas fa-circle-check flex-shrink-0"></i>
+                        <div class="flex-grow-1">{{ session('success') }}</div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="font-size: 0.75rem;"></button>
                     </div>
                 @endif
 
                 @if(session('error'))
-                    <div class="alert alert-danger alert-dismissible fade show shadow-sm mb-4" role="alert">
-                        <i class="fas fa-exclamation-circle me-2"></i> {{ session('error') }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    <div class="alert alert-danger alert-dismissible fade show shadow-xs mb-4 border-0 d-flex align-items-center gap-2" role="alert" style="background-color: rgba(239, 68, 68, 0.1); color: #DC2626; border-radius: 8px;">
+                        <i class="fas fa-circle-exclamation flex-shrink-0"></i>
+                        <div class="flex-grow-1">{{ session('error') }}</div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="font-size: 0.75rem;"></button>
                     </div>
                 @endif
 
                 @if(isset($errors) && $errors->any())
-                    <div class="alert alert-danger alert-dismissible fade show shadow-sm mb-4" role="alert">
-                        <i class="fas fa-exclamation-triangle me-2"></i> <strong>Please check the following errors:</strong>
-                        <ul class="mb-0 mt-1 small">
+                    <div class="alert alert-danger alert-dismissible fade show shadow-xs mb-4 border-0" role="alert" style="background-color: rgba(239, 68, 68, 0.1); color: #DC2626; border-radius: 8px;">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <i class="fas fa-triangle-exclamation flex-shrink-0"></i>
+                            <strong>Please check the following errors:</strong>
+                        </div>
+                        <ul class="mb-0 mt-1 small ps-4">
                             @foreach($errors->all() as $err)
                                 <li>{{ $err }}</li>
                             @endforeach
                         </ul>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="font-size: 0.75rem;"></button>
                     </div>
                 @endif
 
                 @yield('content')
-            </main>
+            </div>
 
-            <!-- Footer Banner -->
-            <footer class="kaldis-footer">
-                <div class="container-fluid px-4 d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
-                    <div>
-                        &copy; {{ date('Y') }} Kaldis Coffee PLC. All rights reserved.
-                    </div>
-                    <div>
-                        Developed by <strong>IT Department</strong>
-                    </div>
+            <!-- Inset App Footer -->
+            <footer class="app-footer">
+                <div>
+                    &copy; {{ date('Y') }} Kaldis Coffee PLC. All rights reserved.
+                </div>
+                <div>
+                    Developed by <strong>IT Department</strong>
                 </div>
             </footer>
+
+        </main>
+    </div>
+
+    <!-- Sonner-Style Toast Container -->
+    <div id="reactToastContainer" class="react-toast-container"></div>
+
+    <!-- Quick Change Password Modal -->
+    <div class="modal fade" id="quickChangePasswordModal" tabindex="-1" aria-labelledby="quickChangePasswordModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+            <div class="modal-content border border-border shadow-lg" style="border-radius: var(--radius); background-color: var(--card); color: var(--card-foreground);">
+                <div class="modal-header border-bottom border-border px-4 py-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="p-2 bg-secondary text-foreground rounded-circle d-flex align-items-center justify-content-center" style="width: 34px; height: 34px;">
+                            <i class="fas fa-key fs-6"></i>
+                        </div>
+                        <div>
+                            <h5 class="modal-title fw-semibold text-foreground fs-6 mb-0" id="quickChangePasswordModalLabel">Change Password</h5>
+                            <small class="text-muted">User: <strong>{{ auth()->user()->username ?? '' }}</strong></small>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST" action="{{ route('password.update') }}" id="modalChangePasswordForm">
+                    @csrf
+                    <div class="modal-body p-4">
+                        <div class="mb-3">
+                            <label for="modal_current_password" class="form-label fw-medium small">
+                                Current Password <span class="text-danger">*</span>
+                            </label>
+                            <div class="position-relative">
+                                <input type="password" id="modal_current_password" name="current_password" class="form-control pe-5" required placeholder="Enter current password" autocomplete="current-password">
+                                <button type="button" class="btn btn-link position-absolute top-50 end-0 translate-middle-y text-muted text-decoration-none pe-3 py-0 border-0 toggle-modal-pwd" data-target="modal_current_password" tabindex="-1">
+                                    <i class="far fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="modal_new_password" class="form-label fw-medium small">
+                                New Password <span class="text-danger">*</span>
+                            </label>
+                            <div class="position-relative">
+                                <input type="password" id="modal_new_password" name="new_password" class="form-control pe-5" minlength="6" required placeholder="Enter new password (min. 6 chars)" autocomplete="new-password">
+                                <button type="button" class="btn btn-link position-absolute top-50 end-0 translate-middle-y text-muted text-decoration-none pe-3 py-0 border-0 toggle-modal-pwd" data-target="modal_new_password" tabindex="-1">
+                                    <i class="far fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-text small" style="font-size: 0.75rem;">Minimum 6 characters; different from current.</div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label for="modal_new_password_confirmation" class="form-label fw-medium small">
+                                Confirm New Password <span class="text-danger">*</span>
+                            </label>
+                            <div class="position-relative">
+                                <input type="password" id="modal_new_password_confirmation" name="new_password_confirmation" class="form-control pe-5" required placeholder="Re-enter new password" autocomplete="new-password">
+                                <button type="button" class="btn btn-link position-absolute top-50 end-0 translate-middle-y text-muted text-decoration-none pe-3 py-0 border-0 toggle-modal-pwd" data-target="modal_new_password_confirmation" tabindex="-1">
+                                    <i class="far fa-eye"></i>
+                                </button>
+                            </div>
+                            <div id="modalPasswordMatchHint" class="form-text small d-none" style="font-size: 0.75rem;"></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top border-border px-4 py-3 d-flex justify-content-between align-items-center">
+                        <a href="{{ route('password.change') }}" class="small text-decoration-none text-muted">
+                            <i class="fas fa-arrow-up-right-from-square me-1"></i> Full page view
+                        </a>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary btn-sm px-3 fw-medium">
+                                <i class="fas fa-floppy-disk me-1"></i> Update Password
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
-    <!-- React-Style Toast Container -->
-    <div id="reactToastContainer" class="react-toast-container"></div>
-
-    <!-- jQuery 3.7.1 & DataTables Bootstrap 5 with Responsive Plugin -->
+    <!-- Scripts: jQuery, DataTables, Bootstrap, Chart.js, TomSelect -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
     <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
     <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
 
-    <!-- Bootstrap 5 Bundle & Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-    
-    <!-- TomSelect 2.4 JS -->
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
 
-    <!-- Kaldis Core JS with Cache Busting -->
-    <script src="{{ asset('assets/js/app.js') }}?v=2.2.0"></script>
+    <!-- Core App JS -->
+    <script src="{{ asset('assets/js/app.js') }}?v=3.0.0"></script>
 
-    <!-- Enhanced Luxury Toast Notification System -->
+    <!-- Enhanced Toast Notification System (Sonner Style) -->
     <script>
         window.Toast = {
-            show(type, title, message, duration = 5000) {
+            show(type, title, message, duration = 4500) {
                 const container = document.getElementById('reactToastContainer');
                 if (!container) return;
 
-                // Max 5 simultaneous toasts
                 const activeToasts = container.querySelectorAll('.react-toast:not(.toast-hiding)');
-                if (activeToasts.length >= 5) {
+                if (activeToasts.length >= 4) {
                     activeToasts[0].classList.add('toast-hiding');
-                    setTimeout(() => activeToasts[0]?.remove(), 260);
+                    setTimeout(() => activeToasts[0]?.remove(), 220);
                 }
 
                 const normalizedType = ['success', 'warning', 'error', 'danger', 'info'].includes(type) ? (type === 'danger' ? 'error' : type) : 'info';
-                
                 const iconMap = {
                     success: 'fa-circle-check',
                     warning: 'fa-triangle-exclamation',
                     error: 'fa-circle-xmark',
                     info: 'fa-circle-info'
                 };
-                const badgeClassMap = {
-                    success: 'bg-success-subtle text-success border border-success-subtle',
-                    warning: 'bg-warning-subtle text-warning-emphasis border border-warning-subtle',
-                    error: 'bg-danger-subtle text-danger border border-danger-subtle',
-                    info: 'bg-info-subtle text-info border border-info-subtle'
-                };
 
                 const toast = document.createElement('div');
-                toast.className = `react-toast toast-${normalizedType} shadow-lg`;
+                toast.className = `react-toast toast-${normalizedType}`;
                 toast.setAttribute('role', 'alert');
-                toast.setAttribute('aria-live', 'assertive');
 
                 toast.innerHTML = `
                     <div class="react-toast-icon-wrap">
                         <i class="fa-solid ${iconMap[normalizedType]}"></i>
                     </div>
                     <div class="flex-grow-1 min-w-0">
-                        <div class="d-flex align-items-center justify-content-between gap-2 mb-1">
-                            <div class="d-flex align-items-center gap-2">
-                                <span class="badge ${badgeClassMap[normalizedType]} text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 0.05em; padding: 2px 6px;">${normalizedType.toUpperCase()}</span>
-                                <strong class="react-toast-title small fw-bold mb-0" style="color: var(--bs-heading-color, #1e293b);">${title}</strong>
-                            </div>
-                            <small class="text-muted" style="font-size: 0.68rem;">Just now</small>
+                        <div class="d-flex align-items-center justify-content-between gap-2 mb-0.5">
+                            <strong class="small fw-semibold mb-0" style="color: var(--foreground); font-size: 0.825rem;">${title}</strong>
+                            <small class="text-muted" style="font-size: 0.65rem;">Now</small>
                         </div>
-                        <div class="react-toast-body small text-muted text-break" style="line-height: 1.45;">${message}</div>
+                        <div class="small text-muted text-break" style="line-height: 1.4; font-size: 0.775rem;">${message}</div>
                     </div>
-                    <button type="button" class="btn btn-sm btn-link text-muted p-0 border-0 ms-1" style="font-size: 0.95rem; opacity: 0.65;" title="Dismiss" onclick="this.closest('.react-toast').classList.add('toast-hiding'); setTimeout(() => this.closest('.react-toast')?.remove(), 260);">
+                    <button type="button" class="btn btn-sm btn-link text-muted p-0 border-0 ms-1" style="font-size: 0.85rem; opacity: 0.6;" title="Dismiss" onclick="this.closest('.react-toast').classList.add('toast-hiding'); setTimeout(() => this.closest('.react-toast')?.remove(), 220);">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                     <div class="react-toast-progress" style="animation-duration: ${duration}ms;"></div>
@@ -1284,51 +1481,24 @@
 
                 container.appendChild(toast);
 
-                // Pause timer on hover
-                let startTime = Date.now();
-                let remaining = duration;
-                let timeoutId = null;
-
-                const startTimer = () => {
-                    startTime = Date.now();
-                    timeoutId = setTimeout(() => {
-                        if (toast.parentElement) {
-                            toast.classList.add('toast-hiding');
-                            setTimeout(() => toast.remove(), 260);
-                        }
-                    }, remaining);
-                };
-
-                toast.addEventListener('mouseenter', () => {
-                    clearTimeout(timeoutId);
-                    remaining -= (Date.now() - startTime);
-                });
-
-                toast.addEventListener('mouseleave', () => {
-                    if (remaining > 0) {
-                        startTimer();
+                setTimeout(() => {
+                    if (toast.parentElement) {
+                        toast.classList.add('toast-hiding');
+                        setTimeout(() => toast.remove(), 220);
                     }
-                });
-
-                startTimer();
+                }, duration);
             },
             success(message, title = 'Success', duration = 4500) { this.show('success', title, message, duration); },
-            error(message, title = 'Error', duration = 6500) { this.show('error', title, message, duration); },
-            warning(message, title = 'Attention', duration = 5500) { this.show('warning', title, message, duration); },
-            info(message, title = 'Notice', duration = 4500) { this.show('info', title, message, duration); },
-            clear() {
-                const container = document.getElementById('reactToastContainer');
-                if (container) container.innerHTML = '';
-            }
+            error(message, title = 'Error', duration = 6000) { this.show('error', title, message, duration); },
+            warning(message, title = 'Attention', duration = 5000) { this.show('warning', title, message, duration); },
+            info(message, title = 'Notice', duration = 4500) { this.show('info', title, message, duration); }
         };
 
-        // Global helper alias
         window.showToast = function(type, message, title = '', duration = 4500) {
             const mappedTitle = title || (type.charAt(0).toUpperCase() + type.slice(1));
             window.Toast.show(type, mappedTitle, message, duration);
         };
 
-        // Automatically trigger toast for flash notifications
         document.addEventListener('DOMContentLoaded', () => {
             @if(session('success'))
                 window.Toast.success("{!! addslashes(session('success')) !!}");
@@ -1342,159 +1512,56 @@
             @if(session('info'))
                 window.Toast.info("{!! addslashes(session('info')) !!}");
             @endif
-            @if(session('status'))
-                window.Toast.info("{!! addslashes(session('status')) !!}");
-            @endif
-
-            @if(isset($errors) && $errors->any())
-                @php
-                    $errorMessages = $errors->all();
-                    $errorHtml = '<ul class="mb-0 ps-3 text-start">';
-                    foreach($errorMessages as $err) {
-                        $errorHtml .= '<li>' . e($err) . '</li>';
-                    }
-                    $errorHtml .= '</ul>';
-                @endphp
-                window.Toast.error('{!! addslashes($errorHtml) !!}', 'Validation Error', 8000);
-            @endif
         });
     </script>
-    
-    <!-- Modal Relocation & Global Searchable Selects (TomSelect) Delegator -->
-    <script>
-        function relocateModalsToBody() {
-            document.querySelectorAll('.modal').forEach(function(modal) {
-                if (modal.parentElement !== document.body) {
-                    document.body.appendChild(modal);
-                }
-            });
-        }
-        document.addEventListener('DOMContentLoaded', function() {
-            relocateModalsToBody();
-            if (typeof window.initSearchableSelects === 'function') {
-                window.initSearchableSelects();
-            }
-            document.addEventListener('show.bs.modal', function(e) {
-                if (e.target && e.target.parentElement !== document.body) {
-                    document.body.appendChild(e.target);
-                }
-            });
-            document.addEventListener('shown.bs.modal', function(e) {
-                if (typeof window.initSearchableSelects === 'function') {
-                    window.initSearchableSelects(e.target);
-                }
-            });
-        });
-    </script>
-    
-    <!-- Instant Live Search Helper -->
-    <script>
-        function setupLiveSearch(inputId, tableId) {
-            const input = document.getElementById(inputId);
-            const table = document.getElementById(tableId);
-            if (!input || !table) return;
 
-            input.addEventListener('keyup', function () {
-                const filter = input.value.toLowerCase();
-                const tbody = table.getElementsByTagName('tbody')[0];
-                if (!tbody) return;
-                const rows = tbody.getElementsByTagName('tr');
-
-                for (let i = 0; i < rows.length; i++) {
-                    const rowText = rows[i].textContent || rows[i].innerText;
-                    if (rowText.toLowerCase().indexOf(filter) > -1) {
-                        rows[i].style.display = '';
-                    } else {
-                        rows[i].style.display = 'none';
-                    }
-                }
-            });
-        }
-    </script>
-    <!-- Quick Change Password Modal -->
-    <div class="modal fade" id="quickChangePasswordModal" tabindex="-1" aria-labelledby="quickChangePasswordModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
-            <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
-                <div class="modal-header border-bottom-0 pb-0 pt-4 px-4">
-                    <div class="d-flex align-items-center gap-2.5">
-                        <div class="p-2 bg-warning-subtle text-warning rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                            <i class="fas fa-key fs-5"></i>
-                        </div>
-                        <div>
-                            <h5 class="modal-title fw-bold text-dark mb-0" id="quickChangePasswordModalLabel">Change Password</h5>
-                            <small class="text-muted">Logged in as <strong>{{ auth()->user()->username ?? '' }}</strong></small>
-                        </div>
-                    </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <form method="POST" action="{{ route('password.update') }}" id="modalChangePasswordForm">
-                    @csrf
-                    <div class="modal-body p-4">
-                        <div class="mb-3">
-                            <label for="modal_current_password" class="form-label fw-semibold text-dark small">
-                                Current Password <span class="text-danger">*</span>
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-lock"></i></span>
-                                <input type="password" id="modal_current_password" name="current_password" class="form-control border-start-0 border-end-0" required placeholder="Enter current password" autocomplete="current-password">
-                                <button type="button" class="btn btn-outline-secondary border-start-0 toggle-modal-pwd" data-target="modal_current_password" tabindex="-1">
-                                    <i class="far fa-eye"></i>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="modal_new_password" class="form-label fw-semibold text-dark small">
-                                New Password <span class="text-danger">*</span>
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-shield-alt"></i></span>
-                                <input type="password" id="modal_new_password" name="new_password" class="form-control border-start-0 border-end-0" minlength="6" required placeholder="Enter new password (min. 6 chars)" autocomplete="new-password">
-                                <button type="button" class="btn btn-outline-secondary border-start-0 toggle-modal-pwd" data-target="modal_new_password" tabindex="-1">
-                                    <i class="far fa-eye"></i>
-                                </button>
-                            </div>
-                            <div class="form-text small" style="font-size: 0.75rem;">Minimum 6 characters; different from current.</div>
-                        </div>
-
-                        <div class="mb-2">
-                            <label for="modal_new_password_confirmation" class="form-label fw-semibold text-dark small">
-                                Confirm New Password <span class="text-danger">*</span>
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-check-double"></i></span>
-                                <input type="password" id="modal_new_password_confirmation" name="new_password_confirmation" class="form-control border-start-0 border-end-0" required placeholder="Re-enter new password" autocomplete="new-password">
-                                <button type="button" class="btn btn-outline-secondary border-start-0 toggle-modal-pwd" data-target="modal_new_password_confirmation" tabindex="-1">
-                                    <i class="far fa-eye"></i>
-                                </button>
-                            </div>
-                            <div id="modalPasswordMatchHint" class="form-text small d-none" style="font-size: 0.75rem;"></div>
-                        </div>
-                    </div>
-                    <div class="modal-footer border-top-0 pt-0 pb-4 px-4 d-flex justify-content-between align-items-center">
-                        <a href="{{ route('password.change') }}" class="small text-decoration-none text-muted">
-                            <i class="fas fa-arrow-up-right-from-square me-1"></i> Full page view
-                        </a>
-                        <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-light border btn-sm px-3 rounded-pill" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-success btn-sm px-4 rounded-pill fw-semibold shadow-xs">
-                                <i class="fas fa-floppy-disk me-1"></i> Update Password
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
+    <!-- Sidebar Accordion Persistence & Interaction Controller -->
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            // Section Accordion Toggles
+            document.querySelectorAll('.nav-group-trigger').forEach(function(trigger) {
+                const groupKey = trigger.getAttribute('data-group');
+                const itemsContainer = document.getElementById('nav-group-' + groupKey);
+                if (!itemsContainer) return;
+
+                // Load state from localStorage if not explicitly active
+                const hasActiveItem = itemsContainer.querySelector('.nav-sub-item.active') !== null;
+                if (!hasActiveItem) {
+                    const savedState = localStorage.getItem('sidebar-group-' + groupKey);
+                    if (savedState === 'expanded') {
+                        itemsContainer.classList.remove('d-none');
+                        trigger.setAttribute('aria-expanded', 'true');
+                    } else if (savedState === 'collapsed') {
+                        itemsContainer.classList.add('d-none');
+                        trigger.setAttribute('aria-expanded', 'false');
+                    }
+                } else {
+                    itemsContainer.classList.remove('d-none');
+                    trigger.setAttribute('aria-expanded', 'true');
+                }
+
+                trigger.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const isExpanded = trigger.getAttribute('aria-expanded') === 'true';
+                    if (isExpanded) {
+                        itemsContainer.classList.add('d-none');
+                        trigger.setAttribute('aria-expanded', 'false');
+                        localStorage.setItem('sidebar-group-' + groupKey, 'collapsed');
+                    } else {
+                        itemsContainer.classList.remove('d-none');
+                        trigger.setAttribute('aria-expanded', 'true');
+                        localStorage.setItem('sidebar-group-' + groupKey, 'expanded');
+                    }
+                });
+            });
+
+            // Password visibility toggles in modal
             document.querySelectorAll('.toggle-modal-pwd').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     const targetId = this.getAttribute('data-target');
                     const input = document.getElementById(targetId);
                     const icon = this.querySelector('i');
-                    if (input) {
+                    if (input && icon) {
                         if (input.type === 'password') {
                             input.type = 'text';
                             icon.classList.remove('fa-eye');
@@ -1508,6 +1575,7 @@
                 });
             });
 
+            // Password match live verification in modal
             const mNew = document.getElementById('modal_new_password');
             const mConf = document.getElementById('modal_new_password_confirmation');
             const mHint = document.getElementById('modalPasswordMatchHint');
@@ -1519,9 +1587,9 @@
                     }
                     mHint.classList.remove('d-none');
                     if (mNew.value === mConf.value) {
-                        mHint.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i> Passwords match</span>';
+                        mHint.innerHTML = '<span class="text-success small"><i class="fas fa-check-circle me-1"></i> Passwords match</span>';
                     } else {
-                        mHint.innerHTML = '<span class="text-danger"><i class="fas fa-triangle-exclamation me-1"></i> Passwords do not match</span>';
+                        mHint.innerHTML = '<span class="text-danger small"><i class="fas fa-triangle-exclamation me-1"></i> Passwords do not match</span>';
                     }
                 }
                 mNew.addEventListener('input', checkModalMatch);
@@ -1529,6 +1597,7 @@
             }
         });
     </script>
+
     @yield('scripts')
 </body>
 </html>

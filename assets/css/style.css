@@ -1,99 +1,109 @@
 /**
  * Kaldis Coffee PLC — Strategic Planning & Performance Management System
- * ✦ PREMIUM DESIGN SYSTEM v3.0 ✦
- * Glassmorphism · Deep Sidebar · Gradient Accents · Micro-Animations
+ * ✦ MODERN SHADCN ENTERPRISE DESIGN SYSTEM ✦
+ * Clean Inset AppShell · Instrument Sans · Minimalist Zinc Surfaces · Selective Amber Accents
  */
 
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 /* ══════════════════════════════════════════════════════════
-   DESIGN TOKENS
+   DESIGN TOKENS (MATCHING COMPANYSYSTEM SHADCN / RADIX)
    ══════════════════════════════════════════════════════════ */
 :root {
-    /* Brand Gold Spectrum */
-    --gold-50:  #FFFBEB;
-    --gold-100: #FEF3C7;
-    --gold-200: #FDE68A;
-    --gold-300: #FCD34D;
-    --gold-400: #FBBF24;
-    --gold-500: #F59E0B;
-    --gold-600: #D97706;
-    --gold-700: #B45309;
-    --gold-800: #92400E;
-    --gold-900: #78350F;
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
+    /* CompanySystem OKLCH Tokens (with solid hex fallbacks) */
+    --background: #FFFFFF;
+    --foreground: #18181B;
+    --card: #FFFFFF;
+    --card-foreground: #18181B;
+    --popover: #FFFFFF;
+    --popover-foreground: #18181B;
+    --primary: #18181B;
+    --primary-foreground: #FAFAFA;
+    --secondary: #F4F4F5;
+    --secondary-foreground: #18181B;
+    --muted: #F4F4F5;
+    --muted-foreground: #71717A;
+    --accent: #F4F4F5;
+    --accent-foreground: #18181B;
+    --destructive: #EF4444;
+    --destructive-foreground: #FAFAFA;
+    --border: #E4E4E7;
+    --input: #E4E4E7;
+    --ring: #D4D4D8;
+    --radius: 0.625rem;
+
+    /* Sidebar Tokens */
+    --sidebar: #FAFAFA;
+    --sidebar-foreground: #18181B;
+    --sidebar-primary: #18181B;
+    --sidebar-primary-foreground: #FAFAFA;
+    --sidebar-accent: #F4F4F5;
+    --sidebar-accent-foreground: #18181B;
+    --sidebar-border: #E4E4E7;
+    --sidebar-ring: #D4D4D8;
+
+    /* Selective Warm Amber Accents (Kaldis Identity) */
     --kaldis-gold:       #D97706;
     --kaldis-gold-hover: #B45309;
     --kaldis-gold-light: #F59E0B;
-    --kaldis-gold-soft:  #FFFBEB;
-    --kaldis-gold-ring:  rgba(217, 119, 6, 0.20);
-    --kaldis-gold-glow:  rgba(251, 191, 36, 0.35);
+    --kaldis-gold-soft:  rgba(217, 119, 6, 0.08);
 
-    /* Gradient Presets */
-    --grad-gold:    linear-gradient(135deg, #FBBF24 0%, #D97706 50%, #B45309 100%);
-    --grad-emerald: linear-gradient(135deg, #34D399 0%, #059669 100%);
-    --grad-rose:    linear-gradient(135deg, #FB7185 0%, #E11D48 100%);
-    --grad-sky:     linear-gradient(135deg, #38BDF8 0%, #0284C7 100%);
-    --grad-violet:  linear-gradient(135deg, #A78BFA 0%, #7C3AED 100%);
+    /* Layout Dimensions */
+    --kaldis-sidebar-width:          16.5rem;
+    --kaldis-sidebar-collapsed-width: 3.25rem;
+    --kaldis-topbar-height:           3.75rem;
 
-    /* Light Theme Surfaces */
-    --kaldis-bg:           #F0F4F8;
+    /* Legacy Mappings to ensure 100% backward compatibility */
+    --kaldis-bg:           #F4F4F5;
     --kaldis-card-bg:      #FFFFFF;
-    --kaldis-sidebar-bg:   #347D28;
-    --kaldis-navbar-bg:    rgba(255, 255, 255, 0.88);
-    --kaldis-navbar-border: rgba(226, 232, 240, 0.8);
-    --kaldis-navbar-text:  #0F172A;
+    --kaldis-sidebar-bg:   var(--sidebar);
+    --kaldis-navbar-bg:    #FFFFFF;
+    --kaldis-navbar-border: #E4E4E7;
+    --kaldis-navbar-text:  #18181B;
     --kaldis-header-bg:    #FFFFFF;
-    --kaldis-header-text:  #0F172A;
-    --kaldis-border:       #E2E8F0;
-    --kaldis-border-subtle:#F1F5F9;
-    --kaldis-border-focus: #D97706;
+    --kaldis-header-text:  #18181B;
+    --kaldis-border:       #E4E4E7;
+    --kaldis-border-subtle:#F4F4F5;
+    --kaldis-border-focus: #18181B;
     --kaldis-filter-bg:    #FFFFFF;
     --kaldis-footer-bg:    #FFFFFF;
-    --kaldis-crema:        #FFFBEB;
 
     /* Typography */
-    --kaldis-text:          #0F172A;
-    --kaldis-text-secondary:#334155;
-    --kaldis-text-muted:    #64748B;
-    --kaldis-text-dim:      #94A3B8;
+    --kaldis-text:          #18181B;
+    --kaldis-text-secondary:#52525B;
+    --kaldis-text-muted:    #71717A;
+    --kaldis-text-dim:      #A1A1AA;
 
-    /* Sidebar Typography */
-    --sidebar-text:        rgba(255,255,255,0.72);
-    --sidebar-text-active: #FFFFFF;
-    --sidebar-heading:     rgba(255,255,255,0.28);
+    --sidebar-text:        #52525B;
+    --sidebar-text-active: #18181B;
+    --sidebar-heading:     #A1A1AA;
 
-    /* Status */
+    /* Status Tokens */
     --kaldis-done:         #10B981;
     --kaldis-done-bg:      #ECFDF5;
     --kaldis-done-border:  #A7F3D0;
     --kaldis-late:         #F59E0B;
     --kaldis-late-bg:      #FFFBEB;
     --kaldis-late-border:  #FDE68A;
-    --kaldis-notdone:      #F43F5E;
-    --kaldis-notdone-bg:   #FFF1F2;
-    --kaldis-notdone-border:#FECDD3;
+    --kaldis-notdone:      #EF4444;
+    --kaldis-notdone-bg:   #FEF2F2;
+    --kaldis-notdone-border:#FECACA;
     --kaldis-info:         #3B82F6;
     --kaldis-info-bg:      #EFF6FF;
     --kaldis-info-border:  #BFDBFE;
 
-    /* Layout */
-    --kaldis-sidebar-width:          272px;
-    --kaldis-sidebar-collapsed-width: 72px;
-    --kaldis-topbar-height:           64px;
+    /* Shadows (Crisp & Subtle) */
+    --kaldis-shadow-xs:   0 1px 2px rgba(0, 0, 0, 0.05);
+    --kaldis-shadow-sm:   0 1px 3px rgba(0, 0, 0, 0.05);
+    --kaldis-shadow:      0 1px 3px 0 rgba(0, 0, 0, 0.05);
+    --kaldis-shadow-md:   0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    --kaldis-shadow-lg:   0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+    --kaldis-card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+    --kaldis-card-shadow-hover: 0 4px 12px 0 rgba(0, 0, 0, 0.07);
 
-    /* Shadows */
-    --kaldis-shadow-xs:   0 1px 2px rgba(15,23,42,0.06);
-    --kaldis-shadow-sm:   0 1px 3px rgba(15,23,42,0.08), 0 1px 2px rgba(15,23,42,0.06);
-    --kaldis-shadow:      0 4px 12px rgba(15,23,42,0.08), 0 2px 4px rgba(15,23,42,0.05);
-    --kaldis-shadow-md:   0 8px 24px rgba(15,23,42,0.10), 0 4px 8px rgba(15,23,42,0.06);
-    --kaldis-shadow-lg:   0 16px 40px rgba(15,23,42,0.12), 0 8px 16px rgba(15,23,42,0.08);
-    --kaldis-shadow-gold: 0 4px 20px rgba(217,119,6,0.30), 0 2px 8px rgba(217,119,6,0.20);
-    --kaldis-card-shadow: 0 1px 4px rgba(15,23,42,0.05), 0 4px 16px rgba(15,23,42,0.06);
-    --kaldis-card-shadow-hover: 0 4px 16px rgba(15,23,42,0.10), 0 12px 32px rgba(15,23,42,0.08);
-    --kaldis-popover-shadow: 0 20px 40px -5px rgba(15,23,42,0.14), 0 8px 12px -6px rgba(15,23,42,0.08);
-
-    /* Shorthand Color Variables (used across views) */
+    /* Shorthand Color Variables */
     --k-text:           var(--kaldis-text);
     --k-text-secondary: var(--kaldis-text-secondary);
     --k-text-muted:     var(--kaldis-text-muted);
@@ -101,46 +111,71 @@
     --k-card:           var(--kaldis-card-bg);
     --k-border:         var(--kaldis-border);
     --k-border-subtle:  var(--kaldis-border-subtle);
-    --k-gold:           #D97706;
-    --k-gold-light:     #F59E0B;
-    --k-gold-soft:      #FFFBEB;
+    --k-gold:           var(--kaldis-gold);
+    --k-gold-light:     var(--kaldis-gold-light);
+    --k-gold-soft:      var(--kaldis-gold-soft);
     --k-blue:           #2563EB;
     --k-blue-soft:      #EFF6FF;
     --k-purple:         #7C3AED;
     --k-purple-soft:    #F5F3FF;
     --k-done:           #10B981;
     --k-done-soft:      #ECFDF5;
-    --k-notdone:        #F43F5E;
-    --k-notdone-soft:   #FFF1F2;
+    --k-notdone:        #EF4444;
+    --k-notdone-soft:   #FEF2F2;
     --k-late:           #F59E0B;
     --k-late-soft:      #FFFBEB;
 }
 
-/* Dark Mode */
-[data-bs-theme="dark"] {
-    --kaldis-bg:            #080C14;
-    --kaldis-card-bg:       #111827;
-    --kaldis-sidebar-bg:    #347D28;
-    --kaldis-navbar-bg:     rgba(8, 12, 20, 0.92);
-    --kaldis-navbar-border: rgba(30, 41, 59, 0.8);
-    --kaldis-navbar-text:   #F8FAFC;
-    --kaldis-header-bg:     #1E293B;
-    --kaldis-header-text:   #F8FAFC;
-    --kaldis-border:        #1E293B;
-    --kaldis-border-subtle: #172033;
-    --kaldis-text:          #F1F5F9;
-    --kaldis-text-secondary:#CBD5E1;
-    --kaldis-text-muted:    #94A3B8;
-    --kaldis-text-dim:      #475569;
-    --kaldis-table-header:  #1E293B;
-    --kaldis-filter-bg:     #111827;
-    --kaldis-footer-bg:     #060A12;
-    --kaldis-crema:         rgba(217, 119, 6, 0.12);
-    --kaldis-gold-soft:     rgba(217, 119, 6, 0.12);
-    --kaldis-card-shadow:   0 2px 8px rgba(0,0,0,0.4), 0 4px 20px rgba(0,0,0,0.3);
-    --kaldis-card-shadow-hover: 0 8px 32px rgba(0,0,0,0.5), 0 16px 48px rgba(0,0,0,0.4);
+/* Dark Mode (Matching CompanySystem Dark Palette) */
+[data-bs-theme="dark"], .dark {
+    --background: #18181B;
+    --foreground: #FAFAFA;
+    --card: #18181B;
+    --card-foreground: #FAFAFA;
+    --popover: #18181B;
+    --popover-foreground: #FAFAFA;
+    --primary: #FAFAFA;
+    --primary-foreground: #18181B;
+    --secondary: #27272A;
+    --secondary-foreground: #FAFAFA;
+    --muted: #27272A;
+    --muted-foreground: #A1A1AA;
+    --accent: #27272A;
+    --accent-foreground: #FAFAFA;
+    --destructive: #7F1D1D;
+    --destructive-foreground: #FAFAFA;
+    --border: #27272A;
+    --input: #27272A;
+    --ring: #52525B;
 
-    /* Dark Mode Shorthand Tokens */
+    --sidebar: #18181B;
+    --sidebar-foreground: #FAFAFA;
+    --sidebar-primary: #FAFAFA;
+    --sidebar-primary-foreground: #18181B;
+    --sidebar-accent: #27272A;
+    --sidebar-accent-foreground: #FAFAFA;
+    --sidebar-border: #27272A;
+    --sidebar-ring: #52525B;
+
+    --kaldis-bg:            #09090B;
+    --kaldis-card-bg:       #18181B;
+    --kaldis-sidebar-bg:    var(--sidebar);
+    --kaldis-navbar-bg:     #18181B;
+    --kaldis-navbar-border: #27272A;
+    --kaldis-navbar-text:   #FAFAFA;
+    --kaldis-header-bg:     #18181B;
+    --kaldis-header-text:   #FAFAFA;
+    --kaldis-border:        #27272A;
+    --kaldis-border-subtle: #27272A;
+    --kaldis-text:          #FAFAFA;
+    --kaldis-text-secondary:#D4D4D8;
+    --kaldis-text-muted:    #A1A1AA;
+    --kaldis-text-dim:      #71717A;
+    --kaldis-table-header:  #27272A;
+    --kaldis-filter-bg:     #18181B;
+    --kaldis-footer-bg:     #18181B;
+    --kaldis-gold-soft:     rgba(217, 119, 6, 0.15);
+
     --k-text:           var(--kaldis-text);
     --k-text-secondary: var(--kaldis-text-secondary);
     --k-text-muted:     var(--kaldis-text-muted);
@@ -148,18 +183,6 @@
     --k-card:           var(--kaldis-card-bg);
     --k-border:         var(--kaldis-border);
     --k-border-subtle:  var(--kaldis-border-subtle);
-    --k-gold:           #F59E0B;
-    --k-gold-soft:      rgba(245, 158, 11, 0.15);
-    --k-blue:           #3B82F6;
-    --k-blue-soft:      rgba(59, 130, 246, 0.15);
-    --k-purple:         #A78BFA;
-    --k-purple-soft:    rgba(167, 139, 250, 0.15);
-    --k-done:           #34D399;
-    --k-done-soft:      rgba(52, 211, 153, 0.15);
-    --k-notdone:        #FB7185;
-    --k-notdone-soft:   rgba(251, 113, 133, 0.15);
-    --k-late:           #FBBF24;
-    --k-late-soft:      rgba(251, 191, 36, 0.15);
 }
 
 /* Dark Mode Surface & Text Overrides */
@@ -186,28 +209,51 @@
 html { scroll-behavior: smooth; }
 
 body {
-    background-color: var(--kaldis-bg);
-    background-image:
-        radial-gradient(ellipse 80% 50% at 20% -10%, rgba(251,191,36,0.06) 0%, transparent 60%),
-        radial-gradient(ellipse 60% 40% at 80% 110%, rgba(217,119,6,0.04) 0%, transparent 60%);
-    background-attachment: fixed;
-    color: var(--kaldis-text);
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background-color: var(--sidebar);
+    color: var(--foreground);
+    font-family: var(--font-sans);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     transition: background-color 0.2s ease, color 0.2s ease;
-    line-height: 1.6;
+    line-height: 1.5;
 }
 
 h1, h2, h3, h4, h5, h6, .brand-title, .card-title {
-    font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
-    letter-spacing: -0.025em;
-    font-weight: 700;
-    color: var(--kaldis-text);
+    font-family: var(--font-sans);
+    letter-spacing: -0.02em;
+    font-weight: 600;
+    color: var(--foreground);
     line-height: 1.25;
+}
+
+/* Sleek cross-browser custom scrollbar matching CompanySystem */
+.custom-scrollbar,
+body,
+.sidebar-content,
+.sidebar-nav-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(180, 83, 9, 0.35) transparent;
+}
+
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: rgba(180, 83, 9, 0.25);
+    border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(180, 83, 9, 0.5);
 }
 
 /* ══════════════════════════════════════════════════════════
