@@ -317,9 +317,14 @@ class MonthlyPlanController extends Controller
             'definition_of_done' => 'required|string',
             'monthly_target' => 'required|string',
             'target_percentage' => 'nullable|numeric|min:0|max:100',
-            'priority' => 'required|in:HIGH,MEDIUM,LOW',
+            'priority' => 'nullable|in:HIGH,MEDIUM,LOW',
             'responsible_person' => 'nullable|string|max:100',
         ]);
+
+        $validated['priority'] = $validated['priority'] ?? 'MEDIUM';
+        $validated['target_percentage'] = $validated['target_percentage'] ?? 100.00;
+        $validated['responsible_person'] = $validated['responsible_person'] ?? ($user->full_name ?: ($user->username ?: 'Department'));
+        $validated['approval_status'] = 'PENDING';
 
         if ($validated['plan_type'] === 'STRATEGY') {
             if (empty($validated['annual_goal_id'])) {
@@ -388,5 +393,66 @@ class MonthlyPlanController extends Controller
         AuditLog::log('DELETE_MONTHLY_PLAN', 'monthly_plans', "Deleted monthly plan: {$title}", $id);
 
         return back()->with('success', 'Monthly plan and associated weekly tasks removed successfully.');
+    }
+
+    public function approve($id)
+    {
+        $user = Auth::user();
+        if (!$user->isGM() && !$user->isSuperAdmin()) {
+            abort(403, 'Only the General Manager can approve plans.');
+        }
+
+        $plan = MonthlyPlan::findOrFail($id);
+        $plan->update([
+            'approval_status' => 'APPROVED',
+            'decline_reason' => null,
+            'approved_by' => $user->id,
+            'approved_at' => now(),
+        ]);
+
+        AuditLog::log('APPROVE_MONTHLY_PLAN', 'monthly_plans', "GM approved monthly plan #{$plan->id}: {$plan->title}", $plan->id);
+
+        if (request()->wantsJson() || request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Monthly plan approved.',
+                'approval_status' => 'APPROVED',
+            ]);
+        }
+
+        return back()->with('success', "Monthly plan \"{$plan->title}\" approved.");
+    }
+
+    public function decline(Request $request, $id)
+    {
+        $user = Auth::user();
+        if (!$user->isGM() && !$user->isSuperAdmin()) {
+            abort(403, 'Only the General Manager can decline plans.');
+        }
+
+        $validated = $request->validate([
+            'decline_reason' => 'required|string|max:1000',
+        ]);
+
+        $plan = MonthlyPlan::findOrFail($id);
+        $plan->update([
+            'approval_status' => 'DECLINED',
+            'decline_reason' => $validated['decline_reason'],
+            'approved_by' => $user->id,
+            'approved_at' => now(),
+        ]);
+
+        AuditLog::log('DECLINE_MONTHLY_PLAN', 'monthly_plans', "GM declined monthly plan #{$plan->id}: {$validated['decline_reason']}", $plan->id);
+
+        if (request()->wantsJson() || request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Monthly plan declined.',
+                'approval_status' => 'DECLINED',
+                'decline_reason' => $validated['decline_reason'],
+            ]);
+        }
+
+        return back()->with('success', "Monthly plan \"{$plan->title}\" declined.");
     }
 }

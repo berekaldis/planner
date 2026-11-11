@@ -16,6 +16,7 @@ class StrategyController extends Controller
     {
         $user = Auth::user();
         $selectedYear = $request->query('year', kaldis_setting('current_planning_year', config('kaldis.current_planning_year')));
+        $selectedMonth = $request->query('month', kaldis_setting('current_planning_month', config('kaldis.current_planning_month')));
         $perspective = $request->query('perspective');
         $departmentId = $request->query('department_id');
 
@@ -47,6 +48,14 @@ class StrategyController extends Controller
 
         $goals = $query->orderBy('goal_code')->get();
 
+        // Fetch active goal IDs according to GM activation for the selected year and month
+        $activeGoalIds = MonthlyStrategyActivation::where('year', $selectedYear)
+            ->where('month', $selectedMonth)
+            ->where('active', 'YES')
+            ->pluck('annual_goal_id')
+            ->unique()
+            ->toArray();
+
         $perspectives = $hasPerspectiveCol
             ? AnnualGoal::where('year', $selectedYear)
                 ->distinct()
@@ -54,7 +63,7 @@ class StrategyController extends Controller
                 ->filter()
             : collect([]);
 
-        return view('strategy.annual', compact('goals', 'departments', 'perspectives', 'selectedYear', 'perspective', 'departmentId'));
+        return view('strategy.annual', compact('goals', 'departments', 'perspectives', 'selectedYear', 'selectedMonth', 'activeGoalIds', 'perspective', 'departmentId'));
     }
 
     public function monthlyActivation(Request $request)
@@ -331,5 +340,103 @@ class StrategyController extends Controller
             'total_count' => $totalCount,
             'message' => "Successfully set {$count} strategic plan(s) to {$actionTitle}."
         ]);
+    }
+
+    public function storeGoal(Request $request)
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'goal_code' => 'nullable|string|max:20',
+            'definition_of_done' => 'required|string',
+            'annual_target' => 'nullable|string|max:255',
+            'responsible_department_id' => 'required|exists:departments,id',
+            'co_owner_department_ids' => 'nullable|array',
+            'co_owner_department_ids.*' => 'exists:departments,id',
+            'priority' => 'nullable|in:HIGH,MEDIUM,LOW',
+            'perspective' => 'nullable|in:Financial,Customer,Internal Process,Learning & Growth',
+            'year' => 'nullable|string|max:50',
+            'activate_for_month' => 'nullable|string|max:50',
+        ]);
+
+        $year = !empty($validated['year']) ? $validated['year'] : kaldis_setting('current_planning_year', config('kaldis.current_planning_year', '2019 E.C.'));
+        $target = !empty($validated['annual_target']) ? $validated['annual_target'] : $validated['definition_of_done'];
+
+        // Auto-generate goal_code if empty
+        $goalCode = trim($validated['goal_code'] ?? '');
+        if (empty($goalCode)) {
+            $lastGoal = AnnualGoal::where('year', $year)
+                ->where('goal_code', 'LIKE', 'G%')
+                ->orderByRaw('CAST(SUBSTRING(goal_code, 2) AS UNSIGNED) DESC')
+                ->first();
+            $nextNum = 1;
+            if ($lastGoal && preg_match('/^G(\d+)$/', $lastGoal->goal_code, $matches)) {
+                $nextNum = ((int)$matches[1]) + 1;
+            } else {
+                $nextNum = AnnualGoal::where('year', $year)->count() + 1;
+            }
+            $goalCode = sprintf('G%02d', $nextNum);
+        }
+
+        $goal = AnnualGoal::create([
+            'goal_code' => $goalCode,
+            'title' => $validated['title'],
+            'definition_of_done' => $validated['definition_of_done'],
+            'responsible_department_id' => $validated['responsible_department_id'],
+            'annual_target' => $target,
+            'priority' => $validated['priority'] ?? 'HIGH',
+            'notes' => null,
+            'status' => 'ACTIVE',
+            'year' => $year,
+            'perspective' => $validated['perspective'] ?? 'Internal Process',
+            'created_by' => Auth::id(),
+        ]);
+
+        // Attach departments
+        $deptIds = [(int)$validated['responsible_department_id']];
+        if (!empty($validated['co_owner_department_ids'])) {
+            $deptIds = array_unique(array_merge($deptIds, array_map('intval', $validated['co_owner_department_ids'])));
+        }
+        $syncData = [];
+        foreach ($deptIds as $dId) {
+            $syncData[$dId] = ['is_primary' => ($dId == $validated['responsible_department_id']) ? 1 : 0];
+        }
+        $goal->departments()->sync($syncData);
+
+        // Optionally activate immediately for the month
+        if (!empty($validated['activate_for_month'])) {
+            $month = $validated['activate_for_month'];
+            $now = now();
+            $records = [];
+            foreach ($deptIds as $dId) {
+                $records[] = [
+                    'annual_goal_id' => $goal->id,
+                    'department_id' => $dId,
+                    'year' => $year,
+                    'month' => $month,
+                    'active' => 'YES',
+                    'activated_by' => Auth::id(),
+                    'activated_at' => $now,
+                    'updated_by' => Auth::id(),
+                    'updated_at' => $now,
+                ];
+            }
+            MonthlyStrategyActivation::upsert(
+                $records,
+                ['annual_goal_id', 'department_id', 'year', 'month'],
+                ['active', 'activated_by', 'activated_at', 'updated_by', 'updated_at']
+            );
+        }
+
+        AuditLog::log('CREATE_ANNUAL_GOAL', 'strategy', "Created strategic plan {$goal->goal_code}: {$goal->title}", $goal->id);
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Strategic plan {$goal->goal_code} created successfully.",
+                'goal' => $goal,
+            ]);
+        }
+
+        return back()->with('success', "Strategic plan {$goal->goal_code} created successfully.");
     }
 }

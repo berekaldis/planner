@@ -96,7 +96,7 @@ class User extends Authenticatable
 
     public function isHROfficer(): bool
     {
-        return $this->role && in_array(strtolower($this->role->name), ['hr', 'hr_officer']);
+        return false;
     }
 
     public function isViewer(): bool
@@ -106,6 +106,6 @@ class User extends Authenticatable
 
     public function canAccessAllDepartments(): bool
     {
-        return $this->isSuperAdmin() || $this->isGM() || $this->isHROfficer();
+        return $this->isSuperAdmin() || $this->isGM();
     }
 }

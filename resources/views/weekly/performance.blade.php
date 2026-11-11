@@ -13,9 +13,6 @@
         <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" class="btn btn-outline-dark btn-sm" target="_blank" title="Open Official Voucher in new tab">
             <i class="fas fa-file-invoice me-1"></i> View Official Voucher
         </a>
-        <button type="button" class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#weeklyPerfDelayReasonModal" title="Submit delay reason to GM if late or requesting extension">
-            <i class="fas fa-clock me-1"></i> Delay Reason
-        </button>
         <a href="{{ route('weekly.plans', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" class="btn btn-outline-secondary btn-sm">
             <i class="fas fa-tasks me-1"></i> Edit Planned Tasks
         </a>
@@ -188,7 +185,7 @@
                     <th style="width: 100px;">Type</th>
                     <th>Task & Target</th>
                     <th style="width: 130px;" class="text-center">Status</th>
-                    <th>Evaluation Details / Reason Category</th>
+                    <th>Evaluation Details & Corrective Plan</th>
                     <th style="width: 160px;" class="text-end">Evaluate</th>
                 </tr>
             </thead>
@@ -220,9 +217,6 @@
                                 <span class="small text-success"><i class="fas fa-check-circle me-1"></i> Output Achieved</span>
                             @elseif($task->result && $task->result->isNotDone())
                                 <div class="small">
-                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle mb-1">
-                                        {{ $task->result->reasonCategory->category_name ?? 'Reason Not Specified' }}
-                                    </span>
                                     <div class="text-secondary"><strong>Why:</strong> {{ $task->result->not_done_explanation }}</div>
                                     <div class="text-primary mt-0.5"><strong>Next Action:</strong> {{ $task->result->next_action }}</div>
                                 </div>
@@ -522,16 +516,6 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label small fw-bold text-secondary">Mandatory Reason Category <span class="text-danger">*</span></label>
-                        <select name="reason_category_id" class="form-select" required>
-                            <option value="">-- Select Root Cause Category --</option>
-                            @foreach($reasonCategories as $rc)
-                                <option value="{{ $rc->id }}">{{ $rc->category_name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
                         <label class="form-label small fw-bold text-secondary">Detailed Explanation <span class="text-danger">*</span></label>
                         <textarea name="reason_explanation" class="form-control" rows="2" placeholder="Specific explanation of why the target was not reached..." required></textarea>
                     </div>
@@ -631,11 +615,6 @@
             if (next) next.value = '';
             const dl = form.querySelector('input[name="next_action_deadline"]');
             if (dl) dl.value = '';
-            const select = form.querySelector('select[name="reason_category_id"]');
-            if (select) {
-                select.value = '';
-                if (select.tomselect) select.tomselect.clear();
-            }
         }
     }
 </script>

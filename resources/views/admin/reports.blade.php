@@ -18,8 +18,8 @@
 
     <!-- Filter Form & Actions -->
     <div class="d-flex flex-wrap align-items-center gap-2">
-        <form method="GET" action="{{ route('admin.reports') }}" id="reportsFilterForm" class="d-flex gap-2">
-            <select name="quarter" class="form-select form-select-sm" onchange="this.form.submit()">
+        <form method="GET" action="{{ route('admin.reports') }}" id="reportsFilterForm" class="d-flex flex-wrap gap-2">
+            <select name="quarter" class="form-select form-select-sm" style="min-width: 230px;" onchange="this.form.submit()">
                 @foreach($quarters as $qCode => $qInfo)
                     <option value="{{ $qCode }}" {{ $selectedQuarter === $qCode ? 'selected' : '' }}>
                         {{ $qCode }} ({{ $qInfo['months'][0] }} - {{ $qInfo['months'][2] }})
@@ -27,23 +27,18 @@
                 @endforeach
             </select>
 
-            <select name="month" class="form-select form-select-sm" onchange="this.form.submit()">
+            <select name="month" class="form-select form-select-sm" style="min-width: 130px;" onchange="this.form.submit()">
                 @foreach(get_ethiopian_months() as $m)
                     <option value="{{ $m }}" {{ $selectedMonth === $m ? 'selected' : '' }}>{{ $m }}</option>
                 @endforeach
             </select>
 
-            <select name="year" class="form-select form-select-sm" onchange="this.form.submit()">
+            <select name="year" class="form-select form-select-sm" style="min-width: 120px;" onchange="this.form.submit()">
                 @foreach(get_planning_years() as $yr)
                     <option value="{{ $yr }}" {{ $selectedYear === $yr ? 'selected' : '' }}>{{ $yr }}</option>
                 @endforeach
             </select>
         </form>
-
-        <a href="{{ route('admin.reports.export', ['year' => $selectedYear, 'month' => $selectedMonth, 'quarter' => $selectedQuarter]) }}" 
-           class="btn btn-sm btn-success fw-bold px-3 shadow-sm">
-            <i class="fas fa-file-excel me-1"></i> Export to Excel
-        </a>
     </div>
 </div>
 
@@ -159,7 +154,7 @@
                                         </span>
                                     @else
                                         <span class="badge {{ $mSub->status === 'ON_TIME' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-warning-subtle text-warning border border-warning-subtle' }}">
-                                            {{ $mSub->status === 'ON_TIME' ? '✓ On-Time' : '⚠ Late' }}
+                                            {{ $mSub->status === 'ON_TIME' ? 'On-Time' : 'Late' }}
                                         </span>
                                     @endif
                                     <span class="badge bg-light text-dark border">{{ $row['monthly_plans_total'] }} Plans</span>

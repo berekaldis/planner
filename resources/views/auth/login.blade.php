@@ -1,59 +1,89 @@
 @extends('layouts.guest')
 
-@section('title', 'Sign In')
+@section('title', 'Log in to your account')
 
 @section('content')
-<div class="login-card">
-    <div class="text-center mb-4">
-        <img src="{{ asset('assets/images/logo.png') }}" alt="Kaldis Coffee" class="login-logo" onerror="this.src='{{ asset('images/logo.png') }}'">
-        <h3 class="brand-title mb-1">Kaldis Coffee PLC</h3>
-        <p class="text-muted small mb-0 fw-semibold">
-            Strategic Planning &bull; Execution &bull; Performance
-        </p>
+<div class="auth-container">
+    <!-- Centered Circular Logo Badge matching CompanySystem -->
+    <div class="auth-logo-badge">
+        <img src="{{ asset('assets/images/logo.png') }}" alt="Kaldis Coffee" class="auth-logo-img" onerror="this.src='{{ asset('images/logo.png') }}'">
     </div>
 
-    @if($errors->any())
-        <div class="alert alert-danger py-2 px-3 small mb-3 rounded-3 d-flex align-items-center gap-2">
-            <i class="fas fa-exclamation-circle text-danger flex-shrink-0"></i>
-            <span>{{ $errors->first() }}</span>
-        </div>
-    @endif
-
-    <form method="POST" action="{{ route('login.post') }}">
-        @csrf
-        <div class="mb-3">
-            <label class="form-label">Username or Email</label>
-            <div class="input-group">
-                <span class="input-group-text"><i class="fas fa-user text-muted"></i></span>
-                <input type="text" name="username" id="usernameInput" class="form-control" placeholder="Enter username or email (e.g. Berhanu@kaldisbunna.et or admin)" value="{{ old('username') }}" required autofocus>
-            </div>
+    <!-- Auth Card matching CompanySystem's AuthCardLayout -->
+    <div class="auth-card">
+        <div class="auth-card-header">
+            <h1 class="auth-card-title">Log in to your account</h1>
+            <p class="auth-card-description">Enter your corporate email address to log in</p>
         </div>
 
-        <div class="mb-3">
-            <label class="form-label">Password</label>
-            <div class="input-group">
-                <span class="input-group-text"><i class="fas fa-lock text-muted"></i></span>
-                <input type="password" name="password" id="passwordInput" class="form-control" placeholder="Enter password" required>
-            </div>
+        <div class="auth-card-body">
+            @if($errors->any())
+                <div class="alert alert-danger py-2 px-3 small mb-3 rounded-md d-flex align-items-center gap-2 border-0" style="background-color: rgba(239, 68, 68, 0.1); color: #DC2626; border-radius: 8px;">
+                    <i class="fas fa-circle-exclamation flex-shrink-0"></i>
+                    <span>{{ $errors->first() }}</span>
+                </div>
+            @endif
+
+            <form method="POST" action="{{ route('login.post') }}">
+                @csrf
+                
+                <div class="mb-3">
+                    <label for="emailInput" class="form-label">Email Address</label>
+                    <input type="email" name="email" id="emailInput" class="form-control" placeholder="name@kaldisbunna.et" value="{{ old('email') }}" required autofocus autocomplete="email">
+                </div>
+
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label for="passwordInput" class="form-label mb-0">Password</label>
+                    </div>
+                    <div class="position-relative">
+                        <input type="password" name="password" id="passwordInput" class="form-control pe-5" placeholder="••••••••" required autocomplete="current-password">
+                        <button type="button" id="togglePasswordBtn" class="btn btn-link position-absolute top-50 end-0 translate-middle-y text-muted text-decoration-none pe-3 py-0 border-0" tabindex="-1" style="font-size: 0.875rem;">
+                            <i class="far fa-eye" id="togglePasswordIcon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="form-check">
+                        <input type="checkbox" name="remember" class="form-check-input" id="rememberMe">
+                        <label class="form-check-label small text-muted" for="rememberMe" style="cursor: pointer;">Remember me</label>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-auth-submit w-100">
+                    Log in
+                </button>
+            </form>
         </div>
+    </div>
 
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div class="form-check">
-                <input type="checkbox" name="remember" class="form-check-input" id="rememberMe">
-                <label class="form-check-label small text-muted" for="rememberMe">Remember me</label>
-            </div>
-        </div>
-
-        <button type="submit" class="btn btn-kaldis-login w-100">
-            Sign In to Portal <i class="fas fa-arrow-right ms-1"></i>
-        </button>
-    </form>
-
-    <div class="text-center mt-3 pt-2">
-        <small class="text-muted" style="font-size: 0.72rem;">&copy; {{ date('Y') }} Kaldis Coffee PLC &bull; IT Department</small>
+    <div class="auth-footer">
+        &copy; {{ date('Y') }} Kaldis Coffee PLC. All rights reserved. &bull; IT Department
     </div>
 </div>
 @endsection
 
 @section('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const toggleBtn = document.getElementById('togglePasswordBtn');
+        const passwordInput = document.getElementById('passwordInput');
+        const toggleIcon = document.getElementById('togglePasswordIcon');
+        
+        if (toggleBtn && passwordInput && toggleIcon) {
+            toggleBtn.addEventListener('click', function () {
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    toggleIcon.classList.remove('fa-eye');
+                    toggleIcon.classList.add('fa-eye-slash');
+                } else {
+                    passwordInput.type = 'password';
+                    toggleIcon.classList.remove('fa-eye-slash');
+                    toggleIcon.classList.add('fa-eye');
+                }
+            });
+        }
+    });
+</script>
 @endsection

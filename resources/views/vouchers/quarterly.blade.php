@@ -253,9 +253,9 @@
                                 default => ($submission && $submission->status === 'SUBMITTED' ? 'stamp-submitted' : 'stamp-pending')
                             };
                             $stampText = match($appr) {
-                                'APPROVED' => '✓ GM APPROVED',
-                                'REVISION_REQUESTED' => '⚠ REVISION REQUESTED',
-                                default => ($submission && $submission->status === 'SUBMITTED' ? '★ SUBMITTED FOR REVIEW' : 'DRAFT REVIEW')
+                                'APPROVED' => 'GM APPROVED',
+                                'REVISION_REQUESTED' => 'REVISION REQUESTED',
+                                default => ($submission && $submission->status === 'SUBMITTED' ? 'SUBMITTED FOR REVIEW' : 'DRAFT REVIEW')
                             };
                         @endphp
                         <span class="voucher-status-stamp {{ $stampClass }}">
@@ -511,52 +511,8 @@
             </div>
         </div>
 
-        <!-- Official Sign-off Block -->
-        <div class="voucher-signatures">
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <div class="sig-box">
-                        <div>
-                            <span class="small fw-bold text-muted text-uppercase d-block">1. Prepared &amp; Submitted By</span>
-                            <strong class="text-dark small">{{ $submission && $submission->submitter ? $submission->submitter->full_name : ($department->head->full_name ?? 'Head of Department') }}</strong>
-                            <small class="text-muted d-block">{{ $department->department_name }}</small>
-                        </div>
-                        <div class="sig-line text-muted small text-center">
-                            Signature &amp; Date
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-4">
-                    <div class="sig-box">
-                        <div>
-                            <span class="small fw-bold text-muted text-uppercase d-block">2. Verified By</span>
-                            <strong class="text-dark small">Corporate Planning Directorate</strong>
-                            <small class="text-muted d-block">Monitoring &amp; Evaluation Directorate</small>
-                        </div>
-                        <div class="sig-line text-muted small text-center">
-                            Signature &amp; Date
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-4">
-                    <div class="sig-box">
-                        <div>
-                            <span class="small fw-bold text-muted text-uppercase d-block">3. Authorized &amp; Approved By</span>
-                            <strong class="text-dark small">{{ $submission && $submission->reviewer ? $submission->reviewer->full_name : 'Office of General Management' }}</strong>
-                            <small class="text-muted d-block">General Management Executive</small>
-                        </div>
-                        <div class="sig-line text-muted small text-center">
-                            Signature &amp; Date
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="text-center mt-3 text-muted" style="font-size: 0.72rem;">
-                Official Corporate Performance Voucher &bull; Kaldis Coffee PLC &bull; Generated: {{ format_ethiopian_datetime() }}
-            </div>
+        <div class="text-center mt-4 pt-3 border-top text-muted" style="font-size: 0.75rem;">
+            Official Corporate Performance Voucher &bull; Kaldis Coffee PLC &bull; Generated: {{ format_ethiopian_datetime() }}
         </div>
     </div>
 </div>

@@ -6,6 +6,7 @@ use App\Models\AnnualGoal;
 use App\Models\AuditLog;
 use App\Models\Department;
 use App\Models\MonthlyPlan;
+use App\Models\MonthlyStrategyActivation;
 use App\Models\MonthlySubmission;
 use App\Models\QuarterlySubmission;
 use App\Models\Role;
@@ -23,14 +24,75 @@ class AdminController extends Controller
 {
     public function dashboard()
     {
+        $currentYear = kaldis_setting('current_planning_year', config('kaldis.current_planning_year', '2019 E.C.'));
+        $currentMonth = kaldis_setting('current_planning_month', config('kaldis.current_planning_month', 'Hidar'));
+
+        // Core Counts
         $userCount = User::count();
+        $activeUserCount = User::where('is_active', 1)->count();
         $deptCount = Department::count();
-        $goalCount = AnnualGoal::count();
+        $activeDeptCount = Department::where('active', 1)->count();
+        $goalCount = AnnualGoal::where('status', 'ACTIVE')->count();
         $auditCount = AuditLog::count();
 
-        $recentAudits = AuditLog::orderByDesc('id')->take(10)->get();
+        // Departments & Leadership Coverage
+        $departments = Department::with('head', 'annualGoals')->orderBy('department_name')->get();
+        $deptsWithHead = $departments->whereNotNull('head_user_id')->count();
+        $deptsVacant = $departments->whereNull('head_user_id')->count();
 
-        return view('admin.dashboard', compact('userCount', 'deptCount', 'goalCount', 'auditCount', 'recentAudits'));
+        // Strategy Activation Stats for Current Month
+        $activatedGoalsCount = MonthlyStrategyActivation::where('year', $currentYear)
+            ->where('month', $currentMonth)
+            ->where('active', 'YES')
+            ->distinct('annual_goal_id')
+            ->count('annual_goal_id');
+
+        // Monthly & Weekly Activity in Current Month
+        $monthlyPlansCount = MonthlyPlan::where('year', $currentYear)->where('month', $currentMonth)->count();
+        $monthlySubmittedCount = MonthlySubmission::where('year', $currentYear)->where('month', $currentMonth)->count();
+        $weeklyTasksCount = WeeklyTask::where('year', $currentYear)->where('month', $currentMonth)->count();
+        $weeklyDoneCount = DB::table('weekly_tasks as wt')
+            ->join('weekly_task_results as wtr', 'wt.id', '=', 'wtr.weekly_task_id')
+            ->where('wt.year', $currentYear)
+            ->where('wt.month', $currentMonth)
+            ->where('wtr.result', 'DONE')
+            ->count();
+        $executionRate = $weeklyTasksCount > 0 ? round(($weeklyDoneCount / $weeklyTasksCount) * 100, 1) : 0;
+
+        // Telegram Stats
+        $telegramEnabled = (bool)kaldis_setting('telegram_notifications_enabled', true);
+        $telegramStats = [
+            'total' => Schema::hasTable('telegram_messages') ? DB::table('telegram_messages')->count() : 0,
+            'sent' => Schema::hasTable('telegram_messages') ? DB::table('telegram_messages')->where('status', 'SENT')->count() : 0,
+            'failed' => Schema::hasTable('telegram_messages') ? DB::table('telegram_messages')->where('status', 'FAILED')->count() : 0,
+            'subscribed_users' => User::whereNotNull('telegram_chat_id')->where('telegram_chat_id', '!=', '')->count(),
+        ];
+
+        // Recent Audit Logs
+        $recentAudits = AuditLog::with('user')->orderByDesc('id')->take(12)->get();
+
+        return view('admin.dashboard', compact(
+            'userCount',
+            'activeUserCount',
+            'deptCount',
+            'activeDeptCount',
+            'goalCount',
+            'auditCount',
+            'departments',
+            'deptsWithHead',
+            'deptsVacant',
+            'currentYear',
+            'currentMonth',
+            'activatedGoalsCount',
+            'monthlyPlansCount',
+            'monthlySubmittedCount',
+            'weeklyTasksCount',
+            'weeklyDoneCount',
+            'executionRate',
+            'telegramEnabled',
+            'telegramStats',
+            'recentAudits'
+        ));
     }
 
     public function users()
@@ -48,14 +110,15 @@ class AdminController extends Controller
             'username' => 'required|string|unique:users,username',
             'full_name' => 'required|string|max:100',
             'email' => 'required|email|unique:users,email',
-            'password' => 'required|string|min:6',
+            'password' => 'nullable|string|min:6',
             'role_id' => 'required|exists:roles,id',
             'department_id' => 'nullable|exists:departments,id',
             'telegram_chat_id' => 'nullable|string',
             'status' => 'required|in:ACTIVE,INACTIVE',
         ]);
 
-        $validated['password_hash'] = Hash::make($validated['password']);
+        $rawPassword = !empty($validated['password']) ? $validated['password'] : 'kaldis123';
+        $validated['password_hash'] = Hash::make($rawPassword);
         $validated['is_active'] = ($validated['status'] === 'ACTIVE') ? 1 : 0;
         unset($validated['password'], $validated['status']);
 
@@ -63,7 +126,7 @@ class AdminController extends Controller
 
         AuditLog::log('CREATE_USER', 'admin', "Created user account {$user->username}", $user->id);
 
-        return back()->with('success', "User account {$user->username} created successfully.");
+        return back()->with('success', "User account {$user->username} created successfully (Default password: kaldis123).");
     }
 
     public function updateUser(Request $request, $id)
@@ -220,56 +283,72 @@ class AdminController extends Controller
     {
         $dept = Department::findOrFail($id);
 
-        // Check if department has operational historical data
-        $hasUsers = DB::table('users')->where('department_id', $dept->id)->exists();
-        $hasMonthlyPlans = DB::table('monthly_plans')->where('department_id', $dept->id)->exists();
-        $hasWeeklyTasks = DB::table('weekly_tasks')->where('department_id', $dept->id)->exists();
-        $hasWeeklyReports = DB::table('weekly_reports')->where('department_id', $dept->id)->exists();
-        $hasSubmissions = DB::table('submissions')->where('department_id', $dept->id)->exists();
-        $hasQuarterly = Schema::hasTable('quarterly_submissions') && DB::table('quarterly_submissions')->where('department_id', $dept->id)->exists();
-
-        $hasHistoricalData = $hasUsers || $hasMonthlyPlans || $hasWeeklyTasks || $hasWeeklyReports || $hasSubmissions || $hasQuarterly;
-
-        if ($hasHistoricalData) {
-            $dept->update(['active' => 0]);
-            AuditLog::log('DEACTIVATE_DEPARTMENT', 'department', "Deactivated department {$dept->department_name} ({$dept->department_code}) due to existing operational records", $dept->id);
-            
-            $msg = "Department '{$dept->department_name}' has linked operational records (plans, tasks, or user accounts) and was safely set to INACTIVE instead of hard-deleted to preserve organizational audit trails.";
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json([
-                    'success' => true,
-                    'type' => 'warning',
-                    'action' => 'deactivated',
-                    'message' => $msg,
-                ]);
-            }
-            return back()->with('warning', $msg);
-        }
-
         try {
             DB::transaction(function () use ($dept) {
-                // Clean up any automated transient background logs or unassigned escalations
-                DB::table('escalations')->where('department_id', $dept->id)->delete();
-                if (Schema::hasTable('notifications')) {
-                    DB::table('notifications')->where('department_id', $dept->id)->delete();
-                }
-                if (Schema::hasTable('monthly_strategy_activations')) {
-                    DB::table('monthly_strategy_activations')->where('department_id', $dept->id)->delete();
-                }
+                // 1. Disassociate users from this department
+                DB::table('users')->where('department_id', $dept->id)->update(['department_id' => null]);
+                $dept->update(['head_user_id' => null]);
+
+                // 2. Disassociate or clean up telegram records
                 if (Schema::hasTable('telegram_messages')) {
                     DB::table('telegram_messages')->where('department_id', $dept->id)->update(['department_id' => null]);
                 }
                 if (Schema::hasTable('telegram_users')) {
                     DB::table('telegram_users')->where('department_id', $dept->id)->update(['department_id' => null]);
                 }
+
+                // 3. Clean up notifications, escalations, monthly strategy activations
+                if (Schema::hasTable('notifications')) {
+                    DB::table('notifications')->where('department_id', $dept->id)->delete();
+                }
+                if (Schema::hasTable('escalations')) {
+                    DB::table('escalations')->where('department_id', $dept->id)->delete();
+                }
+                if (Schema::hasTable('monthly_strategy_activations')) {
+                    DB::table('monthly_strategy_activations')->where('department_id', $dept->id)->delete();
+                }
+
+                // 4. Submissions & Reports
+                if (Schema::hasTable('quarterly_submissions')) {
+                    DB::table('quarterly_submissions')->where('department_id', $dept->id)->delete();
+                }
+                if (Schema::hasTable('monthly_submissions')) {
+                    DB::table('monthly_submissions')->where('department_id', $dept->id)->delete();
+                }
+                if (Schema::hasTable('weekly_submissions')) {
+                    DB::table('weekly_submissions')->where('department_id', $dept->id)->delete();
+                }
+                if (Schema::hasTable('submissions')) {
+                    DB::table('submissions')->where('department_id', $dept->id)->delete();
+                }
+                if (Schema::hasTable('weekly_reports')) {
+                    DB::table('weekly_reports')->where('department_id', $dept->id)->delete();
+                }
+
+                // 5. Weekly task results, achievements, challenges, tasks & plans
+                if (Schema::hasTable('weekly_task_results')) {
+                    DB::table('weekly_task_results')->where('department_id', $dept->id)->delete();
+                }
+                if (Schema::hasTable('weekly_achievements')) {
+                    DB::table('weekly_achievements')->where('department_id', $dept->id)->delete();
+                }
+                if (Schema::hasTable('weekly_challenges')) {
+                    DB::table('weekly_challenges')->where('department_id', $dept->id)->delete();
+                }
+                DB::table('weekly_tasks')->where('department_id', $dept->id)->delete();
+                DB::table('weekly_plans')->where('department_id', $dept->id)->delete();
+                DB::table('monthly_plans')->where('department_id', $dept->id)->delete();
+
+                // 6. Annual Goals disassociation & detach
                 DB::table('annual_goals')->where('responsible_department_id', $dept->id)->update(['responsible_department_id' => null]);
-                
                 $dept->annualGoals()->detach();
+
+                // 7. Delete department
                 $dept->delete();
             });
 
             AuditLog::log('DELETE_DEPARTMENT', 'department', "Permanently deleted department {$dept->department_name} ({$dept->department_code})", $dept->id);
-            
+
             $msg = "Department '{$dept->department_name}' was successfully deleted.";
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
@@ -281,20 +360,15 @@ class AdminController extends Controller
             }
             return back()->with('success', $msg);
         } catch (\Throwable $e) {
-            // Safety fallback: if any unexpected foreign key constraint fails, mark inactive instead of crashing
-            $dept->update(['active' => 0]);
-            AuditLog::log('DEACTIVATE_DEPARTMENT', 'department', "Deactivated department {$dept->department_name} due to constraint protection: " . $e->getMessage(), $dept->id);
-            
-            $msg = "Department '{$dept->department_name}' is referenced by related database records and was safely marked INACTIVE.";
+            $msg = "Failed to delete department '{$dept->department_name}': " . $e->getMessage();
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
-                    'success' => true,
-                    'type' => 'warning',
-                    'action' => 'deactivated',
+                    'success' => false,
+                    'type' => 'danger',
                     'message' => $msg,
-                ]);
+                ], 500);
             }
-            return back()->with('warning', $msg);
+            return back()->with('error', $msg);
         }
     }
 
@@ -328,103 +402,103 @@ class AdminController extends Controller
             'Strategy & Executive Governance' => [
                 'View Corporate Annual Goals' => [
                     'desc' => 'View high-level corporate strategic objectives and department assignments',
-                    'super_admin' => true, 'gm_management' => true, 'hr' => true, 'dept_head' => true, 'it_admin' => true,
+                    'super_admin' => true, 'gm_management' => true, 'dept_head' => true, 'it_admin' => true,
                 ],
                 'Create & Edit Annual Goals' => [
                     'desc' => 'Define annual strategic goals, targets and departmental weightings',
-                    'super_admin' => true, 'gm_management' => true, 'hr' => false, 'dept_head' => false, 'it_admin' => false,
+                    'super_admin' => true, 'gm_management' => true, 'dept_head' => false, 'it_admin' => false,
                 ],
                 'Monthly Strategic Activation' => [
                     'desc' => 'Activate and prioritize specific annual goals for current Ethiopian month',
-                    'super_admin' => true, 'gm_management' => true, 'hr' => false, 'dept_head' => false, 'it_admin' => false,
+                    'super_admin' => true, 'gm_management' => true, 'dept_head' => false, 'it_admin' => false,
                 ],
                 'Access GM Executive Dashboard' => [
                     'desc' => 'Executive KPI tracking, cross-department submission heatmaps & scorecards',
-                    'super_admin' => true, 'gm_management' => true, 'hr' => true, 'dept_head' => false, 'it_admin' => false,
+                    'super_admin' => true, 'gm_management' => true, 'dept_head' => false, 'it_admin' => false,
                 ],
                 'Send Executive Telegram Reminders' => [
                     'desc' => 'Dispatch direct executive alerts and nudges to missing department heads',
-                    'super_admin' => true, 'gm_management' => true, 'hr' => false, 'dept_head' => false, 'it_admin' => true,
+                    'super_admin' => true, 'gm_management' => true, 'dept_head' => false, 'it_admin' => true,
                 ],
             ],
             'Department Operations & Planning' => [
                 'Formulate Monthly Plans' => [
                     'desc' => 'Create and draft departmental operational initiatives linked to active goals',
-                    'super_admin' => true, 'gm_management' => false, 'hr' => false, 'dept_head' => true, 'it_admin' => false,
+                    'super_admin' => true, 'gm_management' => false, 'dept_head' => true, 'it_admin' => false,
                 ],
                 'Submit Monthly Package (Day 26)' => [
                     'desc' => 'Transmit final monthly plan package before Day 26 (17:00) cutoff in Ethiopian Calendar',
-                    'super_admin' => true, 'gm_management' => false, 'hr' => false, 'dept_head' => true, 'it_admin' => false,
+                    'super_admin' => true, 'gm_management' => false, 'dept_head' => true, 'it_admin' => false,
                 ],
                 'Schedule Weekly Tasks' => [
                     'desc' => 'Breakdown monthly initiatives into actionable weekly deliverables for staff',
-                    'super_admin' => true, 'gm_management' => false, 'hr' => false, 'dept_head' => true, 'it_admin' => false,
+                    'super_admin' => true, 'gm_management' => false, 'dept_head' => true, 'it_admin' => false,
                 ],
                 'Evaluate Weekly Execution' => [
                     'desc' => 'Grade task results (DONE / NOT DONE) and assign root cause failure categories',
-                    'super_admin' => true, 'gm_management' => false, 'hr' => false, 'dept_head' => true, 'it_admin' => false,
+                    'super_admin' => true, 'gm_management' => false, 'dept_head' => true, 'it_admin' => false,
                 ],
             ],
             'Reporting, Compliance & Official Vouchers' => [
                 'Submit Weekly Performance Report' => [
                     'desc' => 'Transmit weekly execution scorecard before Monday 6:30 LT (12:30 PM) deadline',
-                    'super_admin' => true, 'gm_management' => false, 'hr' => false, 'dept_head' => true, 'it_admin' => false,
+                    'super_admin' => true, 'gm_management' => false, 'dept_head' => true, 'it_admin' => false,
                 ],
                 'Generate Official Monthly Voucher' => [
                     'desc' => 'Access and print cryptographically-verified official monthly plan voucher with security token',
-                    'super_admin' => true, 'gm_management' => true, 'hr' => true, 'dept_head' => true, 'it_admin' => true,
+                    'super_admin' => true, 'gm_management' => true, 'dept_head' => true, 'it_admin' => true,
                 ],
                 'Generate Official Weekly Voucher' => [
                     'desc' => 'Access and print signed official weekly execution confirmation voucher',
-                    'super_admin' => true, 'gm_management' => true, 'hr' => true, 'dept_head' => true, 'it_admin' => true,
+                    'super_admin' => true, 'gm_management' => true, 'dept_head' => true, 'it_admin' => true,
                 ],
                 'Organization Scorecard Analytics' => [
                     'desc' => 'View 13-department compliance, timely submission rates and historical trends',
-                    'super_admin' => true, 'gm_management' => true, 'hr' => true, 'dept_head' => false, 'it_admin' => false,
+                    'super_admin' => true, 'gm_management' => true, 'dept_head' => false, 'it_admin' => false,
                 ],
                 'Why Not Done Root Cause Analysis' => [
                     'desc' => 'Access organizational failure categorization and recovery action plans',
-                    'super_admin' => true, 'gm_management' => true, 'hr' => true, 'dept_head' => true, 'it_admin' => false,
+                    'super_admin' => true, 'gm_management' => true, 'dept_head' => true, 'it_admin' => false,
                 ],
                 'Deadline Escalation Tracking' => [
                     'desc' => 'Review multi-tier escalation triggers for consecutive missed submissions',
-                    'super_admin' => true, 'gm_management' => true, 'hr' => true, 'dept_head' => false, 'it_admin' => false,
+                    'super_admin' => true, 'gm_management' => true, 'dept_head' => false, 'it_admin' => false,
                 ],
             ],
             'System Administration & Security' => [
                 'Master Administration Access' => [
                     'desc' => 'Access core administrative panels, configuration and database parameters',
-                    'super_admin' => true, 'gm_management' => false, 'hr' => false, 'dept_head' => false, 'it_admin' => true,
+                    'super_admin' => true, 'gm_management' => false, 'dept_head' => false, 'it_admin' => true,
                 ],
                 'Manage User Accounts & Roles' => [
                     'desc' => 'Create, edit, reset passwords, and assign system roles and departments',
-                    'super_admin' => true, 'gm_management' => false, 'hr' => false, 'dept_head' => false, 'it_admin' => false,
+                    'super_admin' => true, 'gm_management' => false, 'dept_head' => false, 'it_admin' => false,
                 ],
                 'Manage Departments' => [
                     'desc' => 'Create, edit, and configure corporate operational departments',
-                    'super_admin' => true, 'gm_management' => false, 'hr' => false, 'dept_head' => false, 'it_admin' => false,
+                    'super_admin' => true, 'gm_management' => false, 'dept_head' => false, 'it_admin' => false,
                 ],
                 'Configure Deadlines & Parameters' => [
                     'desc' => 'Update Ethiopian calendar cycles, Day 26 cutoff, and Monday reporting rules',
-                    'super_admin' => true, 'gm_management' => false, 'hr' => false, 'dept_head' => false, 'it_admin' => true,
+                    'super_admin' => true, 'gm_management' => false, 'dept_head' => false, 'it_admin' => true,
                 ],
                 'Telegram Bot & Webhook Setup' => [
                     'desc' => 'Configure Bot Father token, webhook URL, diagnostic tester, and polling',
-                    'super_admin' => true, 'gm_management' => false, 'hr' => false, 'dept_head' => false, 'it_admin' => true,
+                    'super_admin' => true, 'gm_management' => false, 'dept_head' => false, 'it_admin' => true,
                 ],
                 'Immutable Audit Trail' => [
                     'desc' => 'Inspect comprehensive security audit logs and system trail',
-                    'super_admin' => true, 'gm_management' => false, 'hr' => false, 'dept_head' => false, 'it_admin' => true,
+                    'super_admin' => true, 'gm_management' => false, 'dept_head' => false, 'it_admin' => true,
                 ],
             ],
             'Data Scoping & Boundary Rules' => [
                 'Enterprise-Wide Data Scope' => [
                     'desc' => 'Unrestricted access to data across all 13 company operational units',
-                    'super_admin' => true, 'gm_management' => true, 'hr' => true, 'dept_head' => false, 'it_admin' => true,
+                    'super_admin' => true, 'gm_management' => true, 'dept_head' => false, 'it_admin' => true,
                 ],
                 'Department-Scoped Isolation' => [
                     'desc' => 'Access is strictly limited to user assigned department only',
-                    'super_admin' => false, 'gm_management' => false, 'hr' => false, 'dept_head' => true, 'it_admin' => false,
+                    'super_admin' => false, 'gm_management' => false, 'dept_head' => true, 'it_admin' => false,
                 ],
             ],
         ];
@@ -437,7 +511,7 @@ class AdminController extends Controller
             foreach ($permissionMatrix as $cat => &$perms) {
                 foreach ($perms as $pName => &$pData) {
                     $pKey = \Illuminate\Support\Str::slug($pName, '_');
-                    foreach (['super_admin', 'gm_management', 'hr', 'dept_head', 'it_admin'] as $rName) {
+                    foreach (['super_admin', 'gm_management', 'dept_head', 'it_admin'] as $rName) {
                         if (isset($customPerms[$rName]) && array_key_exists($pKey, $customPerms[$rName])) {
                             $pData[$rName] = !empty($customPerms[$rName][$pKey]);
                         }

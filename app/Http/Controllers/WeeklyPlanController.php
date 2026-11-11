@@ -112,21 +112,26 @@ class WeeklyPlanController extends Controller
             'year' => 'required|string',
             'month' => 'required|string',
             'week_number' => 'required|integer|min:1|max:5',
+            'task_type' => 'nullable|in:PLANNED,NEW_TASK',
             'monthly_plan_id' => 'nullable|exists:monthly_plans,id',
             'plan_type' => 'nullable|in:STRATEGY,OPERATIONAL',
             'task_title' => 'required|string|max:255',
-            'task_description' => 'nullable|string',
             'task_target' => 'nullable|string',
             'expected_result' => 'nullable|string',
-            'priority' => 'required|in:HIGH,MEDIUM,LOW',
+            'definition_of_done' => 'nullable|string',
+            'task_description' => 'nullable|string',
+            'priority' => 'nullable|in:HIGH,MEDIUM,LOW',
             'assigned_to' => 'nullable|string|max:150',
             'responsible_person' => 'nullable|string|max:150',
             'deadline_date' => 'nullable|date',
             'due_date' => 'nullable|date',
         ]);
 
-        $monthlyPlan = !empty($validated['monthly_plan_id'])
-            ? MonthlyPlan::find($validated['monthly_plan_id'])
+        $taskType = $validated['task_type'] ?? (!empty($validated['monthly_plan_id']) ? 'PLANNED' : 'NEW_TASK');
+        $monthlyPlanId = ($taskType === 'PLANNED') ? ($validated['monthly_plan_id'] ?? null) : null;
+
+        $monthlyPlan = !empty($monthlyPlanId)
+            ? MonthlyPlan::find($monthlyPlanId)
             : null;
 
         $planType = $monthlyPlan ? $monthlyPlan->plan_type : ($validated['plan_type'] ?? 'OPERATIONAL');
@@ -142,6 +147,8 @@ class WeeklyPlanController extends Controller
             'created_by' => $user->id,
         ]);
 
+        $dod = $validated['definition_of_done'] ?? ($validated['expected_result'] ?? ($validated['task_target'] ?? 'Completed'));
+
         $task = WeeklyTask::create([
             'weekly_plan_id' => $weeklyPlan->id,
             'monthly_plan_id' => $monthlyPlan ? $monthlyPlan->id : null,
@@ -150,13 +157,15 @@ class WeeklyPlanController extends Controller
             'month' => $validated['month'],
             'week_number' => $validated['week_number'],
             'plan_type' => $planType,
+            'task_type' => $taskType,
             'annual_goal_id' => $annualGoalId,
             'task_title' => $validated['task_title'],
             'task_description' => $validated['task_description'] ?? null,
-            'expected_result' => $validated['expected_result'] ?? ($validated['task_target'] ?? 'Completed'),
-            'priority' => $validated['priority'],
-            'responsible_person' => $validated['responsible_person'] ?? ($validated['assigned_to'] ?? ($user->full_name ?: ($user->username ?: 'Unassigned'))),
+            'expected_result' => $dod,
+            'priority' => $validated['priority'] ?? 'MEDIUM',
+            'responsible_person' => $validated['responsible_person'] ?? ($validated['assigned_to'] ?? ($user->full_name ?: ($user->username ?: 'Department'))),
             'due_date' => !empty($validated['due_date']) ? $validated['due_date'] : (!empty($validated['deadline_date']) ? $validated['deadline_date'] : null),
+            'approval_status' => 'PENDING',
             'created_by' => $user->id,
         ]);
 
@@ -346,5 +355,66 @@ class WeeklyPlanController extends Controller
         AuditLog::log('DELETE_WEEKLY_TASK', 'weekly_plans', "Deleted weekly task: {$title}", $id);
 
         return back()->with('success', 'Weekly task removed successfully.');
+    }
+
+    public function approveTask($id)
+    {
+        $user = Auth::user();
+        if (!$user->isGM() && !$user->isSuperAdmin()) {
+            abort(403, 'Only the General Manager can approve weekly tasks.');
+        }
+
+        $task = WeeklyTask::findOrFail($id);
+        $task->update([
+            'approval_status' => 'APPROVED',
+            'decline_reason' => null,
+            'approved_by' => $user->id,
+            'approved_at' => now(),
+        ]);
+
+        AuditLog::log('APPROVE_WEEKLY_TASK', 'weekly_tasks', "GM approved weekly task #{$task->id}: {$task->task_title}", $task->id);
+
+        if (request()->wantsJson() || request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Weekly task approved.',
+                'approval_status' => 'APPROVED',
+            ]);
+        }
+
+        return back()->with('success', "Weekly task \"{$task->task_title}\" approved.");
+    }
+
+    public function declineTask(Request $request, $id)
+    {
+        $user = Auth::user();
+        if (!$user->isGM() && !$user->isSuperAdmin()) {
+            abort(403, 'Only the General Manager can decline weekly tasks.');
+        }
+
+        $validated = $request->validate([
+            'decline_reason' => 'required|string|max:1000',
+        ]);
+
+        $task = WeeklyTask::findOrFail($id);
+        $task->update([
+            'approval_status' => 'DECLINED',
+            'decline_reason' => $validated['decline_reason'],
+            'approved_by' => $user->id,
+            'approved_at' => now(),
+        ]);
+
+        AuditLog::log('DECLINE_WEEKLY_TASK', 'weekly_tasks', "GM declined weekly task #{$task->id}: {$validated['decline_reason']}", $task->id);
+
+        if (request()->wantsJson() || request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Weekly task declined.',
+                'approval_status' => 'DECLINED',
+                'decline_reason' => $validated['decline_reason'],
+            ]);
+        }
+
+        return back()->with('success', "Weekly task \"{$task->task_title}\" declined.");
     }
 }

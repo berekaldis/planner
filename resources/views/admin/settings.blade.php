@@ -131,7 +131,7 @@
                                         <select name="monthly_plan_deadline_day" class="form-select">
                                             @for($d = 1; $d <= 30; $d++)
                                                 <option value="{{ $d }}" {{ $savedMonthlyDay === $d ? 'selected' : '' }}>
-                                                    Day {{ $d }} of Ethiopian Month {{ $d === 26 ? '★ (Official Due Date: Day 26)' : '' }}
+                                                    Day {{ $d }} of Ethiopian Month {{ $d === 26 ? '(Official Due Date: Day 26)' : '' }}
                                                 </option>
                                             @endfor
                                         </select>
@@ -354,10 +354,6 @@
                                         <div class="mt-1"><span class="badge bg-warning-subtle text-warning-emphasis" style="font-size:0.65rem;">Executive</span></div>
                                     </th>
                                     <th class="text-center" style="width: 13%;">
-                                        <div>HR Officer</div>
-                                        <div class="mt-1"><span class="badge bg-primary-subtle text-primary" style="font-size:0.65rem;">Compliance</span></div>
-                                    </th>
-                                    <th class="text-center" style="width: 13%;">
                                         <div>Dept Head</div>
                                         <div class="mt-1"><span class="badge bg-success-subtle text-success" style="font-size:0.65rem;">Dept Only</span></div>
                                     </th>
@@ -371,7 +367,7 @@
                                 @foreach($permissionMatrix as $category => $permissions)
                                     <!-- Category Section Divider -->
                                     <tr style="background: rgba(0,0,0,0.025);">
-                                        <td colspan="6" class="fw-bold text-dark py-2.5" style="padding-left: 1.5rem; font-size: 0.8rem; letter-spacing: 0.02em;">
+                                        <td colspan="5" class="fw-bold text-dark py-2.5" style="padding-left: 1.5rem; font-size: 0.8rem; letter-spacing: 0.02em;">
                                             <i class="fas fa-folder-open text-primary me-2"></i> {{ strtoupper($category) }}
                                         </td>
                                     </tr>
@@ -385,7 +381,7 @@
                                                 <div class="fw-bold text-dark">{{ $permName }}</div>
                                                 <div class="text-muted small" style="font-size: 0.76rem; line-height: 1.3;">{{ $data['desc'] }}</div>
                                             </td>
-                                            @foreach(['super_admin', 'gm_management', 'hr', 'dept_head', 'it_admin'] as $roleKey)
+                                            @foreach(['super_admin', 'gm_management', 'dept_head', 'it_admin'] as $roleKey)
                                                 <td class="text-center {{ $loop->last ? 'pe-4' : '' }}">
                                                     <div class="d-flex justify-content-center">
                                                         <input type="hidden" name="permissions[{{ $roleKey }}][{{ $pSlug }}]" value="0">

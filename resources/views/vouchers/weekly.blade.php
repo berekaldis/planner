@@ -463,52 +463,8 @@
             </div>
         </div>
 
-        <!-- Official Sign-off Block -->
-        <div class="voucher-signatures">
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <div class="sig-box">
-                        <div>
-                            <span class="small fw-bold text-muted text-uppercase d-block">1. Prepared By</span>
-                            <strong class="text-dark small">{{ $department->head->full_name ?? 'Department Head' }}</strong>
-                            <small class="text-muted d-block">Head of {{ $department->department_code }}</small>
-                        </div>
-                        <div class="sig-line text-muted small text-center">
-                            Signature &amp; Date
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-4">
-                    <div class="sig-box">
-                        <div>
-                            <span class="small fw-bold text-muted text-uppercase d-block">2. Verified By</span>
-                            <strong class="text-dark small">Planning &amp; Performance Directorate</strong>
-                            <small class="text-muted d-block">Operations Monitoring</small>
-                        </div>
-                        <div class="sig-line text-muted small text-center">
-                            Signature &amp; Date
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-4">
-                    <div class="sig-box">
-                        <div>
-                            <span class="small fw-bold text-muted text-uppercase d-block">3. Authorized &amp; Approved By</span>
-                            <strong class="text-dark small">Office of the General Manager</strong>
-                            <small class="text-muted d-block">Executive Operations</small>
-                        </div>
-                        <div class="sig-line text-muted small text-center">
-                            Signature &amp; Date
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="text-center mt-3 text-muted" style="font-size: 0.72rem;">
-                Official Corporate Performance Voucher &bull; Kaldis Coffee PLC &bull; Generated: {{ format_ethiopian_datetime() }}
-            </div>
+        <div class="text-center mt-4 pt-3 border-top text-muted" style="font-size: 0.75rem;">
+            Official Corporate Performance Voucher &bull; Kaldis Coffee PLC &bull; Generated: {{ format_ethiopian_datetime() }}
         </div>
     </div>
 </div>

@@ -23,34 +23,23 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $credentials = $request->validate([
-            'username' => 'required|string',
+            'email' => 'nullable|string',
+            'username' => 'nullable|string',
             'password' => 'required|string',
         ]);
 
-        $identifier = trim($credentials['username']);
+        $identifier = trim($request->input('email') ?: $request->input('username', ''));
+        if (empty($identifier)) {
+            return back()->withErrors(['email' => 'Please enter your email address.'])->withInput();
+        }
+
         $password = $credentials['password'];
         $remember = $request->boolean('remember');
 
-        // 1. Primary Authentication: Central Company System Database (kaldisbp_company_system)
-        try {
-            $user = CompanySystemService::authenticate($identifier, $password);
-            if ($user) {
-                Auth::login($user, $remember);
-
-                AuditLog::log('LOGIN', 'auth', "User {$user->username} ({$user->full_name}) logged in successfully via Company System", $user->id);
-
-                $request->session()->regenerate();
-
-                return redirect()->intended(route('dashboard'));
-            }
-        } catch (\Throwable $e) {
-            Log::error("CompanySystemService authentication error: " . $e->getMessage());
-        }
-
-        // 2. Fallback Authentication: Local Planner Database
+        // Local Authentication by Email (or username)
         $localUser = User::where(function ($query) use ($identifier) {
-                $query->where('username', $identifier)
-                      ->orWhere('email', $identifier);
+                $query->where('email', $identifier)
+                      ->orWhere('username', $identifier);
             })
             ->where('is_active', 1)
             ->first();
@@ -70,19 +59,21 @@ class AuthController extends Controller
             if ($passwordValid) {
                 Auth::login($localUser, $remember);
 
-                AuditLog::log('LOGIN', 'auth', "User {$localUser->username} logged in successfully via local credentials", $localUser->id);
+                AuditLog::log('LOGIN', 'auth', "User {$localUser->username} ({$localUser->email}) logged in successfully", $localUser->id);
 
-                $request->session()->regenerate();
+                if ($request->hasSession()) {
+                    $request->session()->regenerate();
+                }
 
                 return redirect()->intended(route('dashboard'));
             }
         }
 
-        AuditLog::log('LOGIN_FAILED', 'auth', "Failed login attempt for identifier: {$identifier}");
+        AuditLog::log('LOGIN_FAILED', 'auth', "Failed login attempt for email/username: {$identifier}");
 
         return back()->withErrors([
-            'username' => 'Invalid username or password provided.',
-        ])->onlyInput('username');
+            'email' => 'Invalid email or password provided.',
+        ])->onlyInput('email', 'username');
     }
 
     public function logout(Request $request)

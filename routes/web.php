@@ -42,6 +42,7 @@ Route::middleware('auth')->group(function () {
 
     // Strategy & Monthly Activation
     Route::get('/strategy/annual', [StrategyController::class, 'annualGoals'])->name('strategy.annual');
+    Route::post('/strategy/goals', [StrategyController::class, 'storeGoal'])->name('strategy.goals.store');
     Route::get('/strategy/activation', [StrategyController::class, 'monthlyActivation'])->name('strategy.activation');
     Route::post('/strategy/activation/toggle', [StrategyController::class, 'toggleActivation'])->name('strategy.activation.toggle');
     Route::post('/strategy/activation/bulk', [StrategyController::class, 'bulkActivation'])->name('strategy.activation.bulk');
@@ -49,6 +50,8 @@ Route::middleware('auth')->group(function () {
     // Monthly Planning
     Route::get('/monthly/plans', [MonthlyPlanController::class, 'index'])->name('monthly.plans');
     Route::post('/monthly/plans', [MonthlyPlanController::class, 'store'])->name('monthly.plans.store');
+    Route::post('/monthly/plans/{id}/approve', [MonthlyPlanController::class, 'approve'])->name('monthly.plans.approve');
+    Route::post('/monthly/plans/{id}/decline', [MonthlyPlanController::class, 'decline'])->name('monthly.plans.decline');
     Route::post('/monthly/submit-package', [MonthlyPlanController::class, 'submitPackage'])->name('monthly.plans.submit_package');
     Route::post('/monthly/delay-reason', [MonthlyPlanController::class, 'submitDelayReason'])->name('monthly.delay_reason');
     Route::post('/monthly/feedback', [MonthlyPlanController::class, 'saveFeedback'])->name('monthly.feedback');
@@ -58,6 +61,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/weekly/plans', [WeeklyPlanController::class, 'index'])->name('weekly.plans');
     Route::get('/weekly/tasks', [WeeklyPlanController::class, 'index'])->name('weekly.tasks');
     Route::post('/weekly/tasks', [WeeklyPlanController::class, 'storeTask'])->name('weekly.tasks.store');
+    Route::post('/weekly/tasks/{id}/approve', [WeeklyPlanController::class, 'approveTask'])->name('weekly.tasks.approve');
+    Route::post('/weekly/tasks/{id}/decline', [WeeklyPlanController::class, 'declineTask'])->name('weekly.tasks.decline');
     Route::post('/weekly/plans/submit', [WeeklyPlanController::class, 'submitPlan'])->name('weekly.plans.submit');
     Route::post('/weekly/plans/delay-reason', [WeeklyPlanController::class, 'submitDelayReason'])->name('weekly.plans.delay_reason');
     Route::delete('/weekly/tasks/{id}', [WeeklyPlanController::class, 'destroyTask'])->name('weekly.tasks.destroy');
@@ -115,7 +120,7 @@ Route::middleware('auth')->group(function () {
     });
 
     // Executive & Governance Reports (Accessible to Super Admin, IT Admin, GM, and HR)
-    Route::middleware('role:SUPER_ADMIN,IT_ADMIN,GM_MANAGEMENT,GM,GENERAL_MANAGER,HR')->prefix('admin')->name('admin.')->group(function () {
+    Route::middleware('role:SUPER_ADMIN,IT_ADMIN,GM_MANAGEMENT,GM,GENERAL_MANAGER')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/reports', [AdminController::class, 'reports'])->name('reports');
         Route::get('/reports/export', [AdminController::class, 'exportExcel'])->name('reports.export');
     });

@@ -374,11 +374,8 @@ class CompanySystemService
         }
 
         // 3. HR
-        if (str_contains($dept, 'hr') || str_contains($dept, 'human resource') || str_contains($pos, 'hr officer') || str_contains($pos, 'human resource')) {
-            if (self::isDepartmentHeadRole($roles, $positionTitle)) {
-                return 4; // dept_head
-            }
-            return 3; // hr
+        if (str_contains($dept, 'hr') || str_contains($dept, 'human resource') || str_contains($pos, 'hr') || str_contains($pos, 'human resource')) {
+            return 4; // dept_head
         }
 
         // 4. Department Head

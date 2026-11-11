@@ -4,7 +4,7 @@
 
 @section('content')
 <!-- Header -->
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2 mb-4">
     <div>
         <h4 class="fw-bold text-dark mb-1">Monthly Plans</h4>
         <p class="text-muted small mb-0">{{ $department->department_name }} &bull; {{ $selectedMonth }} {{ $selectedYear }}</p>
@@ -13,14 +13,11 @@
         <a href="{{ route('monthly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth]) }}" class="btn btn-outline-dark btn-sm" target="_blank" title="Open Official Monthly Plan Voucher">
             <i class="fas fa-file-invoice me-1"></i> View Official Voucher
         </a>
-        <button type="button" class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#monthlyDelayReasonModal" title="Submit delay reason to GM if late or requesting extension">
-            <i class="fas fa-clock me-1"></i> Delay Reason
-        </button>
         <button type="button" class="btn {{ $submission ? 'btn-outline-success' : 'btn-success' }} btn-sm" data-bs-toggle="modal" data-bs-target="#submitPackageModal">
             <i class="fas {{ $submission ? 'fa-redo' : 'fa-paper-plane' }} me-1"></i> {{ $submission ? 'Re-Submit to GM' : 'Submit to GM' }}
         </button>
         <button type="button" class="btn btn-kaldis btn-sm" data-bs-toggle="modal" data-bs-target="#createMonthlyPlanModal">
-            <i class="fas fa-plus-circle me-1"></i> Add Monthly Plan
+            <i class="fas fa-plus-circle me-1"></i> Add Task
         </button>
         <a href="{{ route('weekly.plans', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth]) }}" class="btn btn-outline-secondary btn-sm">
             <i class="fas fa-arrow-right me-1"></i> Go to Weekly Plans
@@ -34,7 +31,7 @@
         <div>
             <div class="d-flex align-items-center gap-2 mb-1">
                 <i class="fas fa-shield-alt text-primary fs-5"></i>
-                <strong class="text-dark">Delay Approved by General Manager</strong>
+                <strong class="text-dark">Delay Approved by GM</strong>
                 {!! format_submission_status_badge('DELAY_APPROVED', 'APPROVED', $submission->delay_reason) !!}
                 @if(!empty($submission->approval_status))
                     <span class="badge {{ $submission->approval_status === 'APPROVED' ? 'bg-success' : 'bg-secondary' }}">
@@ -43,17 +40,17 @@
                 @endif
             </div>
             <div class="small text-muted">
-                Your delay justification has been officially approved. In accordance with executive rules, this package is excused and <strong>NOT</strong> recorded as Not Submitted.
+                Delay reason approved. This package is excused.
             </div>
             @if(!empty($submission->delay_reason))
-                <div class="small text-dark mt-1"><strong>Department Justification:</strong> {{ $submission->delay_reason }}</div>
+                <div class="small text-dark mt-1"><strong>Reason:</strong> {{ $submission->delay_reason }}</div>
             @endif
             @if(!empty($submission->delay_gm_notes))
-                <div class="small text-primary mt-0.5"><strong>GM Remarks:</strong> {{ $submission->delay_gm_notes }}</div>
+                <div class="small text-primary mt-0.5"><strong>GM Notes:</strong> {{ $submission->delay_gm_notes }}</div>
             @endif
         </div>
         <div class="small text-muted text-nowrap">
-            Approved on {{ $submission->delay_approved_at ? format_ethiopian_datetime($submission->delay_approved_at) : '' }}
+            Approved: {{ $submission->delay_approved_at ? format_ethiopian_datetime($submission->delay_approved_at) : '' }}
         </div>
     </div>
 @elseif($submission && $submission->isDelayPending())
@@ -61,23 +58,23 @@
         <div>
             <div class="d-flex align-items-center gap-2 mb-1">
                 <i class="fas fa-hourglass-half text-warning fs-5"></i>
-                <strong class="text-dark">Delay Justification Submitted (Pending GM Decision)</strong>
+                <strong class="text-dark">Delay Reason Pending GM Review</strong>
                 {!! format_submission_status_badge($submission->status, 'PENDING', $submission->delay_reason) !!}
             </div>
             <div class="small text-muted">
-                Your delay justification has been forwarded to the General Manager. While pending review, you may continue updating your plans.
+                Your delay reason is waiting for GM review.
             </div>
-            <div class="small text-dark mt-1"><strong>Submitted Justification:</strong> {{ $submission->delay_reason }}</div>
+            <div class="small text-dark mt-1"><strong>Reason:</strong> {{ $submission->delay_reason }}</div>
         </div>
         <div class="small text-muted text-nowrap">
-            Updated {{ $submission->updated_at ? format_ethiopian_datetime($submission->updated_at) : '' }}
+            Updated: {{ $submission->updated_at ? format_ethiopian_datetime($submission->updated_at) : '' }}
         </div>
     </div>
 @elseif($submission && in_array($submission->status, ['ON_TIME', 'LATE', 'SUBMITTED']))
     <div class="alert alert-success border-0 shadow-sm d-flex justify-content-between align-items-center mb-3">
         <div>
             <i class="fas fa-check-circle me-2 text-success"></i>
-            <strong>Plan Package Submitted:</strong> Monthly plans for {{ $selectedMonth }} {{ $selectedYear }} have been officially submitted to GM.
+            <strong>Plans Submitted:</strong> Monthly plans for {{ $selectedMonth }} {{ $selectedYear }} are submitted to GM.
             {!! format_submission_status_badge($submission->status, $submission->delay_status, $submission->delay_reason) !!}
             @if(!empty($submission->approval_status))
                 <span class="badge {{ $submission->approval_status === 'APPROVED' ? 'bg-success' : ($submission->approval_status === 'REVISION_REQUESTED' ? 'bg-danger' : 'bg-secondary') }} ms-1">
@@ -86,17 +83,17 @@
             @endif
         </div>
         <div class="small text-muted">
-            Submitted on {{ $submission->submitted_at ? format_ethiopian_datetime($submission->submitted_at) : '' }}
+            Submitted: {{ $submission->submitted_at ? format_ethiopian_datetime($submission->submitted_at) : '' }}
         </div>
     </div>
 @else
     <div class="alert alert-warning border-0 shadow-sm d-flex justify-content-between align-items-center mb-3">
         <div>
             <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
-            <strong>Monthly Plan Package Pending Submission:</strong> These plans have not yet been officially transmitted to General Management. Click <strong>Submit to GM</strong> above when ready.
+            <strong>Plans Not Submitted Yet:</strong> Click <strong>Submit to GM</strong> when ready.
         </div>
         <div class="small text-muted">
-            Submission Deadline: <strong>{{ $deadlineInfo['deadline_formatted'] ?? 'Day 26 of Preceding Month' }}</strong>
+            Deadline: <strong>{{ $deadlineInfo['deadline_formatted'] ?? 'Day 26' }}</strong>
         </div>
     </div>
 @endif
@@ -170,14 +167,12 @@
         <table class="table table-hover mb-0" id="monthlyPlansTable">
             <thead>
                 <tr>
-                    <th style="width: 110px;">Type</th>
-                    <th style="width: 80px;">Goal</th>
-                    <th>Plan Title & Target</th>
-                    <th>Definition of Done</th>
-                    <th style="width: 100px;">Target %</th>
-                    <th style="width: 90px;">Priority</th>
-                    <th>Responsible</th>
-                    <th style="width: 60px;" class="text-end">Action</th>
+                    <th style="width: 100px;">Type</th>
+                    <th style="width: 90px;">Goal</th>
+                    <th>Plan Title &amp; Target</th>
+                    <th>Definition of Done (DOD)</th>
+                    <th style="width: 140px;" class="text-center">Approval Status</th>
+                    <th style="width: 110px;" class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -199,42 +194,62 @@
                         </td>
                         <td>
                             <strong class="text-dark">{{ $plan->title }}</strong>
-                            <div class="small text-muted"><strong>Target:</strong> {{ $plan->monthly_target }}</div>
+                            <div class="small text-muted">Target: {{ $plan->monthly_target }}</div>
                         </td>
                         <td>
                             <div class="small text-secondary">{{ $plan->definition_of_done }}</div>
                         </td>
-                        <td>
-                            <div class="progress" style="height: 16px;">
-                                <div class="progress-bar bg-warning text-dark fw-bold small" style="width: {{ (int)$plan->target_percentage }}%;">
-                                    {{ (int)$plan->target_percentage }}%
-                                </div>
-                            </div>
-                        </td>
-                        <td>
-                            <span class="badge bg-light text-secondary border">{{ $plan->priority }}</span>
-                        </td>
-                        <td>
-                            <small class="text-muted">{{ $plan->responsible_person ?: 'Department' }}</small>
+                        <td class="text-center">
+                            @if($plan->approval_status === 'APPROVED')
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                    <i class="fas fa-check-circle me-1"></i>Approved
+                                </span>
+                            @elseif($plan->approval_status === 'DECLINED')
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle" title="{{ $plan->decline_reason }}">
+                                    <i class="fas fa-circle-xmark me-1"></i>Declined
+                                </span>
+                                @if($plan->decline_reason)
+                                    <div class="text-danger small mt-0.5" style="font-size: 0.72rem;">{{ $plan->decline_reason }}</div>
+                                @endif
+                            @else
+                                <span class="badge bg-secondary-subtle text-secondary border">Pending</span>
+                            @endif
                         </td>
                         <td class="text-end">
-                            <form method="POST" action="{{ route('monthly.plans.destroy', $plan->id) }}" onsubmit="return confirm('Delete this monthly plan? Associated weekly tasks will also be removed.');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Delete">
-                                    <i class="fas fa-trash-alt small"></i>
-                                </button>
-                            </form>
+                            <div class="d-inline-flex align-items-center gap-1">
+                                @if(auth()->user()->isGM() || auth()->user()->isSuperAdmin())
+                                    @if($plan->approval_status !== 'APPROVED')
+                                        <form method="POST" action="{{ route('monthly.plans.approve', $plan->id) }}" class="d-inline">
+                                            @csrf
+                                            <button type="submit" class="btn btn-xs btn-outline-success py-0.5 px-1.5" title="Approve Plan">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        </form>
+                                    @endif
+                                    @if($plan->approval_status !== 'DECLINED')
+                                        <button type="button" class="btn btn-xs btn-outline-danger py-0.5 px-1.5" onclick="openDeclineMonthlyModal({{ $plan->id }}, '{{ addslashes($plan->title) }}')" title="Decline Plan">
+                                            <i class="fas fa-xmark"></i>
+                                        </button>
+                                    @endif
+                                @endif
+                                <form method="POST" action="{{ route('monthly.plans.destroy', $plan->id) }}" onsubmit="return confirm('Delete this monthly plan?');" class="d-inline">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5" title="Delete">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="empty-state py-5">
-                            <i class="fas fa-clipboard-list d-block opacity-25"></i>
-                            <h6>No monthly plans found for this period</h6>
-                            <p class="small text-muted mb-3">Click <strong>Add Monthly Plan</strong> above to create Strategy or Operational plans.</p>
+                        <td colspan="6" class="empty-state py-5 text-center">
+                            <i class="fas fa-clipboard-list d-block opacity-25 fs-2 mb-2"></i>
+                            <h6 class="fw-semibold text-dark">No monthly plans yet</h6>
+                            <p class="small text-muted mb-3">Add monthly plans for this period.</p>
                             <button type="button" class="btn btn-sm btn-kaldis" data-bs-toggle="modal" data-bs-target="#createMonthlyPlanModal">
-                                <i class="fas fa-plus-circle me-1"></i> Add Monthly Plan Now
+                                <i class="fas fa-plus-circle me-1"></i> Add Task
                             </button>
                         </td>
                     </tr>
@@ -250,16 +265,30 @@
         <div class="modal-content border-0 shadow">
             <form method="POST" action="{{ route('monthly.plans.store') }}">
                 @csrf
-                <input type="hidden" name="department_id" value="{{ $department->id }}">
                 <input type="hidden" name="year" value="{{ $selectedYear }}">
                 <input type="hidden" name="month" value="{{ $selectedMonth }}">
 
                 <div class="modal-header bg-light">
-                    <h5 class="modal-title fw-bold text-dark fs-6"><i class="fas fa-plus-circle me-2 text-warning"></i> Add Monthly Plan ({{ $selectedMonth }} {{ $selectedYear }})</h5>
+                    <h5 class="modal-title fw-bold text-dark fs-6"><i class="fas fa-plus-circle me-2 text-warning"></i> Add Task / Plan ({{ $selectedMonth }} {{ $selectedYear }})</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
 
                 <div class="modal-body p-4">
+                    @if(auth()->user()->canAccessAllDepartments() && isset($allDepartments) && $allDepartments->count() > 1)
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-secondary text-uppercase">Target Department <span class="text-danger">*</span></label>
+                            <select name="department_id" class="form-select" required>
+                                @foreach($allDepartments as $d)
+                                    <option value="{{ $d->id }}" {{ $department->id == $d->id ? 'selected' : '' }}>
+                                        {{ $d->department_name }} ({{ $d->department_code }})
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @else
+                        <input type="hidden" name="department_id" value="{{ $department->id }}">
+                    @endif
+
                     <!-- Step 1: Select Plan Type -->
                     <div class="mb-3">
                         <label class="form-label small fw-bold text-secondary text-uppercase">Plan Type <span class="text-danger">*</span></label>
@@ -318,45 +347,46 @@
                         <input type="text" name="title" id="planTitleInput" class="form-control" placeholder="e.g. Implement Network Monitoring System" required>
                     </div>
 
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label small fw-semibold text-secondary">Monthly Target <span class="text-danger">*</span></label>
-                            <input type="text" name="monthly_target" id="monthlyTargetInput" class="form-control" placeholder="e.g. Deploy to 5 Branches" required>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-semibold text-secondary">Target %</label>
-                            <input type="number" name="target_percentage" class="form-control" value="100" min="0" max="100" step="1">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-semibold text-secondary">Priority <span class="text-danger">*</span></label>
-                            <select name="priority" class="form-select" data-no-search="true">
-                                <option value="HIGH">HIGH</option>
-                                <option value="MEDIUM" selected>MEDIUM</option>
-                                <option value="LOW">LOW</option>
-                            </select>
-                        </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Monthly Target <span class="text-danger">*</span></label>
+                        <input type="text" name="monthly_target" id="monthlyTargetInput" class="form-control" placeholder="e.g. Deploy to 5 Branches" required>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label small fw-semibold text-secondary">Definition of Done (DoD) <span class="text-danger">*</span></label>
-                        <textarea name="definition_of_done" id="dodInput" class="form-control" rows="2" placeholder="Clear criteria for when this plan is considered complete..." required></textarea>
-                    </div>
-
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label small fw-semibold text-secondary">Responsible Person</label>
-                            <input type="text" name="responsible_person" class="form-control" placeholder="e.g. Senior Network Engineer">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-semibold text-secondary">Description (Optional)</label>
-                            <input type="text" name="description" class="form-control" placeholder="Additional operational notes">
-                        </div>
+                        <textarea name="definition_of_done" id="dodInput" class="form-control" rows="3" placeholder="Clear criteria for when this plan is considered complete..." required></textarea>
                     </div>
                 </div>
 
                 <div class="modal-footer bg-light">
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-sm btn-kaldis">Save Monthly Plan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Decline Monthly Plan (GM Action) -->
+<div class="modal fade" id="declineMonthlyPlanModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" id="declineMonthlyPlanForm" action="">
+                @csrf
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold text-dark fs-6">Decline Monthly Plan</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="text-secondary small mb-3">Please specify the reason for declining this plan:</p>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Why are you declining this plan? <span class="text-danger">*</span></label>
+                        <textarea name="decline_reason" id="monthlyDeclineReasonInput" class="form-control" rows="3" placeholder="Provide reason or required changes..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-danger fw-semibold">Decline Plan</button>
                 </div>
             </form>
         </div>
@@ -430,6 +460,32 @@
     </div>
 </div>
 
+<!-- Modal: Decline Monthly Plan (GM Action) -->
+<div class="modal fade" id="declineMonthlyPlanModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" id="declineMonthlyPlanForm" action="">
+                @csrf
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold text-dark fs-6">Decline Monthly Plan</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="text-secondary small mb-3">Please specify the reason for declining this plan:</p>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Why are you declining this plan? <span class="text-danger">*</span></label>
+                        <textarea name="decline_reason" id="monthlyDeclineReasonInput" class="form-control" rows="3" placeholder="Provide reason or required changes..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-danger fw-semibold">Decline Plan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Modal: Submit Monthly Plan Delay Reason -->
 <div class="modal fade" id="monthlyDelayReasonModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
@@ -491,6 +547,32 @@
         </div>
     </div>
 </div>
+
+<!-- Modal: Decline Monthly Plan (GM Action) -->
+<div class="modal fade" id="declineMonthlyPlanModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" id="declineMonthlyPlanForm" action="">
+                @csrf
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold text-dark fs-6">Decline Monthly Plan</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="text-secondary small mb-3">Please specify the reason for declining this plan:</p>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Why are you declining this plan? <span class="text-danger">*</span></label>
+                        <textarea name="decline_reason" id="monthlyDeclineReasonInput" class="form-control" rows="3" placeholder="Provide reason or required changes..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-danger fw-semibold">Decline Plan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
@@ -536,6 +618,14 @@
         if (targetInput && (!targetInput.value || targetInput.value.length < 5)) {
             targetInput.value = target;
         }
+    }
+
+    function openDeclineMonthlyModal(planId, title) {
+        const form = document.getElementById('declineMonthlyPlanForm');
+        form.action = "{{ url('/monthly/plans') }}/" + planId + "/decline";
+        document.getElementById('monthlyDeclineReasonInput').value = '';
+        const modal = new bootstrap.Modal(document.getElementById('declineMonthlyPlanModal'));
+        modal.show();
     }
 
     document.addEventListener('DOMContentLoaded', function() {

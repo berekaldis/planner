@@ -4,7 +4,7 @@
 
 @section('content')
 <!-- Header -->
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2 mb-4">
     <div>
         <h4 class="fw-bold text-dark mb-1">
             <i class="fas fa-users-gear text-warning me-2"></i> User Accounts & Roles
@@ -31,7 +31,7 @@
                     <th>Department</th>
                     <th style="width: 100px;">Status</th>
                     <th>Last Login</th>
-                    <th style="width: 110px;" class="text-end">Actions</th>
+                    <th style="width: 140px;" class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -64,7 +64,7 @@
                         <td class="small text-muted">
                             {{ $u->last_login_at ? $u->last_login_at->diffForHumans() : 'Never' }}
                         </td>
-                        <td class="text-end">
+                        <td class="text-end text-nowrap">
                             <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2"
                                     onclick="openEditUserModal({{ json_encode([
                                         'id' => $u->id,
@@ -75,9 +75,18 @@
                                         'department_id' => $u->department_id,
                                         'telegram_chat_id' => $u->telegram_chat_id,
                                         'status' => $u->status
-                                    ]) }})">
+                                    ]) }})" title="Edit User">
                                 <i class="fas fa-user-pen me-1"></i> Edit
                             </button>
+                            @if($u->id !== auth()->id())
+                                <form method="POST" action="{{ route('admin.users.destroy', $u->id) }}" class="d-inline" onsubmit="return confirm('Are you sure you want to permanently delete user account \'{{ $u->username }}\'? This cannot be undone.');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2 ms-1" title="Delete User">
+                                        <i class="fas fa-trash-alt me-1"></i> Delete
+                                    </button>
+                                </form>
+                            @endif
                         </td>
                     </tr>
                 @endforeach
@@ -107,13 +116,13 @@
                             <input type="text" name="username" class="form-control font-monospace" placeholder="username" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small fw-semibold text-secondary">Password <span class="text-danger">*</span></label>
-                            <input type="password" name="password" class="form-control" placeholder="••••••••" required minlength="6">
+                            <label class="form-label small fw-semibold text-secondary">Password <small class="text-muted">(Default: kaldis123)</small></label>
+                            <input type="password" name="password" class="form-control" placeholder="kaldis123" minlength="6">
                         </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label small fw-semibold text-secondary">Email <span class="text-danger">*</span></label>
-                        <input type="email" name="email" class="form-control" placeholder="user@kaldiscoffeegroup.com" required>
+                        <input type="email" name="email" class="form-control" placeholder="user@kaldisbunna.et" required>
                     </div>
                     <div class="row g-2 mb-3">
                         <div class="col-md-6">

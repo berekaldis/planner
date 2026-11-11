@@ -281,19 +281,7 @@
                                         <i class="fa-solid fa-pencil"></i>
                                     </button>
 
-                                    @if($dept->active)
-                                        <!-- Deactivate / Delete Action -->
-                                        <button type="button" class="btn btn-outline-danger delete-dept-btn"
-                                                data-id="{{ $dept->id }}"
-                                                data-name="{{ $dept->department_name }}"
-                                                data-code="{{ $dept->department_code }}"
-                                                data-active="1"
-                                                data-goals="{{ $dept->annualGoals->count() }}"
-                                                data-head="{{ $dept->head ? $dept->head->full_name : 'No Head' }}"
-                                                title="Deactivate or Remove Department">
-                                            <i class="fa-solid fa-power-off"></i>
-                                        </button>
-                                    @else
+                                    @if(!$dept->active)
                                         <!-- Reactivate Button -->
                                         <button type="button" class="btn btn-outline-success reactivate-dept-btn"
                                                 data-id="{{ $dept->id }}"
@@ -302,18 +290,19 @@
                                                 title="Reactivate Department">
                                             <i class="fa-solid fa-rotate-left"></i>
                                         </button>
-                                        <!-- Permanent Delete Action for Inactive -->
-                                        <button type="button" class="btn btn-outline-danger delete-dept-btn"
-                                                data-id="{{ $dept->id }}"
-                                                data-name="{{ $dept->department_name }}"
-                                                data-code="{{ $dept->department_code }}"
-                                                data-active="0"
-                                                data-goals="{{ $dept->annualGoals->count() }}"
-                                                data-head="{{ $dept->head ? $dept->head->full_name : 'No Head' }}"
-                                                title="Permanently Remove Inactive Department">
-                                            <i class="fa-solid fa-trash-can"></i>
-                                        </button>
                                     @endif
+
+                                    <!-- Delete Action -->
+                                    <button type="button" class="btn btn-outline-danger delete-dept-btn"
+                                            data-id="{{ $dept->id }}"
+                                            data-name="{{ $dept->department_name }}"
+                                            data-code="{{ $dept->department_code }}"
+                                            data-active="{{ $dept->active ? '1' : '0' }}"
+                                            data-goals="{{ $dept->annualGoals->count() }}"
+                                            data-head="{{ $dept->head ? $dept->head->full_name : 'No Head' }}"
+                                            title="Delete Department">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -492,13 +481,13 @@
         <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
             <div class="modal-header border-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-start">
                 <div class="rounded-circle bg-danger bg-opacity-10 text-danger d-flex align-items-center justify-content-center" style="width: 52px; height: 52px;">
-                    <i class="fa-solid fa-triangle-exclamation fs-4"></i>
+                    <i class="fa-solid fa-trash-can fs-4"></i>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body px-4 pt-3 pb-2">
-                <h5 class="fw-bold text-dark mb-1" id="deleteDepartmentModalLabel">Remove / Deactivate Department</h5>
-                <p class="text-muted small mb-3">Please review the organizational impact before proceeding.</p>
+                <h5 class="fw-bold text-dark mb-1" id="deleteDepartmentModalLabel">Delete Department</h5>
+                <p class="text-muted small mb-3">Please confirm if you want to permanently delete this department.</p>
 
                 <!-- Department Details Card -->
                 <div class="card border border-light-subtle rounded-3 bg-light bg-opacity-50 p-3 mb-3">
@@ -514,11 +503,11 @@
                 </div>
 
                 <!-- Audit Protection Notice -->
-                <div class="alert alert-warning border-0 bg-warning bg-opacity-10 py-2.5 px-3 small d-flex align-items-start gap-2 mb-0">
-                    <i class="fa-solid fa-shield-halved text-warning mt-1 flex-shrink-0"></i>
+                <div class="alert alert-danger border-0 bg-danger bg-opacity-10 py-2.5 px-3 small d-flex align-items-start gap-2 mb-0">
+                    <i class="fa-solid fa-triangle-exclamation text-danger mt-1 flex-shrink-0"></i>
                     <div class="text-muted" style="line-height: 1.45;">
-                        <strong class="text-dark">Audit Protection Safeguard:</strong>
-                        If this department has associated operational records (monthly plans, weekly performance tasks, or active user accounts), the system will safely mark it <strong>INACTIVE</strong> instead of hard-deleting it to preserve corporate audit trails.
+                        <strong class="text-dark">Permanent Deletion Notice:</strong>
+                        Deleting this department will unassign its members and clean up related records. This action is permanently recorded in the system audit log.
                     </div>
                 </div>
             </div>
@@ -529,8 +518,8 @@
                     @method('DELETE')
                     <button type="submit" id="confirmDeleteSubmitBtn" class="btn btn-danger fw-bold d-inline-flex align-items-center gap-2">
                         <span class="spinner-border spinner-border-sm d-none" role="status"></span>
-                        <i class="fa-solid fa-power-off"></i>
-                        <span id="confirmDeleteBtnText">Confirm Action</span>
+                        <i class="fa-solid fa-trash-can"></i>
+                        <span id="confirmDeleteBtnText">Delete Department</span>
                     </button>
                 </form>
             </div>
@@ -834,11 +823,11 @@
             if (active) {
                 delStatusBadge.className = 'badge bg-success-subtle text-success border border-success-subtle';
                 delStatusBadge.textContent = 'Active';
-                delBtnText.textContent = 'Confirm Deactivate / Remove';
+                delBtnText.textContent = 'Delete Department';
             } else {
                 delStatusBadge.className = 'badge bg-secondary-subtle text-secondary border border-secondary-subtle';
                 delStatusBadge.textContent = 'Inactive';
-                delBtnText.textContent = 'Confirm Permanent Deletion';
+                delBtnText.textContent = 'Delete Inactive Department';
             }
 
             deleteModal.show();

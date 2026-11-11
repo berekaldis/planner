@@ -16,6 +16,7 @@ class WeeklyTask extends Model
         'month',
         'week_number',
         'plan_type',
+        'task_type',
         'annual_goal_id',
         'task_title',
         'task_description',
@@ -25,6 +26,10 @@ class WeeklyTask extends Model
         'due_date',
         'dependency',
         'notes',
+        'approval_status',
+        'decline_reason',
+        'approved_by',
+        'approved_at',
         'created_by',
     ];
 

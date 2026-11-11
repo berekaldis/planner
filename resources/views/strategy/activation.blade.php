@@ -3,6 +3,12 @@
 @section('title', 'GM Monthly Strategy Activation')
 
 @section('content')
+@php
+    $selectedDept = $selectedDept ?? 0;
+    $search = $search ?? '';
+    $selectedStatus = $selectedStatus ?? 'ALL';
+    $perPage = $perPage ?? 25;
+@endphp
 <!-- Header with Executive Metric Badges -->
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-2">
     <div>
@@ -12,6 +18,9 @@
         <p class="text-muted small mb-0">General Manager authorization portal for activating Annual Strategies for <strong>{{ $selectedMonth }} {{ $selectedYear }}</strong>.</p>
     </div>
     <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm" data-bs-toggle="modal" data-bs-target="#createStrategyPlanModal">
+            <i class="fas fa-plus-circle"></i> Add Strategy Plan
+        </button>
         <a href="{{ route('strategy.annual', ['year' => $selectedYear]) }}" class="btn btn-sm btn-outline-secondary">
             <i class="fas fa-bullseye me-1"></i> Annual Goals Master
         </a>
@@ -190,36 +199,6 @@
             <button type="button" class="btn btn-sm btn-danger px-3 fw-bold shadow-sm d-inline-flex align-items-center" onclick="bulkSetActivation(false)" title="Turn all selected plans to FALSE (Inactive)">
                 <i class="fas fa-times-circle me-1.5"></i> Bulk Inactive
             </button>
-
-            <!-- Batch Dropdown for Extra Bulk Actions -->
-            <div class="btn-group">
-                <button type="button" class="btn btn-sm btn-outline-light dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fas fa-bolt me-1"></i> More Actions
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow">
-                    <li>
-                        <button type="button" class="dropdown-item text-success fw-semibold" onclick="bulkSetActivationPage(true)">
-                            <i class="fas fa-check-double me-2"></i> Activate All on This Page ({{ $goals->count() }})
-                        </button>
-                    </li>
-                    <li>
-                        <button type="button" class="dropdown-item text-danger fw-semibold" onclick="bulkSetActivationPage(false)">
-                            <i class="fas fa-times me-2"></i> Deactivate All on This Page
-                        </button>
-                    </li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li>
-                        <button type="button" class="dropdown-item text-success fw-bold" onclick="bulkSetActivationAll(true)">
-                            <i class="fas fa-globe me-2"></i> Activate ALL Strategic Plans (Company-Wide)
-                        </button>
-                    </li>
-                    <li>
-                        <button type="button" class="dropdown-item text-secondary" onclick="bulkSetActivationAll(false)">
-                            <i class="fas fa-ban me-2"></i> Deactivate ALL Strategic Plans (Company-Wide)
-                        </button>
-                    </li>
-                </ul>
-            </div>
         </div>
     </div>
 
@@ -262,9 +241,7 @@
                     <th>Annual Strategic Goal &amp; Definition of Done</th>
                     <th style="width: 200px;">Owner Departments</th>
                     <th style="width: 140px;">Annual Target</th>
-                    <th style="width: 95px;">Priority</th>
-                    <th style="width: 150px;" class="text-center">Status ({{ $selectedMonth }})</th>
-                    <th style="width: 140px;" class="text-center no-print">Action</th>
+                    <th style="width: 150px;" class="text-center no-print">Status &amp; Action</th>
                 </tr>
             </thead>
             <tbody>
@@ -325,45 +302,24 @@
                             <small class="fw-semibold text-dark">{{ $goal->annual_target ?: '—' }}</small>
                         </td>
 
-                        <!-- Priority -->
-                        <td>
-                            @php
-                                $prio = strtoupper($goal->priority ?? 'MEDIUM');
-                                $prioColor = match($prio) {
-                                    'HIGH' => 'danger',
-                                    'MEDIUM' => 'warning',
-                                    'LOW' => 'info',
-                                    default => 'secondary'
-                                };
-                            @endphp
-                            <span class="badge bg-{{ $prioColor }}-subtle text-{{ $prioColor }} border border-{{ $prioColor }}-subtle fs-8 px-2 py-0.5">
-                                {{ $prio }}
-                            </span>
-                        </td>
+                        
 
-                        <!-- Status Badge -->
-                        <td class="text-center status-col">
-                            <span id="badge-{{ $goal->id }}" class="badge {{ $isActive ? 'bg-success text-white' : 'bg-secondary-subtle text-secondary border' }} px-2 py-1 fs-7 shadow-xs">
-                                <i class="fas {{ $isActive ? 'fa-check-circle' : 'fa-times-circle' }} me-1"></i>
-                                <span>{{ $isActive ? 'TRUE (Active)' : 'FALSE (Inactive)' }}</span>
-                            </span>
-                        </td>
-
-                        <!-- 1-Click Action Toggle Button -->
-                        <td class="text-center no-print action-col">
+                        <!-- 2-in-1 Status & Action Button -->
+                        <td class="text-center no-print status-action-col">
                             <button type="button" 
-                                    class="btn btn-sm {{ $isActive ? 'btn-outline-danger' : 'btn-kaldis' }} toggle-btn px-2.5 py-1 shadow-xs"
+                                    class="btn btn-sm {{ $isActive ? 'btn-success text-white' : 'btn-outline-secondary' }} status-action-btn px-3 py-1 shadow-xs fw-semibold"
                                     id="btn-{{ $goal->id }}"
                                     data-active="{{ $isActive ? 1 : 0 }}"
-                                    onclick="togglePlan({{ $goal->id }})">
-                                <i class="fas {{ $isActive ? 'fa-times' : 'fa-check' }} me-1"></i>
-                                <span>{{ $isActive ? 'Set FALSE' : 'Turn TRUE' }}</span>
+                                    onclick="togglePlan({{ $goal->id }})"
+                                    title="{{ $isActive ? 'Active - Click to deactivate' : 'Inactive - Click to activate' }}">
+                                <i class="fas {{ $isActive ? 'fa-check-circle' : 'fa-circle-xmark' }} me-1"></i>
+                                <span>{{ $isActive ? 'Active' : 'Inactive' }}</span>
                             </button>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="text-center py-5 text-muted">
+                        <td colspan="6" class="text-center py-5 text-muted">
                             <div class="p-3 bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
                                 <i class="fas fa-folder-open fa-2x text-muted opacity-50"></i>
                             </div>
@@ -544,19 +500,91 @@
     from { opacity: 0; transform: translate(-50%, 20px); }
     to { opacity: 1; transform: translate(-50%, 0); }
 }
-
-[data-bs-theme=dark] .pagination-circle .circle-page-btn,
-[data-bs-theme=dark] .pagination-circle .circle-nav-btn {
-    background: #1E293B;
-    border-color: #334155;
-    color: #F1F5F9;
-}
-
-[data-bs-theme=dark] .floating-bulk-bar {
-    background: #0F172A !important;
-    border-color: rgba(251, 191, 36, 0.4) !important;
-}
 </style>
+
+<!-- Modal: Add Strategy Plan -->
+<div class="modal fade" id="createStrategyPlanModal" tabindex="-1" aria-labelledby="createStrategyPlanModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-warning bg-opacity-10 py-3 border-bottom border-light-subtle">
+                <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2" id="createStrategyPlanModalLabel">
+                    <i class="fas fa-plus-circle text-warning"></i> Add New Strategic Plan
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ route('strategy.goals.store') }}" id="createStrategyPlanForm">
+                @csrf
+                <div class="modal-body p-4">
+                    <div class="alert alert-light border border-light-subtle py-2 px-3 small d-flex align-items-center gap-2 mb-3">
+                        <i class="fas fa-info-circle text-primary"></i>
+                        <span>This creates a strategic initiative with General Manager authorization.</span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Strategic Objective / Title <span class="text-danger">*</span></label>
+                        <input type="text" name="title" class="form-control" placeholder="e.g. Expand premium coffee bean roasting capacity by 35%" required>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-secondary">Lead Responsible Department <span class="text-danger">*</span></label>
+                            <select name="responsible_department_id" class="form-select" required>
+                                <option value="">-- Select Lead Department --</option>
+                                @foreach($departments as $dept)
+                                    <option value="{{ $dept->id }}">{{ $dept->department_name }} ({{ $dept->department_code }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-secondary">Co-Owner Departments <small class="text-muted">(Optional)</small></label>
+                            <select name="co_owner_department_ids[]" class="form-select" multiple>
+                                @foreach($departments as $dept)
+                                    <option value="{{ $dept->id }}">{{ $dept->department_name }} ({{ $dept->department_code }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Target / Definition of Done <span class="text-danger">*</span></label>
+                        <textarea name="definition_of_done" class="form-control" rows="2" placeholder="Specific quantitative outcome or completion criteria..." required></textarea>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-secondary">Planning Year <span class="text-danger">*</span></label>
+                            <select name="year" class="form-select" required>
+                                @foreach(config('kaldis.planning_years', ['2019 E.C.']) as $y)
+                                    <option value="{{ $y }}" {{ ($selectedYear ?? '') === $y ? 'selected' : '' }}>{{ $y }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-secondary">Goal Code <small class="text-muted">(Auto if blank)</small></label>
+                            <input type="text" name="goal_code" class="form-control font-monospace" placeholder="Auto (e.g. G59)">
+                        </div>
+                    </div>
+
+                    <div class="form-check p-3 bg-light rounded-3 border border-light-subtle">
+                        <input class="form-check-input ms-0 me-2" type="checkbox" name="activate_for_month" value="{{ $selectedMonth }}" id="activateCurrentMonthCheck" checked>
+                        <label class="form-check-label small fw-semibold text-dark" for="activateCurrentMonthCheck">
+                            <i class="fas fa-toggle-on text-success me-1"></i> Activate immediately for {{ $selectedMonth }} {{ $selectedYear }}
+                        </label>
+                        <div class="text-muted small ms-4" style="font-size: 0.75rem;">
+                            Enables this strategic goal for immediate selection by department heads during {{ $selectedMonth }} monthly planning.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light px-4 py-3 border-top border-light-subtle d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary fw-bold d-inline-flex align-items-center gap-1.5">
+                        <i class="fas fa-check-circle"></i> Save Strategic Plan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
@@ -626,7 +654,6 @@ function togglePlan(goalId) {
  */
 function updateRowUI(goalId, isActive) {
     const row = document.getElementById('row-' + goalId);
-    const badge = document.getElementById('badge-' + goalId);
     const btn = document.getElementById('btn-' + goalId);
 
     if (row) {
@@ -637,24 +664,16 @@ function updateRowUI(goalId, isActive) {
         }
     }
 
-    if (badge) {
-        if (isActive) {
-            badge.className = 'badge bg-success text-white px-2 py-1 fs-7 shadow-xs';
-            badge.innerHTML = '<i class="fas fa-check-circle me-1"></i><span>TRUE (Active)</span>';
-        } else {
-            badge.className = 'badge bg-secondary-subtle text-secondary border px-2 py-1 fs-7 shadow-xs';
-            badge.innerHTML = '<i class="fas fa-times-circle me-1"></i><span>FALSE (Inactive)</span>';
-        }
-    }
-
     if (btn) {
         btn.setAttribute('data-active', isActive ? 1 : 0);
         if (isActive) {
-            btn.className = 'btn btn-sm btn-outline-danger toggle-btn px-2.5 py-1 shadow-xs';
-            btn.innerHTML = '<i class="fas fa-times me-1"></i><span>Set FALSE</span>';
+            btn.className = 'btn btn-sm btn-success text-white status-action-btn px-3 py-1 shadow-xs fw-semibold';
+            btn.innerHTML = '<i class="fas fa-check-circle me-1"></i><span>Active</span>';
+            btn.setAttribute('title', 'Active - Click to deactivate');
         } else {
-            btn.className = 'btn btn-sm btn-kaldis toggle-btn px-2.5 py-1 shadow-xs';
-            btn.innerHTML = '<i class="fas fa-check me-1"></i><span>Turn TRUE</span>';
+            btn.className = 'btn btn-sm btn-outline-secondary status-action-btn px-3 py-1 shadow-xs fw-semibold';
+            btn.innerHTML = '<i class="fas fa-circle-xmark me-1"></i><span>Inactive</span>';
+            btn.setAttribute('title', 'Inactive - Click to activate');
         }
     }
 }

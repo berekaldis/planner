@@ -27,6 +27,10 @@ class MonthlyPlan extends Model
         'actual_result',
         'achievement_percentage',
         'completion_notes',
+        'approval_status',
+        'decline_reason',
+        'approved_by',
+        'approved_at',
         'active',
         'created_by',
     ];

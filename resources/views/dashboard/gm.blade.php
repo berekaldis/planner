@@ -3,6 +3,9 @@
 @section('title', 'General Manager Executive Dashboard')
 
 @section('content')
+@php
+    $currentPhase = $currentPhase ?? 2;
+@endphp
 <!-- Page Header -->
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-2">
     <div>
@@ -12,15 +15,6 @@
         <p class="text-muted small mb-0">Strategic Alignment, Monthly Plans &amp; Weekly Performance Oversight &bull; <strong>{{ $selectedMonth }} {{ $selectedYear }}</strong></p>
     </div>
     <div class="d-flex flex-wrap gap-2">
-        <form method="POST" action="{{ route('management.run_telegram_check') }}" class="d-inline" onsubmit="return confirm('Trigger automated Telegram reminders & executive summary report for {{ $selectedMonth }} {{ $selectedYear }} (Week {{ $selectedWeek }})?');">
-            @csrf
-            <input type="hidden" name="year" value="{{ $selectedYear }}">
-            <input type="hidden" name="month" value="{{ $selectedMonth }}">
-            <input type="hidden" name="week" value="{{ $selectedWeek }}">
-            <button type="submit" class="btn btn-outline-primary btn-sm shadow-sm" title="Run automated Telegram reminders and dispatch GM executive summary">
-                <i class="fab fa-telegram-plane text-primary me-1"></i> ⚡ Run Automated Telegram Check
-            </button>
-        </form>
         <a href="{{ route('strategy.activation', ['year' => $selectedYear, 'month' => $selectedMonth]) }}" class="btn btn-kaldis btn-sm">
             <i class="fas fa-toggle-on me-1"></i> Monthly Activation
         </a>
@@ -63,33 +57,6 @@
             </span>
         </div>
     </form>
-</div>
-
-<!-- Planning Lifecycle Stepper -->
-<div class="card mb-4 border-0 shadow-sm">
-    <div class="card-body p-3">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-            <span class="small fw-bold text-muted text-uppercase" style="letter-spacing: 0.05em;">Monthly Planning & Execution Lifecycle</span>
-            <span class="badge bg-light text-secondary border small">Period: {{ $selectedMonth }} {{ $selectedYear }}</span>
-        </div>
-        <div class="row g-2 text-center small">
-            <div class="col-md-4">
-                <div class="p-2 rounded {{ $currentPhase === 1 ? 'bg-warning-subtle text-warning-emphasis fw-bold border border-warning' : 'bg-light text-muted' }}">
-                    <i class="fas fa-check-circle me-1 {{ $currentPhase > 1 ? 'text-success' : '' }}"></i> Phase 1: Pending GM Activation
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="p-2 rounded {{ $currentPhase === 2 ? 'bg-primary-subtle text-primary-emphasis fw-bold border border-primary' : ($currentPhase > 2 ? 'bg-light text-muted' : 'bg-light text-muted opacity-50') }}">
-                    <i class="fas fa-check-circle me-1 {{ $currentPhase > 2 ? 'text-success' : '' }}"></i> Phase 2: Monthly Plans Active
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="p-2 rounded {{ $currentPhase === 3 ? 'bg-success-subtle text-success-emphasis fw-bold border border-success' : 'bg-light text-muted opacity-50' }}">
-                    <i class="fas fa-spinner fa-spin me-1 {{ $currentPhase === 3 ? 'text-success' : '' }}"></i> Phase 3: Execution Active
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 
 @if(($totalPendingDelays ?? 0) > 0)
@@ -206,67 +173,17 @@
     </div>
 </div>
 
-<!-- Department Execution Performance Comparison -->
-<div class="card mb-4">
-    <div class="card-header">
-        <span><i class="fas fa-building me-1 text-secondary"></i> Department Execution Performance</span>
-        <a href="{{ route('performance.monthly', ['year' => $selectedYear, 'month' => $selectedMonth]) }}" class="small text-decoration-none text-muted">View Full Rollup &rarr;</a>
-    </div>
-    <div class="table-responsive">
-        <table class="table table-hover mb-0">
-            <thead>
-                <tr>
-                    <th>Department</th>
-                    <th class="text-center">Planned Tasks</th>
-                    <th class="text-center">Done</th>
-                    <th class="text-center">Not Done</th>
-                    <th>Completion Rate</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($departmentPerformances as $dp)
-                    <tr>
-                        <td>
-                            <strong class="text-dark">{{ $dp['department']->department_name }}</strong>
-                            <span class="badge bg-light text-secondary ms-1">{{ $dp['department']->department_code }}</span>
-                        </td>
-                        <td class="text-center">{{ $dp['total'] }}</td>
-                        <td class="text-center text-success fw-bold">{{ $dp['done'] }}</td>
-                        <td class="text-center text-danger fw-bold">{{ $dp['not_done'] }}</td>
-                        <td style="width: 250px;">
-                            @if($dp['total'] > 0)
-                                <div class="d-flex align-items-center gap-2">
-                                    <div class="progress flex-grow-1" style="height: 8px;">
-                                        <div class="progress-bar bg-success" style="width: {{ $dp['rate'] }}%;"></div>
-                                    </div>
-                                    <span class="small fw-semibold">{{ $dp['rate'] }}%</span>
-                                </div>
-                            @else
-                                <span class="text-muted small">&mdash;</span>
-                            @endif
-                        </td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="5" class="text-center py-4 text-muted">No departments configured yet.</td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
-</div>
-
 <!-- ══════════════════════════════════════════════════════════
-     EXECUTIVE PLANS & REPORTS COMMAND CENTER (GM EASY VIEW)
+     DEPARTMENT PERFORMANCE & OVERSIGHT
      ══════════════════════════════════════════════════════════ -->
 <div class="card mb-4 border-0 shadow-sm">
     <div class="card-header bg-white border-bottom py-3">
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
             <div>
                 <h5 class="fw-bold text-dark mb-0">
-                    <i class="fas fa-file-invoice text-warning me-2"></i> Executive Plans &amp; Performance Vouchers Command Center
+                    <i class="fas fa-building text-warning me-2"></i> Department Performance &amp; Oversight
                 </h5>
-                <small class="text-muted">Direct oversight, submission compliance tracking (On-Time / Late / Not Submitted), and official voucher inspection</small>
+                <small class="text-muted">Review weekly performance, task schedules, and monthly submissions across all departments</small>
             </div>
             <ul class="nav nav-pills react-nav-pills small" id="gmExecutiveTabs" role="tablist">
                 <li class="nav-item" role="presentation">
@@ -312,9 +229,9 @@
                         </div>
                     </div>
                     <div class="small text-muted">
-                        <span class="badge bg-success-subtle text-success border border-success me-1">🟢 On-Time</span>
-                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning me-1">🟡 Late</span>
-                        <span class="badge bg-danger-subtle text-danger border border-danger">🔴 Not Submitted</span>
+                        <span class="badge bg-success-subtle text-success border border-success me-1"><i class="fas fa-circle-check me-1"></i>On-Time</span>
+                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning me-1"><i class="fas fa-clock me-1"></i>Late</span>
+                        <span class="badge bg-danger-subtle text-danger border border-danger"><i class="fas fa-circle-xmark me-1"></i>Not Submitted</span>
                     </div>
                 </div>
 
@@ -735,7 +652,7 @@
                 <div class="p-3 bg-light border-bottom">
                     <div class="row g-2 align-items-center">
                         <div class="col-md-6">
-                            <input type="text" id="gmAllPlansSearch" class="form-control form-control-sm" placeholder="🔍 Filter plans live by department, title, target, or responsible person...">
+                            <input type="text" id="gmAllPlansSearch" class="form-control form-control-sm" placeholder="Filter plans live by department, title, target, or responsible person...">
                         </div>
                         <div class="col-md-6 text-md-end text-muted small">
                             Total company-wide monthly plans: <strong>{{ $allMonthlyPlans->count() }}</strong>
@@ -750,12 +667,10 @@
                                 <th>Dept</th>
                                 <th>Type</th>
                                 <th>Goal Link</th>
-                                <th>Plan Title</th>
-                                <th>Target Output</th>
-                                <th>DOD (Definition of Done)</th>
-                                <th class="text-center">Target %</th>
-                                <th class="text-center">Priority</th>
-                                <th>Responsible</th>
+                                <th>Plan Title &amp; Target</th>
+                                <th>Definition of Done (DOD)</th>
+                                <th class="text-center" style="width: 140px;">Approval Status</th>
+                                <th class="text-center" style="width: 100px;">Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -779,21 +694,47 @@
                                         @endif
                                     </td>
                                     <td>
-                                        <strong class="text-dark small">{{ $plan->title }}</strong>
+                                        <strong class="text-dark small d-block">{{ $plan->title }}</strong>
+                                        <span class="text-muted small">Target: {{ $plan->monthly_target }}</span>
                                     </td>
-                                    <td class="text-primary small fw-semibold">{{ $plan->monthly_target }}</td>
                                     <td class="text-muted small" style="max-width: 250px;">{{ $plan->definition_of_done }}</td>
-                                    <td class="text-center font-monospace small">{{ $plan->target_percentage }}%</td>
                                     <td class="text-center">
-                                        <span class="badge {{ $plan->priority === 'HIGH' ? 'bg-danger' : ($plan->priority === 'LOW' ? 'bg-secondary' : 'bg-warning text-dark') }} small">
-                                            {{ $plan->priority }}
-                                        </span>
+                                        @if($plan->approval_status === 'APPROVED')
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                <i class="fas fa-check-circle me-1"></i>Approved
+                                            </span>
+                                        @elseif($plan->approval_status === 'DECLINED')
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle" title="{{ $plan->decline_reason }}">
+                                                <i class="fas fa-circle-xmark me-1"></i>Declined
+                                            </span>
+                                            @if($plan->decline_reason)
+                                                <div class="text-danger small mt-0.5" style="font-size: 0.7rem;">{{ $plan->decline_reason }}</div>
+                                            @endif
+                                        @else
+                                            <span class="badge bg-secondary-subtle text-secondary border">Pending</span>
+                                        @endif
                                     </td>
-                                    <td class="small text-muted">{{ $plan->responsible_person ?: 'Team' }}</td>
+                                    <td class="text-center">
+                                        <div class="d-inline-flex align-items-center gap-1">
+                                            @if($plan->approval_status !== 'APPROVED')
+                                                <form method="POST" action="{{ route('monthly.plans.approve', $plan->id) }}" class="d-inline">
+                                                    @csrf
+                                                    <button type="submit" class="btn btn-xs btn-outline-success py-0.5 px-1.5" title="Approve Plan">
+                                                        <i class="fas fa-check"></i>
+                                                    </button>
+                                                </form>
+                                            @endif
+                                            @if($plan->approval_status !== 'DECLINED')
+                                                <button type="button" class="btn btn-xs btn-outline-danger py-0.5 px-1.5" onclick="openGmDeclinePlanModal({{ $plan->id }}, '{{ addslashes($plan->title) }}')" title="Decline Plan">
+                                                    <i class="fas fa-xmark"></i>
+                                                </button>
+                                            @endif
+                                        </div>
+                                    </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="9" class="text-center py-4 text-muted">No monthly plans found for {{ $selectedMonth }} {{ $selectedYear }}.</td>
+                                    <td colspan="7" class="text-center py-4 text-muted">No monthly plans found for {{ $selectedMonth }} {{ $selectedYear }}.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -801,6 +742,32 @@
                 </div>
             </div>
 
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Decline Monthly Plan (GM Action) -->
+<div class="modal fade" id="gmDeclinePlanModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" id="gmDeclinePlanForm" action="">
+                @csrf
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold text-dark fs-6">Decline Monthly Plan</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="text-secondary small mb-3">Please specify the reason for declining this monthly plan:</p>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Why are you declining this plan? <span class="text-danger">*</span></label>
+                        <textarea name="decline_reason" id="gmDeclineReasonInput" class="form-control" rows="3" placeholder="Provide feedback or required adjustments..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-danger fw-semibold">Decline Plan</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -1011,5 +978,13 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 });
+
+function openGmDeclinePlanModal(planId, title) {
+    const form = document.getElementById('gmDeclinePlanForm');
+    form.action = "{{ url('/monthly/plans') }}/" + planId + "/decline";
+    document.getElementById('gmDeclineReasonInput').value = '';
+    const modal = new bootstrap.Modal(document.getElementById('gmDeclinePlanModal'));
+    modal.show();
+}
 </script>
 @endsection

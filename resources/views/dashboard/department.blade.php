@@ -135,7 +135,7 @@
                 <tr>
                     <th>Type</th>
                     <th>Task Title</th>
-                    <th>Target</th>
+                    <th>Definition of Done (DOD)</th>
                     <th>Priority</th>
                     <th>Status</th>
                 </tr>
@@ -156,7 +156,7 @@
                                 <div class="small text-muted">Plan: {{ $task->monthlyPlan->title }}</div>
                             @endif
                         </td>
-                        <td>{{ $task->task_target }}</td>
+                        <td>{{ $task->expected_result ?: $task->task_target }}</td>
                         <td>
                             <span class="badge bg-light text-secondary border">{{ $task->priority }}</span>
                         </td>

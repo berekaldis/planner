@@ -1,19 +1,20 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Sign In') | {{ config('kaldis.app_name', 'Kaldis Planning Portal') }}</title>
     
-    <!-- Google Fonts: Inter & Plus Jakarta Sans -->
+    <!-- Google Fonts: Instrument Sans (Matching CompanySystem) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,500;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
     
     <!-- Bootstrap 5.3 & FontAwesome 6 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-    <!-- Favicon with Strict Transparent Multi-Resolution and Cache Busting -->
+    
+    <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v=3">
     <link rel="shortcut icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v=3">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}?v=3">
@@ -22,143 +23,154 @@
 
     <style>
         :root {
-            --gold: #D97706;
-            --gold-hover: #B45309;
-            --gold-light: #F59E0B;
-            --gold-soft: rgba(217, 119, 6, 0.08);
-            --bg-canvas: #F8FAFC;
-            --card-bg: #FFFFFF;
-            --text-main: #0F172A;
-            --text-muted: #64748B;
-            --border-color: #E2E8F0;
+            --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --background: #FFFFFF;
+            --foreground: #18181B;
+            --card: #FFFFFF;
+            --card-foreground: #18181B;
+            --muted: #F4F4F5;
+            --muted-foreground: #71717A;
+            --primary: #18181B;
+            --primary-foreground: #FAFAFA;
+            --border: #E4E4E7;
+            --input: #E4E4E7;
+            --ring: #D4D4D8;
+            --radius: 0.625rem;
         }
 
         *, *::before, *::after { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; width: 100%; min-height: 100vh; }
 
         body {
-            font-family: 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            font-family: var(--font-sans);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 24px 16px;
-            background-color: var(--bg-canvas);
-            color: var(--text-main);
-            position: relative;
-            background-image: 
-                radial-gradient(ellipse 60% 50% at 50% -10%, rgba(217, 119, 6, 0.08) 0%, transparent 60%),
-                radial-gradient(circle at 100% 100%, rgba(245, 158, 11, 0.05) 0%, transparent 40%);
+            padding: 1.5rem 1rem;
+            background-color: var(--muted);
+            color: var(--foreground);
+            -webkit-font-smoothing: antialiased;
         }
 
-        .login-card {
+        .auth-container {
             width: 100%;
-            max-width: 440px;
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 20px;
-            padding: 2.5rem 2.25rem;
-            box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.06), 0 4px 6px -2px rgba(15, 23, 42, 0.03);
-            animation: cardFadeIn 0.4s ease-out;
+            max-width: 420px;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
         }
 
-        @keyframes cardFadeIn {
-            from { opacity: 0; transform: translateY(12px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .login-logo {
-            width: 82px;
-            height: 82px;
+        .auth-logo-badge {
+            width: 96px;
+            height: 96px;
             border-radius: 50%;
-            object-fit: cover;
-            border: 3px solid var(--gold);
-            padding: 0;
-            background: transparent !important;
-            box-shadow: 0 6px 16px rgba(217, 119, 6, 0.2);
-            margin-bottom: 1rem;
+            background: #FFFFFF;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            transition: transform 0.2s ease;
+        }
+        .auth-logo-badge:hover {
+            transform: scale(1.03);
         }
 
-        .brand-title {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            font-weight: 800;
-            color: var(--text-main);
-            letter-spacing: -0.025em;
-            font-size: 1.45rem;
+        .auth-logo-img {
+            width: 78px;
+            height: 78px;
+            object-fit: contain;
         }
 
-        .input-group-text {
-            background-color: #F8FAFC !important;
-            border: 1.5px solid #CBD5E1 !important;
-            border-right: none !important;
-            color: var(--text-muted) !important;
-            border-radius: 10px 0 0 10px !important;
+        .auth-card {
+            background-color: var(--card);
+            color: var(--card-foreground);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
         }
 
-        .form-control {
-            background-color: #FFFFFF !important;
-            border: 1.5px solid #CBD5E1 !important;
-            color: var(--text-main) !important;
-            border-radius: 0 10px 10px 0 !important;
-            padding: 0.65rem 0.9rem;
-            font-size: 0.92rem;
-            transition: all 0.2s ease;
+        .auth-card-header {
+            padding: 2rem 2rem 0.5rem 2rem;
+            text-align: center;
         }
 
-        .form-control:focus {
-            border-color: var(--gold) !important;
-            box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15) !important;
+        .auth-card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--foreground);
+            letter-spacing: -0.015em;
+            margin-bottom: 0.35rem;
         }
 
-        .input-group:focus-within .input-group-text {
-            border-color: var(--gold) !important;
-            color: var(--gold) !important;
-            background-color: var(--gold-soft) !important;
+        .auth-card-description {
+            font-size: 0.875rem;
+            color: var(--muted-foreground);
+            margin-bottom: 0;
+        }
+
+        .auth-card-body {
+            padding: 1.5rem 2rem 2rem 2rem;
         }
 
         .form-label {
-            color: #334155;
-            font-weight: 600;
-            font-size: 0.8rem;
-            margin-bottom: 0.4rem;
+            color: var(--foreground);
+            font-weight: 500;
+            font-size: 0.875rem;
+            margin-bottom: 0.35rem;
         }
 
-        .btn-kaldis-login {
-            background: linear-gradient(135deg, #D97706 0%, #B45309 100%);
-            color: #FFFFFF;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            font-weight: 700;
-            font-size: 0.95rem;
-            border: none;
-            padding: 0.75rem 1.25rem;
-            border-radius: 10px;
-            transition: all 0.2s ease;
-            box-shadow: 0 4px 14px rgba(217, 119, 6, 0.28);
+        .form-control {
+            background-color: var(--background);
+            border: 1px solid var(--input);
+            color: var(--foreground);
+            border-radius: calc(var(--radius) - 2px);
+            padding: 0.55rem 0.85rem;
+            font-size: 0.875rem;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
 
-        .btn-kaldis-login:hover {
-            background: linear-gradient(135deg, #B45309 0%, #92400E 100%);
-            color: #FFFFFF;
-            transform: translateY(-1px);
-            box-shadow: 0 6px 18px rgba(217, 119, 6, 0.38);
+        .form-control:focus {
+            background-color: var(--background);
+            border-color: var(--foreground);
+            color: var(--foreground);
+            box-shadow: 0 0 0 1px var(--foreground);
         }
 
-        .demo-pill {
-            cursor: pointer;
-            transition: all 0.15s ease;
-            border: 1px solid #E2E8F0;
-            background: #F8FAFC;
-            color: #475569;
-            font-size: 0.72rem;
-            padding: 4px 10px;
-            border-radius: 9999px;
-            font-weight: 600;
+        .btn-auth-submit {
+            background-color: var(--primary);
+            color: var(--primary-foreground);
+            font-family: var(--font-sans);
+            font-weight: 500;
+            font-size: 0.875rem;
+            border: 1px solid transparent;
+            padding: 0.6rem 1.25rem;
+            border-radius: calc(var(--radius) - 2px);
+            transition: opacity 0.15s ease, background-color 0.15s ease;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
         }
 
-        .demo-pill:hover {
-            background: var(--gold-soft);
-            border-color: var(--gold);
-            color: var(--gold-hover);
+        .btn-auth-submit:hover {
+            opacity: 0.92;
+            color: var(--primary-foreground);
+        }
+
+        .form-check-input {
+            border-color: var(--border);
+            border-radius: 4px;
+        }
+        .form-check-input:checked {
+            background-color: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .auth-footer {
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--muted-foreground);
         }
     </style>
 </head>

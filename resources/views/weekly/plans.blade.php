@@ -4,7 +4,7 @@
 
 @section('content')
 <!-- Header -->
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2 mb-4">
     <div>
         <h4 class="fw-bold text-dark mb-1">Weekly Task Planning</h4>
         <p class="text-muted small mb-0">{{ $department->department_name }} &bull; Week {{ $selectedWeek }} ({{ $selectedMonth }} {{ $selectedYear }})</p>
@@ -13,11 +13,8 @@
         <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek, 'type' => 'plan']) }}" class="btn btn-outline-dark btn-sm" target="_blank" title="Open Official Plan Voucher in new tab">
             <i class="fas fa-file-invoice me-1"></i> View Plan Voucher
         </a>
-        <button type="button" class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#weeklyPlanDelayReasonModal" title="Submit delay reason to GM if late or requesting extension">
-            <i class="fas fa-clock me-1"></i> Delay Reason
-        </button>
         <button type="button" class="btn btn-kaldis btn-sm" data-bs-toggle="modal" data-bs-target="#createTaskModal">
-            <i class="fas fa-plus-circle me-1"></i> Schedule Weekly Task
+            <i class="fas fa-plus-circle me-1"></i> Add Task
         </button>
         <button type="button" class="btn {{ ($weeklyPlan && $weeklyPlan->status === 'SUBMITTED') ? 'btn-outline-success' : 'btn-success' }} btn-sm" data-bs-toggle="modal" data-bs-target="#submitWeeklyPlanModal" {{ $tasks->isEmpty() ? 'disabled' : '' }}>
             <i class="fas {{ ($weeklyPlan && $weeklyPlan->status === 'SUBMITTED') ? 'fa-redo' : 'fa-paper-plane' }} me-1"></i> {{ ($weeklyPlan && $weeklyPlan->status === 'SUBMITTED') ? 'Re-Submit to GM' : 'Submit Plan to GM' }}
@@ -33,21 +30,21 @@
         <div>
             <div class="d-flex align-items-center gap-2 mb-1">
                 <i class="fas fa-shield-alt text-primary fs-5"></i>
-                <strong class="text-dark">Weekly Task Schedule Delay Approved by GM</strong>
+                <strong class="text-dark">Delay Approved by GM</strong>
                 {!! format_submission_status_badge('DELAY_APPROVED', 'APPROVED', $weeklyPlan->delay_reason) !!}
             </div>
             <div class="small text-muted">
-                General Management has approved the delay for scheduling Week {{ $selectedWeek }} tasks. In accordance with executive rules, this schedule is excused and <strong>NOT</strong> recorded as Not Submitted.
+                Delay reason approved. This weekly schedule is excused.
             </div>
             @if(!empty($weeklyPlan->delay_reason))
-                <div class="small text-dark mt-1"><strong>Justification:</strong> {{ $weeklyPlan->delay_reason }}</div>
+                <div class="small text-dark mt-1"><strong>Reason:</strong> {{ $weeklyPlan->delay_reason }}</div>
             @endif
             @if(!empty($weeklyPlan->delay_gm_notes))
-                <div class="small text-primary mt-0.5"><strong>GM Remarks:</strong> {{ $weeklyPlan->delay_gm_notes }}</div>
+                <div class="small text-primary mt-0.5"><strong>GM Notes:</strong> {{ $weeklyPlan->delay_gm_notes }}</div>
             @endif
         </div>
         <div class="small text-muted text-nowrap">
-            Approved {{ $weeklyPlan->delay_approved_at ? format_ethiopian_datetime($weeklyPlan->delay_approved_at) : '' }}
+            Approved: {{ $weeklyPlan->delay_approved_at ? format_ethiopian_datetime($weeklyPlan->delay_approved_at) : '' }}
         </div>
     </div>
 @elseif($weeklyPlan && $weeklyPlan->isDelayPending())
@@ -55,38 +52,38 @@
         <div>
             <div class="d-flex align-items-center gap-2 mb-1">
                 <i class="fas fa-hourglass-half text-warning fs-5"></i>
-                <strong class="text-dark">Delay Request Submitted (Pending GM Review)</strong>
+                <strong class="text-dark">Delay Request Pending GM Review</strong>
                 {!! format_submission_status_badge($weeklyPlan->submission_status, 'PENDING', $weeklyPlan->delay_reason) !!}
             </div>
             <div class="small text-muted">
-                Your delay justification for Week {{ $selectedWeek }} tasks has been forwarded to General Management.
+                Your delay justification is waiting for GM review.
             </div>
-            <div class="small text-dark mt-1"><strong>Justification:</strong> {{ $weeklyPlan->delay_reason }}</div>
+            <div class="small text-dark mt-1"><strong>Reason:</strong> {{ $weeklyPlan->delay_reason }}</div>
         </div>
         <div class="small text-muted text-nowrap">
-            Pending GM Review
+            Pending Review
         </div>
     </div>
 @elseif($weeklyPlan && $weeklyPlan->status === 'SUBMITTED')
     <div class="alert alert-success border-0 shadow-sm d-flex justify-content-between align-items-center mb-3">
         <div>
-            <i class="fas fa-clipboard-check me-2 text-success"></i>
-            <strong>Weekly Tasks Scheduled &amp; Submitted:</strong> Planned tasks for Week {{ $selectedWeek }} ({{ $selectedMonth }} {{ $selectedYear }}) have been officially submitted to General Management.
+            <i class="fas fa-check-circle me-2 text-success"></i>
+            <strong>Weekly Tasks Submitted:</strong> Tasks for Week {{ $selectedWeek }} are submitted to GM.
             <span class="badge bg-success ms-2">SUBMITTED</span>
         </div>
         <div class="small text-muted">
-            Submitted on {{ $weeklyPlan->updated_at ? format_ethiopian_datetime($weeklyPlan->updated_at) : '' }}
+            Submitted: {{ $weeklyPlan->updated_at ? format_ethiopian_datetime($weeklyPlan->updated_at) : '' }}
         </div>
     </div>
 @elseif($tasks->isNotEmpty())
     <div class="alert alert-warning border-0 shadow-sm d-flex justify-content-between align-items-center mb-3">
         <div>
             <i class="fas fa-info-circle me-2 text-warning"></i>
-            <strong>Planning in Progress ({{ $tasks->count() }} Tasks):</strong> You have scheduled tasks for Week {{ $selectedWeek }}. When ready, click <strong>Submit Plan to GM</strong> to notify General Management together with Last Week's Performance Report.
+            <strong>Draft Tasks Saved ({{ $tasks->count() }} Tasks):</strong> Click <strong>Submit Plan to GM</strong> when ready.
             <span class="badge bg-secondary ms-2">DRAFT</span>
         </div>
         <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#submitWeeklyPlanModal">
-            <i class="fas fa-paper-plane me-1"></i> Submit Plan to GM Now
+            Submit Plan to GM
         </button>
     </div>
 @endif
@@ -95,7 +92,7 @@
     <div class="alert alert-success border-0 shadow-sm d-flex justify-content-between align-items-center mb-3">
         <div>
             <i class="fas fa-check-circle me-2 text-success"></i>
-            <strong>Report Submitted:</strong> Week {{ $selectedWeek }} performance report has been officially submitted.
+            <strong>Report Submitted:</strong> Week {{ $selectedWeek }} performance report is submitted.
             <span class="badge {{ $submission->status === 'ON_TIME' ? 'bg-success' : 'bg-warning text-dark' }} ms-2">
                 {{ $submission->status }}
             </span>
@@ -106,13 +103,13 @@
             @endif
         </div>
         <div class="small text-muted">
-            Submitted on {{ $submission->submitted_at ? format_ethiopian_datetime($submission->submitted_at) : '' }}
+            Submitted: {{ $submission->submitted_at ? format_ethiopian_datetime($submission->submitted_at) : '' }}
         </div>
     </div>
     @if(!empty($submission->gm_feedback))
         <div class="card border-primary mb-4 shadow-sm">
             <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
-                <span class="fw-bold small"><i class="fas fa-comment-dots me-1"></i> Executive Review Comments from General Manager</span>
+                <span class="fw-bold small"><i class="fas fa-comment-dots me-1"></i> GM Feedback</span>
                 <span class="small opacity-75">{{ $submission->gm_feedback_at ? \Carbon\Carbon::parse($submission->gm_feedback_at)->format('M d, Y H:i') : '' }}</span>
             </div>
             <div class="card-body bg-light py-2 px-3 small">
@@ -184,30 +181,37 @@
         <table class="table table-hover mb-0" id="weeklyTasksTable">
             <thead>
                 <tr>
-                    <th style="width: 110px;">Type</th>
-                    <th>Task Title & Breakdown</th>
+                    <th style="width: 140px;">Type</th>
+                    <th>Task Title</th>
                     <th>Parent Monthly Plan</th>
-                    <th>Task Target</th>
-                    <th style="width: 90px;">Priority</th>
-                    <th>Assigned To</th>
-                    <th style="width: 60px;" class="text-end">Action</th>
+                    <th>Definition of Done (DOD)</th>
+                    <th style="width: 140px;" class="text-center">Approval Status</th>
+                    <th style="width: 110px;" class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse($tasks as $task)
                     <tr>
                         <td>
-                            @if($task->plan_type === 'STRATEGY')
-                                <span class="badge-strategy">Strategy</span>
-                            @else
-                                <span class="badge-operational">Operational</span>
-                            @endif
+                            <div class="d-flex flex-column gap-1">
+                                <div>
+                                    @if($task->plan_type === 'STRATEGY')
+                                        <span class="badge-strategy">Strategy</span>
+                                    @else
+                                        <span class="badge-operational">Operational</span>
+                                    @endif
+                                </div>
+                                <div>
+                                    @if($task->task_type === 'PLANNED')
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size: 0.7rem;">Planned</span>
+                                    @else
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle" style="font-size: 0.7rem;">New Task</span>
+                                    @endif
+                                </div>
+                            </div>
                         </td>
                         <td>
                             <strong class="text-dark">{{ $task->task_title }}</strong>
-                            @if($task->task_description)
-                                <div class="small text-muted">{{ $task->task_description }}</div>
-                            @endif
                         </td>
                         <td>
                             @if($task->monthlyPlan)
@@ -222,30 +226,57 @@
                         <td>
                             <span class="small fw-semibold text-dark">{{ $task->expected_result ?: $task->task_target }}</span>
                         </td>
-                        <td>
-                            <span class="badge bg-light text-secondary border">{{ $task->priority }}</span>
-                        </td>
-                        <td>
-                            <small class="text-muted">{{ $task->responsible_person ?: ($task->assigned_to ?: 'Unassigned') }}</small>
+                        <td class="text-center">
+                            @if($task->approval_status === 'APPROVED')
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                    <i class="fas fa-check-circle me-1"></i>Approved
+                                </span>
+                            @elseif($task->approval_status === 'DECLINED')
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle" title="{{ $task->decline_reason }}">
+                                    <i class="fas fa-circle-xmark me-1"></i>Declined
+                                </span>
+                                @if($task->decline_reason)
+                                    <div class="text-danger small mt-0.5" style="font-size: 0.72rem;">{{ $task->decline_reason }}</div>
+                                @endif
+                            @else
+                                <span class="badge bg-secondary-subtle text-secondary border">Pending</span>
+                            @endif
                         </td>
                         <td class="text-end">
-                            <form method="POST" action="{{ route('weekly.tasks.destroy', $task->id) }}" onsubmit="return confirm('Delete this weekly task?');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Delete">
-                                    <i class="fas fa-trash-alt small"></i>
-                                </button>
-                            </form>
+                            <div class="d-inline-flex align-items-center gap-1">
+                                @if(auth()->user()->isGM() || auth()->user()->isSuperAdmin())
+                                    @if($task->approval_status !== 'APPROVED')
+                                        <form method="POST" action="{{ route('weekly.tasks.approve', $task->id) }}" class="d-inline">
+                                            @csrf
+                                            <button type="submit" class="btn btn-xs btn-outline-success py-0.5 px-1.5" title="Approve Task">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        </form>
+                                    @endif
+                                    @if($task->approval_status !== 'DECLINED')
+                                        <button type="button" class="btn btn-xs btn-outline-danger py-0.5 px-1.5" onclick="openDeclineWeeklyTaskModal({{ $task->id }}, '{{ addslashes($task->task_title) }}')" title="Decline Task">
+                                            <i class="fas fa-xmark"></i>
+                                        </button>
+                                    @endif
+                                @endif
+                                <form method="POST" action="{{ route('weekly.tasks.destroy', $task->id) }}" onsubmit="return confirm('Delete this weekly task?');" class="d-inline">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5" title="Delete">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="empty-state py-5">
-                            <i class="fas fa-calendar-plus d-block opacity-25"></i>
-                            <h6>No tasks planned yet for Week {{ $selectedWeek }}</h6>
+                        <td colspan="6" class="empty-state py-5 text-center">
+                            <i class="fas fa-calendar-plus d-block opacity-25 fs-2 mb-2"></i>
+                            <h6 class="fw-semibold text-dark">No tasks planned yet for Week {{ $selectedWeek }}</h6>
                             <p class="small text-muted mb-3">Add weekly tasks to plan deliverables for this week.</p>
                             <button type="button" class="btn btn-sm btn-kaldis" data-bs-toggle="modal" data-bs-target="#createTaskModal">
-                                <i class="fas fa-plus me-1"></i> Schedule Task Now
+                                <i class="fas fa-plus-circle me-1"></i> Add Task
                             </button>
                         </td>
                     </tr>
@@ -261,83 +292,119 @@
         <div class="modal-content border-0 shadow">
             <form method="POST" action="{{ route('weekly.tasks.store') }}">
                 @csrf
-                <input type="hidden" name="department_id" value="{{ $department->id }}">
                 <input type="hidden" name="year" value="{{ $selectedYear }}">
                 <input type="hidden" name="month" value="{{ $selectedMonth }}">
                 <input type="hidden" name="week_number" value="{{ $selectedWeek }}">
 
                 <div class="modal-header bg-light">
-                    <h5 class="modal-title fw-bold text-dark fs-6"><i class="fas fa-plus-circle me-2 text-warning"></i> Schedule Weekly Task (Week {{ $selectedWeek }})</h5>
+                    <h5 class="modal-title fw-bold text-dark fs-6"><i class="fas fa-plus-circle me-2 text-warning"></i> Add Task (Week {{ $selectedWeek }})</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
 
                 <div class="modal-body p-4">
-                    <!-- Step 1: Optional Parent Monthly Plan & Plan Type -->
+                    @if(auth()->user()->canAccessAllDepartments() && isset($allDepartments) && $allDepartments->count() > 1)
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-secondary text-uppercase">Target Department <span class="text-danger">*</span></label>
+                            <select name="department_id" class="form-select" required>
+                                @foreach($allDepartments as $d)
+                                    <option value="{{ $d->id }}" {{ $department->id == $d->id ? 'selected' : '' }}>
+                                        {{ $d->department_name }} ({{ $d->department_code }})
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @else
+                        <input type="hidden" name="department_id" value="{{ $department->id }}">
+                    @endif
+
+                    <!-- Step 1: Task Type (Planned vs New Task) -->
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary text-uppercase">Task Type <span class="text-danger">*</span></label>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <div class="form-check p-2.5 border rounded-3 bg-light">
+                                    <input class="form-check-input" type="radio" name="task_type" id="taskTypePlanned" value="PLANNED" checked onchange="toggleWeeklyTaskType()">
+                                    <label class="form-check-label fw-semibold text-primary" for="taskTypePlanned">
+                                        <i class="fas fa-calendar-check me-1"></i> Planned
+                                    </label>
+                                    <div class="small text-muted" style="font-size: 0.75rem;">Already planned in the month</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check p-2.5 border rounded-3 bg-light">
+                                    <input class="form-check-input" type="radio" name="task_type" id="taskTypeNew" value="NEW_TASK" onchange="toggleWeeklyTaskType()">
+                                    <label class="form-check-label fw-semibold text-info" for="taskTypeNew">
+                                        <i class="fas fa-plus-circle me-1"></i> New Task
+                                    </label>
+                                    <div class="small text-muted" style="font-size: 0.75rem;">Unplanned in month, planned in week</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Parent Monthly Plan -->
                     <div class="row g-3 mb-3">
-                        <div class="col-md-8">
+                        <div class="col-12" id="taskMonthlyPlanWrapper">
                             <label class="form-label small fw-semibold text-secondary">
-                                Parent Monthly Plan <span class="badge bg-light text-muted border ms-1">Optional</span>
+                                Parent Monthly Plan <span class="text-danger">*</span>
                             </label>
                             <select name="monthly_plan_id" id="taskMonthlyPlanSelect" class="form-select" data-no-search="true" onchange="handleMonthlyPlanSelect(this)">
-                                <option value="">-- Direct Weekly Task (No Monthly Plan Required) --</option>
+                                <option value="">-- Choose Monthly Plan --</option>
                                 @foreach($monthlyPlans as $mp)
-                                    <option value="{{ $mp->id }}" data-type="{{ $mp->plan_type }}">
+                                    <option value="{{ $mp->id }}" data-type="{{ $mp->plan_type }}" data-dod="{{ e($mp->definition_of_done) }}" data-target="{{ e($mp->monthly_target) }}">
                                         [{{ $mp->plan_type }}] {{ $mp->title }} (Target: {{ $mp->monthly_target }})
                                     </option>
                                 @endforeach
                             </select>
-                            <div class="small text-muted mt-1">Link to a monthly plan to inherit its strategic goal, or leave unselected for a standalone task.</div>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-semibold text-secondary">Plan Type</label>
-                            <select name="plan_type" id="taskPlanTypeSelect" class="form-select" data-no-search="true">
-                                <option value="OPERATIONAL" selected>Operational</option>
-                                <option value="STRATEGY">Strategy</option>
-                            </select>
-                            <div class="small text-muted mt-1">Classification for report breakdown.</div>
+                            <div class="small text-muted mt-1">Select the monthly plan this weekly task executes.</div>
+                        
+                            <input type="hidden" name="plan_type" id="taskPlanTypeSelect" value="OPERATIONAL">
                         </div>
                     </div>
+                    </div>
 
-                    <!-- Step 2: Task Information -->
+                    <!-- Step 3: Task Title -->
                     <div class="mb-3">
                         <label class="form-label small fw-semibold text-secondary">Task Title <span class="text-danger">*</span></label>
-                        <input type="text" name="task_title" class="form-control" placeholder="e.g. Run security scan on head office routers" required>
+                        <input type="text" name="task_title" id="taskTitleInput" class="form-control" placeholder="e.g. Run security scan on head office routers" required>
                     </div>
 
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label small fw-semibold text-secondary">Weekly Target / Output <span class="text-danger">*</span></label>
-                            <input type="text" name="task_target" class="form-control" placeholder="e.g. Scan 100% completed with report" required>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-semibold text-secondary">Priority <span class="text-danger">*</span></label>
-                            <select name="priority" class="form-select" data-no-search="true">
-                                <option value="HIGH">HIGH</option>
-                                <option value="MEDIUM" selected>MEDIUM</option>
-                                <option value="LOW">LOW</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-semibold text-secondary">Assigned To</label>
-                            <input type="text" name="assigned_to" class="form-control" placeholder="Staff Name">
-                        </div>
-                    </div>
-
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label small fw-semibold text-secondary">Deadline Date</label>
-                            <input type="date" name="deadline_date" class="form-control">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-semibold text-secondary">Task Description (Optional)</label>
-                            <input type="text" name="task_description" class="form-control" placeholder="Additional details">
-                        </div>
+                    <!-- Step 4: Definition of Done (DOD) -->
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Definition of Done (DOD) <span class="text-danger">*</span></label>
+                        <textarea name="task_target" id="taskTargetInput" class="form-control" rows="2" placeholder="Clear output or criteria for when this weekly task is DONE..." required></textarea>
                     </div>
                 </div>
 
                 <div class="modal-footer bg-light">
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-sm btn-kaldis">Save Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Decline Weekly Task (GM Action) -->
+<div class="modal fade" id="declineWeeklyTaskModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" id="declineWeeklyTaskForm" action="">
+                @csrf
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold text-dark fs-6">Decline Weekly Task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="text-secondary small mb-3">Please specify the reason for declining this weekly task:</p>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Why are you declining this task? <span class="text-danger">*</span></label>
+                        <textarea name="decline_reason" id="weeklyTaskDeclineReasonInput" class="form-control" rows="3" placeholder="Provide reason or required adjustments..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-danger fw-semibold">Decline Task</button>
                 </div>
             </form>
         </div>
@@ -511,14 +578,58 @@
 <script>
     setupLiveSearch('weeklyTaskSearchInput', 'weeklyTasksTable');
 
+    function toggleWeeklyTaskType() {
+        const plannedRadio = document.getElementById('taskTypePlanned');
+        const isPlanned = plannedRadio ? plannedRadio.checked : true;
+        const monthlyWrapper = document.getElementById('taskMonthlyPlanWrapper');
+        const planSelect = document.getElementById('taskMonthlyPlanSelect');
+        if (monthlyWrapper) {
+            monthlyWrapper.style.display = isPlanned ? '' : 'none';
+        }
+        if (planSelect) {
+            planSelect.required = isPlanned;
+            if (!isPlanned) planSelect.value = '';
+        }
+    }
+
+    function openDeclineWeeklyTaskModal(taskId, title) {
+        const form = document.getElementById('declineWeeklyTaskForm');
+        form.action = "{{ url('/weekly/tasks') }}/" + taskId + "/decline";
+        document.getElementById('weeklyTaskDeclineReasonInput').value = '';
+        const modal = new bootstrap.Modal(document.getElementById('declineWeeklyTaskModal'));
+        modal.show();
+    }
+
     function handleMonthlyPlanSelect(selectEl) {
         if (!selectEl) return;
         const selectedOpt = selectEl.options[selectEl.selectedIndex];
         const planType = selectedOpt ? selectedOpt.getAttribute('data-type') : null;
+        const dod = selectedOpt ? selectedOpt.getAttribute('data-dod') : null;
         const typeSelect = document.getElementById('taskPlanTypeSelect');
+        const targetInput = document.getElementById('taskTargetInput');
         if (typeSelect && planType) {
             typeSelect.value = planType;
         }
+        if (targetInput && dod && (!targetInput.value || targetInput.value.length < 5)) {
+            targetInput.value = dod;
+        }
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        toggleWeeklyTaskType();
+        const createModal = document.getElementById('createTaskModal');
+        if (createModal) {
+            createModal.addEventListener('shown.bs.modal', function () {
+                toggleWeeklyTaskType();
+            });
+            createModal.addEventListener('hidden.bs.modal', function () {
+                const form = createModal.querySelector('form');
+                if (form) {
+                    form.reset();
+                    toggleWeeklyTaskType();
+                }
+            });
+        }
+    });
 </script>
 @endsection
