@@ -95,13 +95,26 @@ class AdminController extends Controller
         ));
     }
 
-    public function users()
+    public function users(Request $request)
     {
-        $users = User::with(['role', 'department'])->orderBy('id')->get();
+        $statusFilter = strtoupper($request->query('status', ''));
+
+        $query = User::with(['role', 'department'])->orderBy('id');
+        if ($statusFilter === 'ACTIVE') {
+            $query->where('is_active', 1);
+        } elseif ($statusFilter === 'INACTIVE') {
+            $query->where('is_active', 0);
+        }
+
+        $users = $query->get();
+        $totalCount = User::count();
+        $activeCount = User::where('is_active', 1)->count();
+        $inactiveCount = User::where('is_active', 0)->count();
+
         $roles = Role::orderBy('id')->get();
         $departments = Department::where('active', 1)->orderBy('department_name')->get();
 
-        return view('admin.users', compact('users', 'roles', 'departments'));
+        return view('admin.users', compact('users', 'roles', 'departments', 'totalCount', 'activeCount', 'inactiveCount', 'statusFilter'));
     }
 
     public function storeUser(Request $request)
@@ -144,6 +157,10 @@ class AdminController extends Controller
             'status' => 'required|in:ACTIVE,INACTIVE',
         ]);
 
+        if ($user->id === auth()->id() && $validated['status'] === 'INACTIVE') {
+            return back()->with('error', 'You cannot deactivate your own administrator account.');
+        }
+
         $updateData = [
             'username' => $validated['username'],
             'full_name' => $validated['full_name'],
@@ -163,6 +180,26 @@ class AdminController extends Controller
         AuditLog::log('UPDATE_USER', 'admin', "Updated user account {$user->username}", $user->id);
 
         return back()->with('success', "User account {$user->username} updated successfully.");
+    }
+
+    public function toggleUserStatus($id)
+    {
+        $user = User::findOrFail($id);
+
+        if ($user->id === auth()->id()) {
+            return back()->with('error', 'You cannot disable your own administrator account.');
+        }
+
+        $user->is_active = !$user->is_active;
+        $user->save();
+
+        $statusText = $user->is_active ? 'ACTIVE' : 'INACTIVE';
+        $label = $user->is_active ? 'enabled' : 'disabled';
+        $action = $user->is_active ? 'USER_ACTIVATED' : 'USER_DEACTIVATED';
+
+        AuditLog::log($action, 'admin', "Changed user account '{$user->username}' status to {$statusText} ({$label})", $user->id);
+
+        return back()->with('success', "User account '{$user->username}' has been {$label} successfully.");
     }
 
     public function destroyUser($id)

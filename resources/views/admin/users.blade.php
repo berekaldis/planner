@@ -18,8 +18,21 @@
 
 <!-- Users Table -->
 <div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="fas fa-users me-1 text-secondary"></i> Registered Accounts ({{ $users->count() }})</span>
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <span class="fw-semibold"><i class="fas fa-users me-1 text-secondary"></i> Registered Accounts ({{ $totalCount ?? $users->count() }})</span>
+        </div>
+        <div class="btn-group btn-group-sm" role="group" aria-label="Status filter">
+            <a href="{{ route('admin.users') }}" class="btn {{ empty($statusFilter) ? 'btn-dark' : 'btn-outline-secondary' }}">
+                All ({{ $totalCount ?? $users->count() }})
+            </a>
+            <a href="{{ route('admin.users', ['status' => 'ACTIVE']) }}" class="btn {{ ($statusFilter ?? '') === 'ACTIVE' ? 'btn-success text-white' : 'btn-outline-secondary' }}">
+                <i class="fas fa-circle-check me-1"></i> Active ({{ $activeCount ?? $users->where('is_active', 1)->count() }})
+            </a>
+            <a href="{{ route('admin.users', ['status' => 'INACTIVE']) }}" class="btn {{ ($statusFilter ?? '') === 'INACTIVE' ? 'btn-danger text-white' : 'btn-outline-secondary' }}">
+                <i class="fas fa-circle-xmark me-1"></i> Inactive ({{ $inactiveCount ?? $users->where('is_active', 0)->count() }})
+            </a>
+        </div>
     </div>
     <div class="table-responsive">
         <table class="table table-hover mb-0 align-middle">
@@ -29,13 +42,13 @@
                     <th>Email</th>
                     <th>Role</th>
                     <th>Department</th>
-                    <th style="width: 100px;">Status</th>
+                    <th style="width: 140px;">Status</th>
                     <th>Last Login</th>
-                    <th style="width: 140px;" class="text-end">Actions</th>
+                    <th style="width: 220px;" class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach($users as $u)
+                @forelse($users as $u)
                     <tr>
                         <td>
                             <strong class="text-dark d-block">{{ $u->full_name }}</strong>
@@ -57,9 +70,28 @@
                             @endif
                         </td>
                         <td>
-                            <span class="badge {{ $u->status === 'ACTIVE' ? 'bg-success' : 'bg-danger' }}">
-                                {{ $u->status }}
-                            </span>
+                            @if($u->id === auth()->id())
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1.5 rounded-pill fw-semibold" title="Current Administrator Account">
+                                    <i class="fas fa-shield-halved me-1"></i> Active (You)
+                                </span>
+                            @else
+                                <form method="POST" action="{{ route('admin.users.toggle_status', $u->id) }}" class="d-inline">
+                                    @csrf
+                                    @if($u->is_active)
+                                        <button type="submit" class="btn btn-sm p-0 border-0 bg-transparent" title="Click to Disable User (Make Inactive)" onclick="return confirm('Disable access for user \'{{ $u->username }}\'? They will be prevented from logging in.');">
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1.5 rounded-pill fw-semibold cursor-pointer">
+                                                <i class="fas fa-circle-check text-success me-1"></i> Active
+                                            </span>
+                                        </button>
+                                    @else
+                                        <button type="submit" class="btn btn-sm p-0 border-0 bg-transparent" title="Click to Enable User (Make Active)" onclick="return confirm('Enable access for user \'{{ $u->username }}\'?');">
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2.5 py-1.5 rounded-pill fw-semibold cursor-pointer">
+                                                <i class="fas fa-circle-xmark text-danger me-1"></i> Inactive
+                                            </span>
+                                        </button>
+                                    @endif
+                                </form>
+                            @endif
                         </td>
                         <td class="small text-muted">
                             {{ $u->last_login_at ? $u->last_login_at->diffForHumans() : 'Never' }}
@@ -79,6 +111,18 @@
                                 <i class="fas fa-user-pen me-1"></i> Edit
                             </button>
                             @if($u->id !== auth()->id())
+                                <form method="POST" action="{{ route('admin.users.toggle_status', $u->id) }}" class="d-inline">
+                                    @csrf
+                                    @if($u->is_active)
+                                        <button type="submit" class="btn btn-sm btn-outline-warning py-1 px-2 ms-1" title="Disable User Account" onclick="return confirm('Disable access for user \'{{ $u->username }}\'?');">
+                                            <i class="fas fa-user-slash me-1"></i> Disable
+                                        </button>
+                                    @else
+                                        <button type="submit" class="btn btn-sm btn-outline-success py-1 px-2 ms-1" title="Enable User Account" onclick="return confirm('Enable access for user \'{{ $u->username }}\'?');">
+                                            <i class="fas fa-user-check me-1"></i> Enable
+                                        </button>
+                                    @endif
+                                </form>
                                 <form method="POST" action="{{ route('admin.users.destroy', $u->id) }}" class="d-inline" onsubmit="return confirm('Are you sure you want to permanently delete user account \'{{ $u->username }}\'? This cannot be undone.');">
                                     @csrf
                                     @method('DELETE')
@@ -89,7 +133,14 @@
                             @endif
                         </td>
                     </tr>
-                @endforeach
+                @empty
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">
+                            <i class="fas fa-users-slash fs-3 d-block mb-2 text-secondary opacity-50"></i>
+                            No {{ !empty($statusFilter) ? strtolower($statusFilter) : '' }} user accounts found.
+                        </td>
+                    </tr>
+                @endforelse
             </tbody>
         </table>
     </div>
@@ -149,10 +200,10 @@
                             <input type="text" name="telegram_chat_id" class="form-control font-monospace" placeholder="e.g. 123456789">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small fw-semibold text-secondary">Status <span class="text-danger">*</span></label>
+                            <label class="form-label small fw-semibold text-secondary">Account Status <span class="text-danger">*</span></label>
                             <select name="status" class="form-select">
-                                <option value="ACTIVE" selected>ACTIVE</option>
-                                <option value="INACTIVE">INACTIVE</option>
+                                <option value="ACTIVE" selected>Active (Enabled)</option>
+                                <option value="INACTIVE">Inactive (Disabled)</option>
                             </select>
                         </div>
                     </div>
@@ -218,10 +269,10 @@
                             <input type="text" name="telegram_chat_id" id="editTelegramId" class="form-control font-monospace">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small fw-semibold text-secondary">Status <span class="text-danger">*</span></label>
+                            <label class="form-label small fw-semibold text-secondary">Account Status <span class="text-danger">*</span></label>
                             <select name="status" id="editStatus" class="form-select">
-                                <option value="ACTIVE">ACTIVE</option>
-                                <option value="INACTIVE">INACTIVE</option>
+                                <option value="ACTIVE">Active (Enabled)</option>
+                                <option value="INACTIVE">Inactive (Disabled)</option>
                             </select>
                         </div>
                     </div>

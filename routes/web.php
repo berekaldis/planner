@@ -131,6 +131,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/users', [AdminController::class, 'users'])->name('users');
         Route::post('/users', [AdminController::class, 'storeUser'])->name('users.store');
         Route::put('/users/{id}', [AdminController::class, 'updateUser'])->name('users.update');
+        Route::post('/users/{id}/toggle-status', [AdminController::class, 'toggleUserStatus'])->name('users.toggle_status');
         Route::delete('/users/{id}', [AdminController::class, 'destroyUser'])->name('users.destroy');
         Route::get('/departments', [AdminController::class, 'departments'])->name('departments');
         Route::post('/departments', [AdminController::class, 'storeDepartment'])->name('departments.store');

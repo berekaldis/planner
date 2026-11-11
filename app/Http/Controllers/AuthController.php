@@ -69,6 +69,21 @@ class AuthController extends Controller
             }
         }
 
+        // Check if user exists but is deactivated (Inactive)
+        $inactiveUser = User::where(function ($query) use ($identifier) {
+                $query->where('email', $identifier)
+                      ->orWhere('username', $identifier);
+            })
+            ->where('is_active', 0)
+            ->first();
+
+        if ($inactiveUser && (Hash::check($password, $inactiveUser->password_hash) || password_verify($password, $inactiveUser->password_hash))) {
+            AuditLog::log('LOGIN_BLOCKED', 'auth', "Blocked login attempt for deactivated user {$inactiveUser->username}", $inactiveUser->id);
+            return back()->withErrors([
+                'email' => 'Your account is currently Inactive / Disabled. Please contact your system administrator to re-enable access.',
+            ])->onlyInput('email', 'username');
+        }
+
         AuditLog::log('LOGIN_FAILED', 'auth', "Failed login attempt for email/username: {$identifier}");
 
         return back()->withErrors([
