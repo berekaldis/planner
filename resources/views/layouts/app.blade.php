@@ -85,17 +85,24 @@
             --kaldis-sidebar-width: 16.5rem;
             --kaldis-sidebar-collapsed-width: 3.25rem;
             --kaldis-topbar-height: 3.75rem;
+            --kaldis-footer-height: 3.125rem;
         }
 
         /* Reset & Root Canvas */
-        html, body {
-            height: 100%;
+        html {
+            min-height: 100%;
+            scroll-behavior: smooth;
+        }
+
+        body {
+            min-height: 100vh;
             margin: 0;
             padding: 0;
             font-family: var(--font-sans);
             background-color: var(--sidebar);
             color: var(--foreground);
             overflow-x: hidden;
+            overflow-y: auto;
             -webkit-font-smoothing: antialiased;
         }
 
@@ -115,9 +122,14 @@
             width: var(--kaldis-sidebar-width) !important;
             min-width: var(--kaldis-sidebar-width) !important;
             max-width: var(--kaldis-sidebar-width) !important;
-            height: 100vh;
-            position: sticky;
-            top: 0;
+            height: 100vh !important;
+            height: 100dvh !important;
+            min-height: 100vh !important;
+            max-height: 100vh !important;
+            max-height: 100dvh !important;
+            position: sticky !important;
+            top: 0 !important;
+            bottom: 0 !important;
             display: flex !important;
             flex-direction: column !important;
             background-color: var(--sidebar) !important;
@@ -131,9 +143,11 @@
         }
 
         .sidebar-inner-wrapper {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
+            display: flex !important;
+            flex-direction: column !important;
+            height: 100% !important;
+            min-height: 100% !important;
+            max-height: 100% !important;
             width: 100%;
             overflow: hidden;
         }
@@ -236,7 +250,8 @@
             flex: 1 1 auto;
             overflow-y: auto;
             overflow-x: hidden;
-            padding: 0.5rem 0.65rem 1.5rem 0.65rem;
+            padding: 0.5rem 0.65rem 0.5rem 0.65rem;
+            min-height: 0;
         }
 
         /* Accordion Section Group (Matching CompanySystem NavMain) */
@@ -346,21 +361,34 @@
             opacity: 1;
         }
 
-        /* Sidebar Footer & User Profile (Matching CompanySystem NavUser) */
+        /* Sidebar Footer & User Profile (Matching CompanySystem NavUser & Aligned with App Footer) */
         .sidebar-footer {
-            padding: 0.65rem 0.75rem;
+            height: var(--kaldis-footer-height, 3.125rem);
+            min-height: var(--kaldis-footer-height, 3.125rem);
+            max-height: var(--kaldis-footer-height, 3.125rem);
+            padding: 0 0.5rem;
             border-top: 1px solid var(--sidebar-border);
             background-color: var(--sidebar);
             margin-top: auto;
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .sidebar-footer .dropup {
+            width: 100%;
+            display: flex;
+            align-items: center;
         }
 
         .nav-user-btn {
             width: 100%;
+            height: 2.25rem;
             display: flex;
             align-items: center;
-            gap: 0.65rem;
-            padding: 0.45rem 0.6rem;
-            border-radius: calc(var(--radius) - 2px);
+            gap: 0.5rem;
+            padding: 0.2rem 0.45rem;
+            border-radius: calc(var(--radius) - 3px);
             border: 1px solid transparent;
             background: transparent;
             cursor: pointer;
@@ -374,13 +402,13 @@
         }
 
         .nav-user-avatar {
-            width: 32px;
-            height: 32px;
+            width: 26px;
+            height: 26px;
             border-radius: 50%;
             background-color: #E4E4E7;
             color: #18181B;
             font-weight: 600;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -395,22 +423,22 @@
         }
 
         .nav-user-name {
-            font-size: 0.8125rem;
+            font-size: 0.785rem;
             font-weight: 500;
             color: var(--sidebar-foreground);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            line-height: 1.25;
+            line-height: 1.2;
         }
 
         .nav-user-role {
-            font-size: 0.7rem;
+            font-size: 0.65rem;
             color: var(--muted-foreground);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            line-height: 1.2;
+            line-height: 1.1;
         }
 
         /* ══════════════════════════════════════════════════════════
@@ -612,15 +640,18 @@
 
         /* App Inset Footer */
         .app-footer {
-            padding: 0.85rem 1.5rem;
+            height: var(--kaldis-footer-height, 3.125rem);
+            min-height: var(--kaldis-footer-height, 3.125rem);
+            max-height: var(--kaldis-footer-height, 3.125rem);
             border-top: 1px solid var(--border);
-            background-color: var(--background);
+            background-color: var(--sidebar);
+            padding: 0 1.5rem;
             display: flex;
-            flex-wrap: wrap;
-            justify-content: space-between;
             align-items: center;
-            font-size: 0.8125rem;
+            justify-content: space-between;
+            font-size: 0.75rem;
             color: var(--muted-foreground);
+            flex-shrink: 0;
         }
 
         /* ══════════════════════════════════════════════════════════
@@ -1119,8 +1150,8 @@
 
                 <!-- Sidebar Footer User Profile (Matching CompanySystem NavUser) -->
                 <div class="sidebar-footer">
-                    <div class="dropdown dropup w-100">
-                        <button class="nav-user-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Account Menu">
+                    <div class="dropup w-100">
+                        <button class="nav-user-btn" type="button" id="sidebarAccountDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false" title="Account Menu">
                             <div class="nav-user-avatar">
                                 {{ strtoupper(substr(auth()->user()->full_name ?? auth()->user()->username ?? 'U', 0, 2)) }}
                             </div>
@@ -1130,7 +1161,7 @@
                             </div>
                             <i class="fas fa-ellipsis-vertical text-muted ms-auto" style="font-size: 0.8rem;"></i>
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow-md border border-border w-100 mb-2 py-1" style="border-radius: var(--radius); min-width: 220px;">
+                        <ul class="dropdown-menu dropdown-menu-end shadow-md border border-border w-100 mb-2 py-1" aria-labelledby="sidebarAccountDropdownBtn" style="border-radius: var(--radius); min-width: 220px;">
                             <li class="px-3 py-2 border-bottom border-border">
                                 <div class="small fw-semibold text-foreground text-truncate">{{ auth()->user()->full_name ?? auth()->user()->username }}</div>
                                 <div class="small text-muted text-truncate">{{ auth()->user()->email ?? auth()->user()->username }}</div>
@@ -1146,20 +1177,6 @@
                                     <span>Change Password</span>
                                 </a>
                             </li>
-                            @if(auth()->user()->isSuperAdmin())
-                                <li>
-                                    <a class="dropdown-item d-flex align-items-center gap-2 small py-2" href="{{ route('admin.settings') }}">
-                                        <i class="fas fa-sliders text-muted" style="width: 14px;"></i>
-                                        <span>System Settings</span>
-                                    </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item d-flex align-items-center gap-2 small py-2" href="{{ route('admin.audit') }}">
-                                        <i class="fas fa-history text-muted" style="width: 14px;"></i>
-                                        <span>Audit Trail</span>
-                                    </a>
-                                </li>
-                            @endif
                             <li><hr class="dropdown-divider my-1 border-border"></li>
                             <li>
                                 <form method="POST" action="{{ route('logout') }}" class="m-0">
@@ -1232,7 +1249,7 @@
                     </span>
                     <span class="header-util-badge d-none d-lg-inline-flex" title="East Africa Time">
                         <i class="far fa-clock text-warning"></i>
-                        <span>{{ format_ethiopian_time() }}</span>
+                        <span id="liveEthiopianTime">{{ format_ethiopian_time() }}</span>
                     </span>
                 </div>
             </header>
@@ -1464,20 +1481,27 @@
                 const itemsContainer = document.getElementById('nav-group-' + groupKey);
                 if (!itemsContainer) return;
 
-                // Load state from localStorage if not explicitly active
                 const hasActiveItem = itemsContainer.querySelector('.nav-sub-item.active') !== null;
-                if (!hasActiveItem) {
-                    const savedState = localStorage.getItem('sidebar-group-' + groupKey);
-                    if (savedState === 'expanded') {
+                const savedState = localStorage.getItem('sidebar-group-' + groupKey);
+
+                if (groupKey === 'dashboards') {
+                    // Dashboards expanded by default unless explicitly collapsed
+                    if (savedState === 'collapsed') {
+                        itemsContainer.classList.add('d-none');
+                        trigger.setAttribute('aria-expanded', 'false');
+                    } else {
                         itemsContainer.classList.remove('d-none');
                         trigger.setAttribute('aria-expanded', 'true');
-                    } else if (savedState === 'collapsed') {
+                    }
+                } else {
+                    // All other groups collapsed by default unless active item inside or explicitly expanded
+                    if (hasActiveItem || savedState === 'expanded') {
+                        itemsContainer.classList.remove('d-none');
+                        trigger.setAttribute('aria-expanded', 'true');
+                    } else {
                         itemsContainer.classList.add('d-none');
                         trigger.setAttribute('aria-expanded', 'false');
                     }
-                } else {
-                    itemsContainer.classList.remove('d-none');
-                    trigger.setAttribute('aria-expanded', 'true');
                 }
 
                 trigger.addEventListener('click', function(e) {
@@ -1494,6 +1518,19 @@
                     }
                 });
             });
+
+            // Initialize Sidebar Account Dropdown with fixed Popper positioning
+            const sidebarAccountBtn = document.getElementById('sidebarAccountDropdownBtn');
+            if (sidebarAccountBtn && window.bootstrap && window.bootstrap.Dropdown) {
+                bootstrap.Dropdown.getOrCreateInstance(sidebarAccountBtn, {
+                    popperConfig: function(defaultBsPopperConfig) {
+                        return {
+                            ...defaultBsPopperConfig,
+                            strategy: 'fixed'
+                        };
+                    }
+                });
+            }
 
             // Password visibility toggles in modal
             document.querySelectorAll('.toggle-modal-pwd').forEach(function (btn) {
@@ -1588,6 +1625,49 @@
                 });
             };
         }
+
+        // Live East Africa / Ethiopian Time Clock Controller
+        (function() {
+            function updateLiveClock() {
+                const el = document.getElementById('liveEthiopianTime');
+                if (!el) return;
+                try {
+                    const now = new Date();
+                    const options = {
+                        timeZone: 'Africa/Addis_Ababa',
+                        hour: 'numeric',
+                        minute: 'numeric',
+                        second: 'numeric',
+                        hour12: false
+                    };
+                    const parts = new Intl.DateTimeFormat('en-US', options).formatToParts(now);
+                    let h24 = 0, m = 0, s = 0;
+                    for (const p of parts) {
+                        if (p.type === 'hour') h24 = parseInt(p.value, 10);
+                        if (p.type === 'minute') m = parseInt(p.value, 10);
+                        if (p.type === 'second') s = parseInt(p.value, 10);
+                    }
+                    let ethHour = h24 - 6;
+                    if (ethHour < 0) ethHour += 12;
+                    else if (ethHour >= 12) ethHour -= 12;
+                    ethHour = (ethHour % 12) || 12;
+
+                    let periodAm = 'ሌሊት';
+                    if (h24 >= 6 && h24 <= 11) periodAm = 'ጠዋት';
+                    else if (h24 >= 12 && h24 <= 17) periodAm = 'ከሰዓት';
+                    else if (h24 >= 18 && h24 <= 23) periodAm = 'ምሽት';
+
+                    const pad = (n) => String(n).padStart(2, '0');
+                    el.textContent = `${pad(ethHour)}:${pad(m)}:${pad(s)} ${periodAm}`;
+                } catch (e) {
+                    // Fallback to local time if timezone not supported
+                }
+            }
+            document.addEventListener('DOMContentLoaded', function() {
+                updateLiveClock();
+                setInterval(updateLiveClock, 1000);
+            });
+        })();
     </script>
 
     @yield('scripts')

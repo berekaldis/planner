@@ -254,20 +254,27 @@ $currentUser = Auth::user();
             <?php endif; ?>
         </div>
 
-        <!-- Integrated User Profile Card -->
+        <!-- Integrated User Profile Card & Account Menu (Down Left Side Below Sidebar) -->
         <div class="sidebar-user-section">
-            <div class="sidebar-user-card">
-                <div class="sidebar-avatar-wrap">
-                    <?= strtoupper(substr($currentUser['full_name'] ?? $currentUser['username'] ?? 'U', 0, 1)) ?>
-                    <span class="sidebar-online-dot" title="Active"></span>
-                </div>
-                <div class="sidebar-user-info overflow-hidden">
-                    <div class="fw-bold small text-white text-truncate"><?= htmlspecialchars($currentUser['full_name'] ?? $currentUser['username'] ?? 'User') ?></div>
-                    <div class="text-white-50" style="font-size: 0.7rem;"><?= htmlspecialchars($currentUser['role_name'] ?? $currentUser['role'] ?? 'User') ?></div>
-                </div>
-                <a href="<?= url('/logout.php') ?>" class="btn btn-sm btn-link text-muted p-1 border-0 ms-auto mb-0" title="Log Out">
-                    <i class="fas fa-arrow-right-from-bracket"></i>
-                </a>
+            <div class="dropup w-100">
+                <button class="sidebar-user-card w-100 border-0 bg-transparent text-start p-1 d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Account Menu">
+                    <div class="sidebar-avatar-wrap">
+                        <?= strtoupper(substr($currentUser['full_name'] ?? $currentUser['username'] ?? 'U', 0, 1)) ?>
+                        <span class="sidebar-online-dot" title="Active"></span>
+                    </div>
+                    <div class="sidebar-user-info overflow-hidden">
+                        <div class="fw-bold small text-white text-truncate"><?= htmlspecialchars($currentUser['full_name'] ?? $currentUser['username'] ?? 'User') ?></div>
+                        <div class="text-white-50" style="font-size: 0.7rem;"><?= htmlspecialchars($currentUser['role_name'] ?? $currentUser['role'] ?? 'User') ?></div>
+                    </div>
+                    <i class="fas fa-ellipsis-vertical ms-auto text-muted small me-1"></i>
+                </button>
+                <ul class="dropdown-menu shadow-lg border border-light-subtle py-1 mb-2" style="min-width: 220px; z-index: 1060;">
+                    <li class="px-3 py-2 border-bottom border-light-subtle bg-light bg-opacity-50">
+                        <div class="fw-bold text-dark text-truncate small"><?= htmlspecialchars($currentUser['full_name'] ?? $currentUser['username'] ?? '') ?></div>
+                        <div class="text-muted text-truncate font-monospace" style="font-size: 0.7rem;"><?= htmlspecialchars($currentUser['email'] ?? $currentUser['username'] ?? '') ?></div>
+                    </li>
+                    <li><a class="dropdown-item py-1.5 small text-danger" href="<?= url('/logout.php') ?>"><i class="fas fa-sign-out-alt me-2"></i> Log Out</a></li>
+                </ul>
             </div>
         </div>
     </div>

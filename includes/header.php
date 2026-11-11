@@ -148,36 +148,6 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                         </div>
                     </div>
                 </div>
-
-                <!-- User Profile Dropdown -->
-                <div class="dropdown">
-                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle d-flex align-items-center gap-2 user-profile-btn shadow-sm" type="button" data-bs-toggle="dropdown">
-                        <div class="rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center fw-bold" style="width: 26px; height: 26px; font-size: 0.8rem;">
-                            <?= strtoupper(substr($currentUser['full_name'] ?? 'U', 0, 1)) ?>
-                        </div>
-                        <span class="d-none d-sm-inline fw-semibold small user-profile-name">
-                            <?= e($currentUser['full_name'] ?? 'User') ?>
-                        </span>
-                        <span class="badge bg-warning text-dark text-uppercase d-none d-md-inline" style="font-size: 0.65rem;">
-                            <?= e($currentUser['role_display_name'] ?? 'Staff') ?>
-                        </span>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow">
-                        <li>
-                            <div class="dropdown-item-text">
-                                <small class="text-muted d-block">Signed in as</small>
-                                <strong><?= e($currentUser['username'] ?? '') ?></strong>
-                            </div>
-                        </li>
-                        <li><hr class="dropdown-divider"></li>
-                        <?php if (Permissions::isSuperAdmin() || Permissions::isITAdmin()): ?>
-                            <li><a class="dropdown-item" href="<?= url('/admin/settings.php') ?>"><i class="fas fa-sliders me-2 text-muted"></i> System Settings</a></li>
-                            <li><a class="dropdown-item" href="<?= url('/admin/audit_logs.php') ?>"><i class="fas fa-history me-2 text-muted"></i> Audit Logs</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                        <?php endif; ?>
-                        <li><a class="dropdown-item text-danger" href="<?= url('/logout.php') ?>"><i class="fas fa-sign-out-alt me-2"></i> Sign Out</a></li>
-                    </ul>
-                </div>
             </div>
         </div>
     </nav>
