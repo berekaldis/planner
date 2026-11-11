@@ -54,6 +54,9 @@
     --kaldis-sidebar-width:          16.5rem;
     --kaldis-sidebar-collapsed-width: 3.25rem;
     --kaldis-topbar-height:           3.75rem;
+    --kaldis-footer-height:           3.125rem;
+    --app-vh:                         calc(100vh / 0.8);
+    --app-dvh:                        calc(100dvh / 0.8);
 
     /* Legacy Mappings to ensure 100% backward compatibility */
     --kaldis-bg:           #F4F4F5;
@@ -215,7 +218,7 @@ body {
     background-color: var(--sidebar);
     color: var(--foreground);
     font-family: var(--font-sans);
-    min-height: 100vh;
+    min-height: var(--app-vh, 100vh);
     display: flex;
     flex-direction: column;
     -webkit-font-smoothing: antialiased;
@@ -431,11 +434,11 @@ body,
     position: sticky;
     top: 0 !important;
     bottom: 0 !important;
-    height: 100vh !important;
-    height: 100dvh !important;
-    min-height: 100vh !important;
-    max-height: 100vh !important;
-    max-height: 100dvh !important;
+    height: var(--app-vh, 100vh) !important;
+    height: var(--app-dvh, 100dvh) !important;
+    min-height: var(--app-vh, 100vh) !important;
+    max-height: var(--app-vh, 100vh) !important;
+    max-height: var(--app-dvh, 100dvh) !important;
     align-self: stretch;
     padding: 0;
     user-select: none;
@@ -699,16 +702,17 @@ body,
 
 /* Sidebar Footer & NavUser */
 .sidebar-footer {
-    height: 3.125rem;
-    min-height: 3.125rem;
-    max-height: 3.125rem;
-    padding: 0 0.5rem;
+    height: calc(var(--kaldis-footer-height, 3.125rem) + 0.5rem);
+    min-height: calc(var(--kaldis-footer-height, 3.125rem) + 0.5rem);
+    max-height: calc(var(--kaldis-footer-height, 3.125rem) + 0.5rem);
+    padding: 0 0.5rem 0.5rem 0.5rem;
     border-top: 1px solid var(--sidebar-border, #E4E4E7);
     background-color: var(--sidebar, #FAFAFA);
     margin-top: auto;
     position: relative;
     display: flex;
     align-items: center;
+    box-sizing: border-box;
 }
 
 /* Footer Account Menu */
@@ -1013,10 +1017,10 @@ body,
         min-width: 280px !important;
         max-width: 280px !important;
         flex: 0 0 280px !important;
-        height: 100vh !important;
-        height: 100dvh !important;
-        max-height: 100vh !important;
-        max-height: 100dvh !important;
+        height: var(--app-vh, 100vh) !important;
+        height: var(--app-dvh, 100dvh) !important;
+        max-height: var(--app-vh, 100vh) !important;
+        max-height: var(--app-dvh, 100dvh) !important;
         transform: translateX(-100%) !important;
         box-shadow: 8px 0 32px rgba(0,0,0,0.4);
         z-index: 1040;

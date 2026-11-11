@@ -36,15 +36,16 @@
             --input: #E4E4E7;
             --ring: #D4D4D8;
             --radius: 0.625rem;
+            --app-vh: calc(100vh / 0.8);
         }
 
         *, *::before, *::after { box-sizing: border-box; }
-        html, body { margin: 0; padding: 0; width: 100%; min-height: 100vh; }
+        html, body { margin: 0; padding: 0; width: 100%; min-height: var(--app-vh, 100vh); }
         html { scroll-behavior: smooth; zoom: 0.8; }
 
         body {
             font-family: var(--font-sans);
-            min-height: 100vh;
+            min-height: var(--app-vh, 100vh);
             display: flex;
             align-items: center;
             justify-content: center;

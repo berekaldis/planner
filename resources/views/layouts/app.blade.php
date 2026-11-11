@@ -86,6 +86,8 @@
             --kaldis-sidebar-collapsed-width: 3.25rem;
             --kaldis-topbar-height: 3.75rem;
             --kaldis-footer-height: 3.125rem;
+            --app-vh: calc(100vh / 0.8);
+            --app-dvh: calc(100dvh / 0.8);
         }
 
         /* Reset & Root Canvas (Scaled to 80% default view) */
@@ -96,7 +98,7 @@
         }
 
         body {
-            min-height: 100vh;
+            min-height: var(--app-vh, 100vh);
             margin: 0;
             padding: 0;
             font-family: var(--font-sans);
@@ -111,7 +113,7 @@
         .app-shell {
             display: flex;
             width: 100%;
-            min-height: 100vh;
+            min-height: var(--app-vh, 100vh);
             background-color: var(--sidebar);
             position: relative;
         }
@@ -123,11 +125,11 @@
             width: var(--kaldis-sidebar-width) !important;
             min-width: var(--kaldis-sidebar-width) !important;
             max-width: var(--kaldis-sidebar-width) !important;
-            height: 100vh !important;
-            height: 100dvh !important;
-            min-height: 100vh !important;
-            max-height: 100vh !important;
-            max-height: 100dvh !important;
+            height: var(--app-vh, 100vh) !important;
+            height: var(--app-dvh, 100dvh) !important;
+            min-height: var(--app-vh, 100vh) !important;
+            max-height: var(--app-vh, 100vh) !important;
+            max-height: var(--app-dvh, 100dvh) !important;
             position: sticky !important;
             top: 0 !important;
             bottom: 0 !important;
@@ -360,12 +362,12 @@
             opacity: 1;
         }
 
-        /* Sidebar Footer (Same size & height as App Footer: 3.125rem / 50px) */
+        /* Sidebar Footer (Matches App Footer height 3.125rem + 0.5rem inset bottom margin offset so top borders align seamlessly) */
         .sidebar-footer {
-            height: var(--kaldis-footer-height, 3.125rem);
-            min-height: var(--kaldis-footer-height, 3.125rem);
-            max-height: var(--kaldis-footer-height, 3.125rem);
-            padding: 0 0.5rem;
+            height: calc(var(--kaldis-footer-height, 3.125rem) + 0.5rem);
+            min-height: calc(var(--kaldis-footer-height, 3.125rem) + 0.5rem);
+            max-height: calc(var(--kaldis-footer-height, 3.125rem) + 0.5rem);
+            padding: 0 0.5rem 0.5rem 0.5rem;
             border-top: 1px solid var(--sidebar-border);
             background-color: var(--sidebar);
             margin-top: auto;
@@ -514,10 +516,10 @@
             }
 
             html.sidebar-collapsed .sidebar-footer {
-                height: var(--kaldis-footer-height, 3.125rem);
-                min-height: var(--kaldis-footer-height, 3.125rem);
-                max-height: var(--kaldis-footer-height, 3.125rem);
-                padding: 0;
+                height: calc(var(--kaldis-footer-height, 3.125rem) + 0.5rem);
+                min-height: calc(var(--kaldis-footer-height, 3.125rem) + 0.5rem);
+                max-height: calc(var(--kaldis-footer-height, 3.125rem) + 0.5rem);
+                padding: 0 0 0.5rem 0;
                 justify-content: center;
             }
 
@@ -536,7 +538,8 @@
                 top: 0 !important;
                 left: -100% !important;
                 bottom: 0 !important;
-                height: 100vh !important;
+                height: 100% !important;
+                height: var(--app-vh, 100vh) !important;
                 width: 17.5rem !important;
                 min-width: 17.5rem !important;
                 z-index: 1060 !important;
@@ -559,6 +562,13 @@
             .mobile-sidebar-open .sidebar-backdrop {
                 display: block;
             }
+
+            .sidebar-footer {
+                height: var(--kaldis-footer-height, 3.125rem);
+                min-height: var(--kaldis-footer-height, 3.125rem);
+                max-height: var(--kaldis-footer-height, 3.125rem);
+                padding: 0 0.5rem;
+            }
         }
 
         /* ══════════════════════════════════════════════════════════
@@ -579,7 +589,7 @@
                 border-radius: var(--radius);
                 border: 1px solid var(--border);
                 box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
-                min-height: calc(100vh - 1rem);
+                min-height: calc(var(--app-vh, 100vh) - 1rem);
             }
         }
 
@@ -977,7 +987,7 @@
                 margin: 0 !important;
                 border-radius: 0 !important;
                 border: none !important;
-                min-height: 100vh !important;
+                min-height: var(--app-vh, 100vh) !important;
                 width: 100% !important;
                 box-shadow: none !important;
             }
