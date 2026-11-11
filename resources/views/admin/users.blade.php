@@ -182,18 +182,12 @@
                         <label class="form-label small fw-semibold text-secondary">Full Name <span class="text-danger">*</span></label>
                         <input type="text" name="full_name" id="editFullName" class="form-control" required>
                     </div>
-                    <div class="row g-2 mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label small fw-semibold text-secondary">
-                                Username <span class="text-danger">*</span>
-                                <span class="badge bg-warning-subtle text-warning border ms-1" style="font-size:0.65rem;">Admin Editable</span>
-                            </label>
-                            <input type="text" name="username" id="editUsername" class="form-control font-monospace" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-semibold text-secondary">New Password</label>
-                            <input type="password" name="password" id="editPassword" class="form-control" placeholder="Leave blank to keep" minlength="6">
-                        </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">
+                            Username <span class="text-danger">*</span>
+                            <span class="badge bg-warning-subtle text-warning border ms-1" style="font-size:0.65rem;">Admin Editable</span>
+                        </label>
+                        <input type="text" name="username" id="editUsername" class="form-control font-monospace" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label small fw-semibold text-secondary">Email <span class="text-danger">*</span></label>
@@ -249,7 +243,6 @@ function openEditUserModal(user) {
     document.getElementById('editUsername').value = user.username || '';
     document.getElementById('editFullName').value = user.full_name || '';
     document.getElementById('editEmail').value = user.email || '';
-    document.getElementById('editPassword').value = '';
     const roleSelect = document.getElementById('editRoleId');
     if (roleSelect && roleSelect.tomselect) {
         roleSelect.tomselect.setValue(user.role_id || '');
