@@ -16,6 +16,7 @@ class MonthlyPlanReminderCommand extends Command
 {
     protected $signature = 'kaldis:monthly-reminder 
                             {--type=reminder : Either "reminder" (Days before cutoff) or "cutoff" (Day 26 17:00)}
+                            {--stage= : Reminder stage: "day25_morning", "day25_afternoon", "day26_morning", "day26_afternoon"}
                             {--month= : Specific Ethiopian Month}
                             {--year= : Specific Planning Year}';
 
@@ -59,12 +60,9 @@ class MonthlyPlanReminderCommand extends Command
             if ($mSub && ($mSub->isDelayApproved() || $mSub->status === 'DELAY_APPROVED')) {
                 $isSubmitted = true;
                 $statusLabel = 'DELAY_APPROVED';
-            } elseif ($mSub && in_array($mSub->status, ['ON_TIME', 'LATE'])) {
+            } elseif ($mSub && !empty($mSub->submitted_at) && in_array($mSub->status, ['ON_TIME', 'LATE', 'SUBMITTED', 'APPROVED'])) {
                 $isSubmitted = true;
                 $statusLabel = $mSub->status;
-            } elseif ($deptPlansCount > 0) {
-                $isSubmitted = true;
-                $statusLabel = 'ON_TIME';
             }
 
             if ($isSubmitted) {
@@ -77,7 +75,7 @@ class MonthlyPlanReminderCommand extends Command
             } else {
                 $unsubmittedDepts[] = [
                     'dept' => $dept,
-                    'plans_count' => 0,
+                    'plans_count' => $deptPlansCount,
                 ];
 
                 $head = $dept->head;
@@ -104,21 +102,51 @@ class MonthlyPlanReminderCommand extends Command
                 $safeHeadName = htmlspecialchars($head ? $head->full_name : 'Department Head', ENT_QUOTES, 'UTF-8');
 
                 if ($type === 'reminder') {
-                    // Send routine reminder to Department Head
+                    // Send advance routine reminder to Department Head
                     if ($telegram->isConfigured() && !empty($chatId)) {
                         $portalUrl = url('/monthly/plans?year=' . urlencode($year) . '&month=' . urlencode($month));
-                        $msg = "⏰ <b>Kaldis Coffee PLC — Monthly Plan Reminder</b>\n\n"
+                        $stage = strtolower((string)($this->option('stage') ?? ''));
+
+                        switch ($stage) {
+                            case 'day25_morning':
+                                $stageTitle = "⏰ <b>Kaldis Monthly Plan Reminder (Day 25 Morning)</b>";
+                                $stageLead = "This is your <b>1st advance reminder</b> to prepare and submit your department's Monthly Plan Package for <b>{$month} {$year}</b>.";
+                                break;
+                            case 'day25_afternoon':
+                                $stageTitle = "⏰ <b>Kaldis Monthly Plan 2nd Reminder (Day 25 Afternoon)</b>";
+                                $stageLead = "The official deadline for your <b>{$month} {$year}</b> Monthly Plan Package is <b>tomorrow (Day 26) at 5:00 PM (11:00 LT)</b>.";
+                                break;
+                            case 'day26_morning':
+                                $stageTitle = "⚠️ <b>Kaldis Monthly Plan Final Day Reminder (Day 26 Morning)</b>";
+                                $stageLead = "<b>Today is the final day</b> to submit your Monthly Plan Package for <b>{$month} {$year}</b>. The deadline is <b>today at 5:00 PM (11:00 LT)</b>.";
+                                break;
+                            case 'day26_afternoon':
+                                $stageTitle = "🚨 <b>URGENT: Monthly Plan Cutoff in 3 Hours! (Day 26 14:00)</b>";
+                                $stageLead = "Your department's Monthly Plan Package for <b>{$month} {$year}</b> has <b>NOT</b> been submitted yet. Final cutoff is <b>today at 5:00 PM (11:00 LT)</b>.";
+                                break;
+                            default:
+                                $stageTitle = "⏰ <b>Kaldis Coffee PLC — Monthly Plan Reminder</b>";
+                                $stageLead = "This is a reminder to prepare and submit your department's Monthly Plan Package for <b>{$month} {$year}</b>.";
+                                break;
+                        }
+
+                        $draftStatusNote = ($deptPlansCount > 0)
+                            ? "📝 <i>You have <b>{$deptPlansCount} drafted plan(s)</b> in the portal. Please review and click <b>'Submit to GM'</b> before the cutoff!</i>\n\n"
+                            : "⚠️ <i>No monthly plans have been formulated yet. Please add your plans and submit to GM.</i>\n\n";
+
+                        $msg = "{$stageTitle}\n\n"
                              . "Dear <b>{$safeHeadName}</b> ({$safeDeptName}),\n\n"
-                             . "This is a reminder to prepare and submit your department's Monthly Plan Package for <b>{$month} {$year}</b>.\n\n"
+                             . "{$stageLead}\n\n"
                              . "📅 <b>Submission Cutoff:</b> {$deadlineFormatted}\n"
                              . "🎯 Please align your departmental operational tasks with the active Annual Strategic Goals.\n\n"
+                             . $draftStatusNote
                              . "☕ <i>Kaldis Coffee PLC — Planning & Performance</i>\n"
                              . "📅 <i>" . format_ethiopian_datetime() . "</i>";
 
                         $replyMarkup = [
                             'inline_keyboard' => [
                                 [
-                                    ['text' => '🌐 Open Monthly Plans in Portal', 'url' => $portalUrl]
+                                    ['text' => '🌐 Open Monthly Plans & Submit to GM', 'url' => $portalUrl]
                                 ]
                             ]
                         ];
@@ -278,7 +306,8 @@ class MonthlyPlanReminderCommand extends Command
                         $safeDept = htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8');
                         $headName = $item['dept']->head ? $item['dept']->head->full_name : 'No Head Assigned';
                         $safeHead = htmlspecialchars($headName, ENT_QUOTES, 'UTF-8');
-                        $gmReport .= "• <b>{$safeDept}</b> ({$safeHead})\n";
+                        $draftNote = ($item['plans_count'] > 0) ? " — <i>{$item['plans_count']} drafted (not submitted)</i>" : " — <i>0 plans</i>";
+                        $gmReport .= "• <b>{$safeDept}</b> ({$safeHead}){$draftNote}\n";
                     }
                     $gmReport .= "\n";
                 }

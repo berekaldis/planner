@@ -15,7 +15,8 @@ use Illuminate\Support\Facades\DB;
 class WeeklyReminderCommand extends Command
 {
     protected $signature = 'kaldis:weekly-reminder 
-                            {--type=performance : Reminder type: "performance" (Execution report), "plan" (Upcoming tasks scheduling), or "all"}
+                            {--type=all : Reminder type: "all" (both performance & plan), "performance", or "plan"}
+                            {--stage= : Reminder stage: "saturday", "sunday", "monday"}
                             {--week= : Specific week number (1 to 5)}
                             {--month= : Specific Ethiopian Month}
                             {--year= : Specific Planning Year}';
@@ -29,24 +30,27 @@ class WeeklyReminderCommand extends Command
 
         $year = $this->option('year') ?: kaldis_setting('current_planning_year', config('kaldis.current_planning_year', '2019 E.C.'));
         $month = $this->option('month') ?: kaldis_setting('current_planning_month', config('kaldis.current_planning_month', 'Meskerem'));
-        $type = strtolower((string)$this->option('type'));
+        $type = strtolower((string)($this->option('type') ?: 'all'));
+        $stage = strtolower((string)($this->option('stage') ?? ''));
 
-        // If type is performance, default week is the week that just completed (e.g. Week 1 when in Week 2)
-        // If type is plan, default week is the upcoming week to be planned (e.g. Week 2 when in Week 1/2)
+        // Performance report evaluates the week just completed/ending
+        // Weekly planning schedules operational tasks for the upcoming week
         if ($this->option('week')) {
             $week = (int)$this->option('week');
+            $planWeek = min(5, $week + 1);
         } else {
-            $week = ($type === 'performance' && $currentEthWeek > 1) ? $currentEthWeek - 1 : $currentEthWeek;
+            $week = ($currentEthWeek > 1) ? $currentEthWeek - 1 : 1;
+            $planWeek = ($currentEthWeek > 1) ? $currentEthWeek : min(5, 2);
         }
-        $planWeek = min(5, $week + 1);
 
-        $this->info("Executing Weekly Reminder [Type: {$type}] for {$month} {$year} (Week {$week})...");
+        $this->info("Executing Weekly Reminder [Type: {$type}, Stage: {$stage}] for {$month} {$year} (Report Week {$week}, Plan Week {$planWeek})...");
 
         $departments = Department::where('active', 1)->with('head')->get();
         $totalDepts = $departments->count();
 
         $performanceReminded = 0;
         $planReminded = 0;
+        $unifiedReminded = 0;
         $unsubmittedDepts = [];
 
         foreach ($departments as $dept) {
@@ -74,40 +78,129 @@ class WeeklyReminderCommand extends Command
             $safeDeptName = htmlspecialchars($dept->department_name, ENT_QUOTES, 'UTF-8');
             $safeHeadName = htmlspecialchars($head ? $head->full_name : 'Department Head', ENT_QUOTES, 'UTF-8');
 
-            // 1. Weekly Performance Execution Reminder
-            if ($type === 'performance' || $type === 'all') {
-                $sub = Submission::where('department_id', $dept->id)
-                    ->where('year', $year)
-                    ->where('month', $month)
-                    ->where('week_number', $week)
-                    ->first();
+            // 1. Evaluate Weekly Performance Report Submission Status (Week $week)
+            $sub = Submission::where('department_id', $dept->id)
+                ->where('year', $year)
+                ->where('month', $month)
+                ->where('week_number', $week)
+                ->first();
 
-                $report = WeeklyReport::where('department_id', $dept->id)
-                    ->where('year', $year)
-                    ->where('month', $month)
-                    ->where('week_number', $week)
-                    ->first();
+            $report = WeeklyReport::where('department_id', $dept->id)
+                ->where('year', $year)
+                ->where('month', $month)
+                ->where('week_number', $week)
+                ->first();
 
-                $isSubmitted = false;
-                if ($sub && ($sub->isDelayApproved() || in_array($sub->status, ['ON_TIME', 'LATE', 'DELAY_APPROVED']))) {
-                    $isSubmitted = true;
-                } elseif ($report && ($report->isDelayApproved() || in_array($report->submission_status, ['ON_TIME', 'LATE', 'DELAY_APPROVED']) || $report->status === 'SUBMITTED')) {
-                    $isSubmitted = true;
+            $isPerfSubmitted = false;
+            if ($sub && ($sub->isDelayApproved() || in_array($sub->status, ['ON_TIME', 'LATE', 'DELAY_APPROVED']))) {
+                $isPerfSubmitted = true;
+            } elseif ($report && ($report->isDelayApproved() || in_array($report->submission_status, ['ON_TIME', 'LATE', 'DELAY_APPROVED']) || in_array($report->status, ['SUBMITTED', 'APPROVED']))) {
+                $isPerfSubmitted = true;
+            }
+
+            // 2. Evaluate Weekly Task Planning Submission Status (Week $planWeek)
+            $wPlan = WeeklyPlan::where('department_id', $dept->id)
+                ->where('year', $year)
+                ->where('month', $month)
+                ->where('week_number', $planWeek)
+                ->first();
+
+            $planTasksCount = \App\Models\WeeklyTask::where('department_id', $dept->id)
+                ->where('year', $year)
+                ->where('month', $month)
+                ->where('week_number', $planWeek)
+                ->count();
+
+            $isPlanSubmitted = false;
+            if ($wPlan && ($wPlan->isDelayApproved() || in_array($wPlan->submission_status, ['ON_TIME', 'LATE', 'DELAY_APPROVED']) || in_array($wPlan->status, ['SUBMITTED', 'APPROVED']) || !empty($wPlan->submitted_at))) {
+                $isPlanSubmitted = true;
+            }
+
+            // Case A: Unified Reminder (Saturday, Sunday, Monday morning)
+            if ($type === 'all') {
+                if ($isPerfSubmitted && $isPlanSubmitted) {
+                    // Both submitted on time - DO NOT REMIND!
+                    continue;
                 }
 
-                if (!$isSubmitted) {
+                $unsubmittedDepts[] = [
+                    'dept' => $dept,
+                    'head' => $head,
+                    'pending_perf' => !$isPerfSubmitted,
+                    'pending_plan' => !$isPlanSubmitted,
+                    'plan_tasks_count' => $planTasksCount,
+                ];
+
+                $this->line("- Reminding {$dept->department_name} ({$safeHeadName}) [Perf: " . ($isPerfSubmitted ? 'OK' : 'PENDING') . ", Plan: " . ($isPlanSubmitted ? 'OK' : 'PENDING') . "]");
+
+                if ($telegram->isConfigured() && !empty($chatId)) {
+                    switch ($stage) {
+                        case 'saturday':
+                            $stageTitle = "📋 <b>Kaldis Weekly Planning & Report 1st Reminder (Saturday)</b>";
+                            $stageLead = "This is your <b>weekend advance reminder</b> to prepare and submit your weekly reports and operational task schedule.";
+                            break;
+                        case 'sunday':
+                            $stageTitle = "⏰ <b>Kaldis Weekly Submission 2nd Reminder (Sunday)</b>";
+                            $stageLead = "The official weekly submission cutoff is <b>tomorrow (Monday) at 12:30 PM (6:30 LT Midday)</b>.";
+                            break;
+                        case 'monday':
+                            $stageTitle = "🚨 <b>URGENT: Weekly Submission Deadline Today (Monday Morning)</b>";
+                            $stageLead = "<b>Today is the weekly submission deadline!</b> Please finalize and submit before <b>12:30 PM (6:30 LT Midday)</b>.";
+                            break;
+                        default:
+                            $stageTitle = "⏰ <b>Kaldis Coffee PLC — Weekly Submission Reminder</b>";
+                            $stageLead = "This is a reminder to submit your weekly performance report and operational plan before Monday 12:30 PM (6:30 LT).";
+                            break;
+                    }
+
+                    $perfBadge = $isPerfSubmitted ? "🟢 <b>Submitted</b>" : "🔴 <b>PENDING SUBMISSION</b>";
+                    $planBadge = $isPlanSubmitted ? "🟢 <b>Submitted</b>" : ("🔴 <b>PENDING SUBMISSION</b>" . ($planTasksCount > 0 ? " (<i>{$planTasksCount} drafted - click 'Submit to GM'</i>)" : " (<i>0 tasks scheduled</i>)"));
+
+                    $msg = "{$stageTitle}\n\n"
+                         . "Dear <b>{$safeHeadName}</b> ({$safeDeptName}),\n\n"
+                         . "{$stageLead}\n\n"
+                         . "📅 <b>Submission Deadline:</b> Monday 6:30 LT (12:30 PM Midday)\n\n"
+                         . "📊 <b>Your Department Status:</b>\n"
+                         . "• Week {$week} Performance Report: {$perfBadge}\n"
+                         . "• Week {$planWeek} Task Schedule: {$planBadge}\n\n"
+                         . "🎯 Please finalize and submit all pending items to ensure departmental compliance.\n\n"
+                         . "☕ <i>Kaldis Coffee PLC — Planning & Operational Governance</i>\n"
+                         . "📅 <i>" . format_ethiopian_datetime() . "</i>";
+
+                    $buttons = [];
+                    $perfUrl = url("/weekly/performance?year=" . urlencode($year) . "&month=" . urlencode($month) . "&week=" . $week);
+                    $planUrl = url("/weekly/plans?year=" . urlencode($year) . "&month=" . urlencode($month) . "&week=" . $planWeek);
+
+                    if (!$isPerfSubmitted) {
+                        $buttons[] = [['text' => "📊 Submit Week {$week} Performance", 'url' => $perfUrl]];
+                    }
+                    if (!$isPlanSubmitted) {
+                        $buttons[] = [['text' => "📝 Submit Week {$planWeek} Task Plan", 'url' => $planUrl]];
+                    }
+
+                    $replyMarkup = ['inline_keyboard' => $buttons];
+                    $res = $telegram->sendMessage($chatId, $msg, $replyMarkup);
+                    if (!empty($res['ok'])) {
+                        $unifiedReminded++;
+                    }
+                }
+            } elseif ($type === 'performance') {
+                if (!$isPerfSubmitted) {
                     $unsubmittedDepts[] = [
                         'dept' => $dept,
                         'head' => $head,
+                        'pending_perf' => true,
+                        'pending_plan' => false,
+                        'plan_tasks_count' => 0,
                     ];
 
                     $this->line("- Reminding Performance: {$dept->department_name} ({$safeHeadName})");
 
                     if ($telegram->isConfigured() && !empty($chatId)) {
                         $perfUrl = url("/weekly/performance?year=" . urlencode($year) . "&month=" . urlencode($month) . "&week=" . $week);
-                        $msg = "⏰ <b>Kaldis Coffee PLC — Weekly Performance &amp; Plan Reminder</b>\n\n"
+                        $msg = "⏰ <b>Kaldis Coffee PLC — Weekly Performance Report Reminder</b>\n\n"
                              . "Dear <b>{$safeHeadName}</b> ({$safeDeptName}),\n\n"
-                             . "This is a reminder to finalize and submit your department's <b>Weekly Performance Execution Report for Week {$week}</b> and <b>Weekly Task Schedule for Week {$planWeek}</b> ({$month} {$year}).\n\n"
+                             . "This is a reminder to finalize and submit your department's <b>Weekly Performance Execution Report for Week {$week}</b> ({$month} {$year}).\n\n"
                              . "📅 <b>Submission Deadline:</b> Monday 6:30 LT (12:30 PM Midday)\n"
                              . "🎯 Please verify all binary task statuses (DONE / NOT DONE) with root-cause reasons and submit before the cutoff.\n\n"
                              . "☕ <i>Kaldis Coffee PLC — Planning &amp; Operational Governance</i>\n"
@@ -127,32 +220,26 @@ class WeeklyReminderCommand extends Command
                         }
                     }
                 }
-            }
+            } elseif ($type === 'plan') {
+                if (!$isPlanSubmitted) {
+                    $unsubmittedDepts[] = [
+                        'dept' => $dept,
+                        'head' => $head,
+                        'pending_perf' => false,
+                        'pending_plan' => true,
+                        'plan_tasks_count' => $planTasksCount,
+                    ];
 
-            // 2. Weekly Planning (Upcoming Week Task Scheduling) Reminder
-            if ($type === 'plan' || $type === 'all') {
-                $wPlan = WeeklyPlan::where('department_id', $dept->id)
-                    ->where('year', $year)
-                    ->where('month', $month)
-                    ->where('week_number', $week)
-                    ->first();
-
-                $hasWeeklyPlan = false;
-                if ($wPlan && ($wPlan->isDelayApproved() || in_array($wPlan->submission_status, ['ON_TIME', 'LATE', 'DELAY_APPROVED']) || in_array($wPlan->status, ['SUBMITTED', 'APPROVED']))) {
-                    $hasWeeklyPlan = true;
-                } elseif ($wPlan && $wPlan->tasks()->exists()) {
-                    $hasWeeklyPlan = true;
-                }
-
-                if (!$hasWeeklyPlan) {
                     $this->line("- Reminding Task Scheduling: {$dept->department_name} ({$safeHeadName})");
 
                     if ($telegram->isConfigured() && !empty($chatId)) {
-                        $planUrl = url("/weekly/plans?year=" . urlencode($year) . "&month=" . urlencode($month) . "&week=" . $week);
+                        $planUrl = url("/weekly/plans?year=" . urlencode($year) . "&month=" . urlencode($month) . "&week=" . $planWeek);
+                        $draftStatus = ($planTasksCount > 0) ? " (<i>{$planTasksCount} drafted - please click 'Submit to GM'</i>)" : "";
                         $msg = "📝 <b>Kaldis Coffee PLC — Weekly Planning Reminder</b>\n\n"
                              . "Dear <b>{$safeHeadName}</b> ({$safeDeptName}),\n\n"
-                             . "This is a reminder to schedule your department's <b>Weekly Operational Tasks</b> for <b>{$month} {$year}, Week {$week}</b>.\n\n"
-                             . "🎯 Align your weekly deliverables with the active monthly targets and strategic goals.\n\n"
+                             . "This is a reminder to schedule your department's <b>Weekly Operational Tasks</b> for <b>{$month} {$year}, Week {$planWeek}</b>{$draftStatus}.\n\n"
+                             . "📅 <b>Submission Deadline:</b> Monday 6:30 LT (12:30 PM Midday)\n"
+                             . "🎯 Align your weekly deliverables with active monthly targets and strategic goals.\n\n"
                              . "☕ <i>Kaldis Coffee PLC — Planning & Operational Governance</i>\n"
                              . "📅 <i>" . format_ethiopian_datetime() . "</i>";
 
@@ -190,6 +277,20 @@ class WeeklyReminderCommand extends Command
                 }
             }
 
+            try {
+                $linkedGmIds = DB::table('telegram_users')
+                    ->whereIn('user_id', $gmUsers->pluck('id'))
+                    ->where('is_active', 1)
+                    ->pluck('telegram_user_id')
+                    ->toArray();
+                foreach ($linkedGmIds as $lcid) {
+                    $lcid = trim((string)$lcid);
+                    if (!empty($lcid) && $lcid !== '123456789') {
+                        $gmChatIds[] = $lcid;
+                    }
+                }
+            } catch (\Throwable $e) {}
+
             $groupChatId = kaldis_setting('telegram_chat_id', env('TELEGRAM_CHAT_ID', ''));
             if (!empty($groupChatId)) {
                 $gmChatIds[] = trim((string)$groupChatId);
@@ -199,19 +300,34 @@ class WeeklyReminderCommand extends Command
 
             if (!empty($gmChatIds)) {
                 $unsubCount = count($unsubmittedDepts);
-                $gmMsg = "📊 <b>Kaldis Weekly Submission Status Digest</b>\n"
+                $stageHeader = match($stage) {
+                    'saturday' => "Saturday 1st Reminder",
+                    'sunday' => "Sunday 2nd Reminder",
+                    'monday' => "Monday Final Morning Reminder",
+                    default => "Status Digest"
+                };
+
+                $gmMsg = "📊 <b>Kaldis Weekly Submission Status ({$stageHeader})</b>\n"
                        . "📅 <b>Period:</b> Week {$week} &bull; {$month} {$year}\n"
                        . "⏰ <b>Status Check:</b> " . format_ethiopian_datetime() . "\n\n"
-                       . "• Total Departments: <b>{$totalDepts}</b>\n"
+                       . "• Total Active Departments: <b>{$totalDepts}</b>\n"
                        . "• 🔴 Pending Submissions: <b>{$unsubCount}</b>\n\n";
 
                 $gmMsg .= "<b>Pending Departments:</b>\n";
                 foreach ($unsubmittedDepts as $item) {
                     $hName = $item['head'] ? $item['head']->full_name : 'No Head Assigned';
-                    $gmMsg .= "• " . htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8') . " (<i>{$hName}</i>)\n";
+                    $pendingItems = [];
+                    if (!empty($item['pending_perf'])) $pendingItems[] = "Performance";
+                    if (!empty($item['pending_plan'])) {
+                        $draftNote = ($item['plan_tasks_count'] > 0) ? "Plan ({$item['plan_tasks_count']} drafted)" : "Plan (0 tasks)";
+                        $pendingItems[] = $draftNote;
+                    }
+                    $pendingStr = !empty($pendingItems) ? implode(' & ', $pendingItems) : 'Pending';
+                    $gmMsg .= "• " . htmlspecialchars($item['dept']->department_name, ENT_QUOTES, 'UTF-8') . " [{$pendingStr}] (<i>{$hName}</i>)\n";
                 }
 
                 $dashboardUrl = url("/management/dashboard?year=" . urlencode($year) . "&month=" . urlencode($month) . "&week=" . $week);
+                $gmMsg .= "\n📌 <b>Cutoff:</b> Monday 12:30 PM (6:30 LT Midday)\n";
                 $gmMsg .= "☕ <i>Kaldis Coffee PLC — Executive Operations</i>";
 
                 $replyMarkup = [
@@ -234,10 +350,10 @@ class WeeklyReminderCommand extends Command
         AuditLog::log(
             'WEEKLY_REMINDER_CHECK',
             'system',
-            "Weekly reminders for Week {$week} ({$month} {$year}). Performance alerts: {$performanceReminded}, Planning alerts: {$planReminded}, GM summaries: {$gmSentCount}"
+            "Weekly reminders [Type: {$type}, Stage: {$stage}] for Week {$week}/{$planWeek} ({$month} {$year}). Unified alerts: {$unifiedReminded}, Performance: {$performanceReminded}, Plan: {$planReminded}, GM summaries: {$gmSentCount}"
         );
 
-        $this->info("Completed. Performance alerts sent: {$performanceReminded}, Planning alerts: {$planReminded}, GM summaries: {$gmSentCount}");
+        $this->info("Completed. Unified alerts: {$unifiedReminded}, Performance: {$performanceReminded}, Planning: {$planReminded}, GM summaries: {$gmSentCount}");
         return Command::SUCCESS;
     }
 }

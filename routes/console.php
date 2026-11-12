@@ -2,42 +2,90 @@
 
 use Illuminate\Support\Facades\Schedule;
 
-// 1. Weekly Performance Reports: Advance reminder on Sunday 18:00 & Final reminder on Monday 08:30 AM before 12:30 PM (6:30 LT) cutoff
-Schedule::command('kaldis:weekly-reminder --type=performance')
-    ->weeklyOn(0, '18:00')
-    ->timezone('Africa/Addis_Ababa')
-    ->description('Weekly Performance Report Advance Reminder to Department Heads (Sunday 18:00)');
+/*
+|--------------------------------------------------------------------------
+| Kaldis Coffee PLC — Automated Telegram Notification & Compliance Schedules
+|--------------------------------------------------------------------------
+|
+| 1. WEEKLY PERFORMANCE & PLANNING REMINDERS (Deadline: Monday 12:30 PM / 6:30 LT)
+|    - Saturday 10:00 AM: 1st Weekend Advance Reminder (Performance Report & Task Schedule)
+|    - Sunday 16:30 PM: 2nd Advance Reminder before Monday
+|    - Monday 08:30 AM (2:30 LT): 3rd Final Morning Reminder (4 hours before 12:30 PM cutoff)
+|    - Monday 12:35 PM (6:35 LT): Cutoff Escalation Alerts to Delinquent Heads
+|    - Monday 15:00 PM (9:00 LT): Weekly GM Executive Compliance Summary
+|
+| 2. MONTHLY STRATEGIC & OPERATIONAL PLANS (Deadline: Day 26 at 17:00 / 11:00 LT)
+|    - Day 25 Morning 09:30 AM: 1st Advance Reminder to Department Heads
+|    - Day 25 Afternoon 16:00 PM: 2nd Reminder ("Deadline is Tomorrow")
+|    - Day 26 Morning 09:00 AM: 3rd Final Day Morning Reminder ("Deadline is Today 17:00")
+|    - Day 26 Afternoon 14:00 PM: 4th Urgent Warning (3 hours before 17:00 cutoff)
+|    - Day 26 at 17:05 PM: Cutoff Compliance Check & GM Executive Telegram Summary
+|
+*/
 
-Schedule::command('kaldis:weekly-reminder --type=performance')
+// --- WEEKLY SCHEDULE ---
+
+// 1. Saturday 10:00 AM: 1st Weekend Reminder (both Performance & Plan)
+Schedule::command('kaldis:weekly-reminder --type=all --stage=saturday')
+    ->weeklyOn(6, '10:00')
+    ->timezone('Africa/Addis_Ababa')
+    ->description('Weekly Performance & Planning 1st Reminder to Department Heads (Saturday 10:00)');
+
+// 2. Sunday 16:30 PM: 2nd Advance Reminder
+Schedule::command('kaldis:weekly-reminder --type=all --stage=sunday')
+    ->weeklyOn(0, '16:30')
+    ->timezone('Africa/Addis_Ababa')
+    ->description('Weekly Performance & Planning 2nd Reminder to Department Heads (Sunday 16:30)');
+
+// 3. Monday 08:30 AM (2:30 LT): 3rd Final Morning Reminder before 12:30 PM (6:30 LT) cutoff
+Schedule::command('kaldis:weekly-reminder --type=all --stage=monday')
     ->weeklyOn(1, '08:30')
     ->timezone('Africa/Addis_Ababa')
-    ->description('Weekly Performance Report Final Reminder to Department Heads (Monday 08:30 / 2:30 LT)');
+    ->description('Weekly Performance & Planning Final Morning Reminder to Department Heads (Monday 08:30 / 2:30 LT)');
 
-// 2. Weekly Deadline Cutoff: Monday 12:35 PM (6:35 LT) escalation alert to delinquent department heads
+// 4. Monday 12:35 PM (6:35 LT): Weekly Cutoff Escalation Alerts to Delinquent Heads
 Schedule::command('kaldis:deadline-check --target=heads')
     ->weeklyOn(1, '12:35')
     ->timezone('Africa/Addis_Ababa')
     ->description('Weekly Cutoff Head Escalation Alerts (Monday 12:35 PM / 6:35 LT)');
 
-// 3. Weekly Compliance Notification: Every Monday at 15:00 (9:00 LT) GM Executive Report
+// 5. Monday 15:00 PM (9:00 LT): Weekly Compliance Check & GM Executive Summary
 Schedule::command('kaldis:deadline-check --target=gm')
     ->weeklyOn(1, '15:00')
     ->timezone('Africa/Addis_Ababa')
-    ->description('Weekly Deadline Compliance Check & GM Executive Telegram Notification (Every Monday 9:00 LT / 15:00)');
+    ->description('Weekly Deadline Compliance Check & GM Executive Telegram Notification (Monday 15:00 / 9:00 LT)');
 
-// 3. Weekly Task Planning: Reminders to schedule tasks for upcoming week (Friday 15:30 & Saturday 10:00)
-Schedule::command('kaldis:weekly-reminder --type=plan')
-    ->weeklyOn(5, '15:30')
+
+// --- MONTHLY SCHEDULE ---
+
+// 6. Monthly Plan Reminder: Day 25 Morning (09:30 AM) - 1st Reminder
+Schedule::command('kaldis:monthly-reminder --type=reminder --stage=day25_morning')
+    ->dailyAt('09:30')
     ->timezone('Africa/Addis_Ababa')
-    ->description('Weekly Task Planning Reminder to Department Heads (Friday 15:30)');
+    ->when(function () {
+        $et = function_exists('get_ethiopian_period') ? get_ethiopian_period() : ['day' => (int)date('j')];
+        $day = $et['day'] ?? (int)date('j');
+        $rawDay = (int)kaldis_setting('monthly_plan_deadline_day', 26);
+        $deadlineDay = ($rawDay >= 20 && $rawDay <= 30) ? $rawDay : 26;
+        return $day === ($deadlineDay - 1); // Ethiopian Day 25
+    })
+    ->description('Monthly Plan 1st Advance Reminder to Department Heads (Day 25 Morning 09:30)');
 
-Schedule::command('kaldis:weekly-reminder --type=plan')
-    ->weeklyOn(6, '10:00')
+// 7. Monthly Plan Reminder: Day 25 Afternoon (16:00 PM) - 2nd Reminder
+Schedule::command('kaldis:monthly-reminder --type=reminder --stage=day25_afternoon')
+    ->dailyAt('16:00')
     ->timezone('Africa/Addis_Ababa')
-    ->description('Weekly Task Planning Weekend Reminder to Department Heads (Saturday 10:00)');
+    ->when(function () {
+        $et = function_exists('get_ethiopian_period') ? get_ethiopian_period() : ['day' => (int)date('j')];
+        $day = $et['day'] ?? (int)date('j');
+        $rawDay = (int)kaldis_setting('monthly_plan_deadline_day', 26);
+        $deadlineDay = ($rawDay >= 20 && $rawDay <= 30) ? $rawDay : 26;
+        return $day === ($deadlineDay - 1); // Ethiopian Day 25
+    })
+    ->description('Monthly Plan 2nd Reminder to Department Heads (Day 25 Afternoon 16:00)');
 
-// 4. Monthly Strategic & Operational Plans: Daily morning reminder on Days 20-26 of each Ethiopian month before Day 26 17:00 cutoff
-Schedule::command('kaldis:monthly-reminder --type=reminder')
+// 8. Monthly Plan Reminder: Day 26 Morning (09:00 AM) - 3rd Final Day Reminder
+Schedule::command('kaldis:monthly-reminder --type=reminder --stage=day26_morning')
     ->dailyAt('09:00')
     ->timezone('Africa/Addis_Ababa')
     ->when(function () {
@@ -45,11 +93,24 @@ Schedule::command('kaldis:monthly-reminder --type=reminder')
         $day = $et['day'] ?? (int)date('j');
         $rawDay = (int)kaldis_setting('monthly_plan_deadline_day', 26);
         $deadlineDay = ($rawDay >= 20 && $rawDay <= 30) ? $rawDay : 26;
-        return $day >= ($deadlineDay - 6) && $day <= $deadlineDay;
+        return $day === $deadlineDay; // Ethiopian Day 26
     })
-    ->description('Monthly Plan Submission Reminder to Department Heads (Days 20 to 26 before 17:00)');
+    ->description('Monthly Plan Final Day Morning Reminder to Department Heads (Day 26 Morning 09:00)');
 
-// 5. Monthly Strategic & Operational Plans: Cutoff on Day 26 at 17:05 & GM Executive Summary
+// 9. Monthly Plan Reminder: Day 26 Afternoon (14:00 PM) - 4th Urgent 3-Hour Warning
+Schedule::command('kaldis:monthly-reminder --type=reminder --stage=day26_afternoon')
+    ->dailyAt('14:00')
+    ->timezone('Africa/Addis_Ababa')
+    ->when(function () {
+        $et = function_exists('get_ethiopian_period') ? get_ethiopian_period() : ['day' => (int)date('j')];
+        $day = $et['day'] ?? (int)date('j');
+        $rawDay = (int)kaldis_setting('monthly_plan_deadline_day', 26);
+        $deadlineDay = ($rawDay >= 20 && $rawDay <= 30) ? $rawDay : 26;
+        return $day === $deadlineDay; // Ethiopian Day 26
+    })
+    ->description('Monthly Plan Urgent 3-Hour Warning to Department Heads (Day 26 Afternoon 14:00)');
+
+// 10. Monthly Strategic & Operational Plans: Cutoff on Day 26 at 17:05 & GM Executive Summary
 Schedule::command('kaldis:monthly-reminder --type=cutoff')
     ->dailyAt('17:05')
     ->timezone('Africa/Addis_Ababa')

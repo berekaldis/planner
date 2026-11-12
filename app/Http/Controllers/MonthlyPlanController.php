@@ -180,10 +180,22 @@ class MonthlyPlanController extends Controller
                       . "📋 <b>Package Overview:</b>\n"
                       . "• Timing Status: <b>{$statusBadge}</b>\n"
                       . "• Total Monthly Plans: <b>{$totalPlans}</b> ({$stratCount} Strategy, {$opsCount} Operational)\n"
-                      . "• Submission Deadline: <b>{$deadlineInfo['deadline_formatted']}</b>";
+                      . "• Submission Deadline: <b>{$deadlineInfo['deadline_formatted']}</b>\n\n"
+                      . "📝 <b>Submitted Plans:</b>\n";
+
+        $i = 1;
+        foreach ($plans->take(8) as $p) {
+            $badge = $p->plan_type === 'STRATEGY' ? '🎯' : '⚙️';
+            $notifMessage .= "{$i}. {$badge} <b>" . htmlspecialchars($p->title, ENT_QUOTES, 'UTF-8') . "</b> (Target: " . htmlspecialchars($p->monthly_target, ENT_QUOTES, 'UTF-8') . ")\n";
+            $i++;
+        }
+        if ($plans->count() > 8) {
+            $remaining = $plans->count() - 8;
+            $notifMessage .= "<i>...and {$remaining} more plan(s).</i>\n";
+        }
 
         if (!empty($validated['notes'])) {
-            $notifMessage .= "\n\n💬 <b>Remarks:</b> <i>" . htmlspecialchars($validated['notes'], ENT_QUOTES, 'UTF-8') . "</i>";
+            $notifMessage .= "\n💬 <b>Remarks:</b> <i>" . htmlspecialchars($validated['notes'], ENT_QUOTES, 'UTF-8') . "</i>";
         }
 
         $replyMarkup = [
@@ -356,25 +368,9 @@ class MonthlyPlanController extends Controller
 
         AuditLog::log('CREATE_MONTHLY_PLAN', 'monthly_plans', "Created {$plan->plan_type} monthly plan: {$plan->title}", $plan->id);
 
-        // Automated Telegram Notification to GM and Department Head
-        $dept = Department::find($validated['department_id']);
-        $notifTitle = "📋 New Monthly Plan: " . ($dept->department_code ?? "Dept #{$validated['department_id']}");
-        $notifMessage = "A new monthly plan has been created for <b>" . ($dept->department_name ?? 'Department') . "</b> ({$plan->month} {$plan->year}):\n\n"
-            . "• <b>Title:</b> " . htmlspecialchars($plan->title, ENT_QUOTES, 'UTF-8') . "\n"
-            . "• <b>Type:</b> {$plan->plan_type}\n"
-            . "• <b>Target:</b> " . htmlspecialchars($plan->monthly_target, ENT_QUOTES, 'UTF-8') . "\n"
-            . "• <b>Definition of Done:</b> " . htmlspecialchars($plan->definition_of_done, ENT_QUOTES, 'UTF-8') . "\n"
-            . "• <b>Priority:</b> {$plan->priority}";
-
-        $monthlyUrl = route('monthly.plans', [
-            'department_id' => $validated['department_id'],
-            'year' => $validated['year'],
-            'month' => $validated['month'],
-        ]);
-
-        notify_both_gm_and_head((int)$validated['department_id'], $notifTitle, $notifMessage, $monthlyUrl);
-
-        return back()->with('success', 'Monthly plan created successfully and notified on Telegram.');
+        // Monthly plan is drafted without one-by-one Telegram spamming.
+        // The consolidated package notification is dispatched to GM & Head when "Submit to GM" is clicked.
+        return back()->with('success', 'Monthly plan created successfully. Remember to click "Submit to GM" once your plan package is ready.');
     }
 
     public function destroy($id)
