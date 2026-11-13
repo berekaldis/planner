@@ -416,29 +416,26 @@
                     @php
                         $isStratMandatory = kaldis_setting('strategy_field_mandatory', 'true') === 'true';
                     @endphp
-                    <div class="row g-3 mb-3">
-                        <div class="col-12" id="taskMonthlyPlanWrapper">
-                            <label class="form-label small fw-semibold text-secondary">
-                                Parent Monthly Plan 
-                                @if($isStratMandatory)
-                                    <span class="badge bg-danger-subtle text-danger ms-1">Mandatory</span>
-                                @else
-                                    <span class="badge bg-secondary-subtle text-secondary ms-1">Optional</span>
-                                @endif
-                            </label>
-                            <select name="monthly_plan_id" id="taskMonthlyPlanSelect" class="form-select" data-no-search="true" onchange="handleMonthlyPlanSelect(this)" {{ $isStratMandatory ? 'required' : '' }}>
-                                <option value="">-- Choose Monthly Plan {{ $isStratMandatory ? '' : '(Optional)' }} --</option>
-                                @foreach($monthlyPlans as $mp)
-                                    <option value="{{ $mp->id }}" data-type="{{ $mp->plan_type }}" data-dod="{{ e($mp->definition_of_done) }}" data-target="{{ e($mp->monthly_target) }}">
-                                        [{{ $mp->plan_type }}] {{ $mp->title }} (Target: {{ $mp->monthly_target }})
-                                    </option>
-                                @endforeach
-                            </select>
-                            <div class="small text-muted mt-1">Select the monthly plan this weekly task executes{{ $isStratMandatory ? '' : ' (optional)' }}.</div>
-                        
-                            <input type="hidden" name="plan_type" id="taskPlanTypeSelect" value="OPERATIONAL">
-                        </div>
-                    </div>
+                    <div class="mb-3" id="taskMonthlyPlanWrapper">
+                        <label class="form-label small fw-semibold text-secondary">
+                            Parent Monthly Plan 
+                            @if($isStratMandatory)
+                                <span class="badge bg-danger-subtle text-danger ms-1">Mandatory for Planned</span>
+                            @else
+                                <span class="badge bg-secondary-subtle text-secondary ms-1">Optional</span>
+                            @endif
+                        </label>
+                        <select name="monthly_plan_id" id="taskMonthlyPlanSelect" class="form-select" onchange="handleMonthlyPlanSelect(this)">
+                            <option value="">-- Choose Monthly Plan {{ $isStratMandatory ? '' : '(Optional)' }} --</option>
+                            @foreach($monthlyPlans as $mp)
+                                <option value="{{ $mp->id }}" data-type="{{ $mp->plan_type }}" data-dod="{{ e($mp->definition_of_done) }}" data-target="{{ e($mp->monthly_target) }}">
+                                    [{{ $mp->plan_type }}] {{ $mp->title }} (Target: {{ $mp->monthly_target }})
+                                </option>
+                            @endforeach
+                        </select>
+                        <div class="small text-muted mt-1">Select the monthly plan this weekly task executes.</div>
+                    
+                        <input type="hidden" name="plan_type" id="taskPlanTypeSelect" value="OPERATIONAL">
                     </div>
 
                     <!-- Step 3: Task Title -->
@@ -450,7 +447,7 @@
                     <!-- Step 4: Definition of Done (DOD) -->
                     <div class="mb-3">
                         <label class="form-label small fw-semibold text-secondary">Definition of Done (DOD) <span class="text-danger">*</span></label>
-                        <textarea name="task_target" id="taskTargetInput" class="form-control" rows="2" placeholder="Clear output or criteria for when this weekly task is DONE..." required></textarea>
+                        <textarea name="expected_result" id="taskTargetInput" class="form-control" rows="2" placeholder="Clear output or criteria for when this weekly task is DONE..." required></textarea>
                     </div>
                 </div>
 
@@ -694,12 +691,19 @@
         const isPlanned = plannedRadio ? plannedRadio.checked : true;
         const monthlyWrapper = document.getElementById('taskMonthlyPlanWrapper');
         const planSelect = document.getElementById('taskMonthlyPlanSelect');
+        const typeSelect = document.getElementById('taskPlanTypeSelect');
+        const hasPlans = planSelect && planSelect.options.length > 1;
+        const isStratMandatory = {{ $isStratMandatory ? 'true' : 'false' }};
+
         if (monthlyWrapper) {
             monthlyWrapper.style.display = isPlanned ? '' : 'none';
         }
         if (planSelect) {
-            planSelect.required = isPlanned;
-            if (!isPlanned) planSelect.value = '';
+            planSelect.required = isPlanned && isStratMandatory && hasPlans;
+            if (!isPlanned) {
+                planSelect.value = '';
+                if (typeSelect) typeSelect.value = 'OPERATIONAL';
+            }
         }
     }
 

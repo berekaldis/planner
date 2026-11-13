@@ -4,7 +4,7 @@
 
 @section('content')
 <!-- Header -->
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2 mb-4">
     <div>
         <h4 class="fw-bold text-dark mb-1">Weekly Performance Execution</h4>
         <p class="text-muted small mb-0">{{ $department->department_name }} &bull; Week {{ $selectedWeek }} ({{ $selectedMonth }} {{ $selectedYear }})</p>
@@ -22,7 +22,7 @@
 </div>
 
 <!-- Filters Bar -->
-<div class="filter-bar">
+<div class="filter-bar mb-4">
     <form method="GET" action="{{ route('weekly.performance') }}" class="row g-2 align-items-center">
         @if(auth()->user()->canAccessAllDepartments())
             <div class="col-md-3">
@@ -68,7 +68,7 @@
     </form>
 </div>
 
-<!-- Submission Banner (if submitted or delay approved/pending) -->
+<!-- Submission & Delay Banners -->
 @if($submission && ($submission->isDelayApproved() || $submission->status === 'DELAY_APPROVED'))
     <div class="alert alert-info border-0 shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-4">
         <div>
@@ -83,7 +83,7 @@
                 @endif
             </div>
             <div class="small text-muted">
-                General Management has approved the delay for Week {{ $selectedWeek }} performance reporting. This report is officially excused and <strong>NOT</strong> recorded as Not Submitted.
+                General Management has approved the delay for Week {{ $selectedWeek }} performance reporting. This report is officially excused.
             </div>
             @if(!empty($submission->delay_reason))
                 <div class="small text-dark mt-1"><strong>Justification:</strong> {{ $submission->delay_reason }}</div>
@@ -130,7 +130,8 @@
         </div>
     </div>
 @endif
-    @if(!empty($submission->gm_feedback))
+
+@if(!empty($submission->gm_feedback))
     <div class="card border-primary mb-4 shadow-sm">
         <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
             <span class="fw-bold small"><i class="fas fa-comment-dots me-1"></i> Executive Review Comments from General Manager</span>
@@ -142,140 +143,183 @@
     </div>
 @endif
 
-<!-- Execution Metrics -->
-<div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="card p-3">
-            <span class="text-muted small fw-semibold text-uppercase">Total Planned Tasks</span>
-            <h3 class="fw-bold my-1 text-dark">{{ $totalTasks }}</h3>
-            <div class="small text-muted">{{ $unratedTasks }} tasks pending evaluation</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card p-3">
-            <span class="text-muted small fw-semibold text-uppercase">Completed (DONE)</span>
-            <h3 class="fw-bold my-1 text-success">{{ $doneTasks }}</h3>
-            <div class="small text-muted">Achieved weekly targets</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card p-3">
-            <span class="text-muted small fw-semibold text-uppercase">Not Completed (NOT DONE)</span>
-            <h3 class="fw-bold my-1 text-danger">{{ $notDoneTasks }}</h3>
-            <div class="small text-muted">With mandatory root-cause logged</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card p-3">
-            <span class="text-muted small fw-semibold text-uppercase">Completion Rate</span>
-            <h3 class="fw-bold my-1 text-primary">{{ $completionRate }}%</h3>
-            <div class="small text-muted">(Done / Total Planned) &times; 100</div>
+<!-- Sleek Metrics Summary Bar -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-3">
+        <div class="row g-3 align-items-center text-center text-sm-start">
+            <div class="col-6 col-md-3 border-end-md">
+                <span class="text-muted small text-uppercase fw-semibold d-block">Planned Tasks</span>
+                <div class="d-flex align-items-baseline gap-2 justify-content-center justify-content-sm-start">
+                    <span class="fs-4 fw-bold text-dark">{{ $totalTasks }}</span>
+                    @if($unratedTasks > 0)
+                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle small">{{ $unratedTasks }} pending</span>
+                    @else
+                        <span class="badge bg-success-subtle text-success border border-success-subtle small">All evaluated</span>
+                    @endif
+                </div>
+            </div>
+
+            <div class="col-6 col-md-3 border-end-md">
+                <span class="text-muted small text-uppercase fw-semibold d-block">Completed (DONE)</span>
+                <div class="d-flex align-items-baseline gap-2 justify-content-center justify-content-sm-start">
+                    <span class="fs-4 fw-bold text-success">{{ $doneTasks }}</span>
+                    <span class="small text-muted">achieved</span>
+                </div>
+            </div>
+
+            <div class="col-6 col-md-3 border-end-md">
+                <span class="text-muted small text-uppercase fw-semibold d-block">Not Done</span>
+                <div class="d-flex align-items-baseline gap-2 justify-content-center justify-content-sm-start">
+                    <span class="fs-4 fw-bold text-danger">{{ $notDoneTasks }}</span>
+                    <span class="small text-muted">with reason</span>
+                </div>
+            </div>
+
+            <div class="col-6 col-md-3">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="text-muted small text-uppercase fw-semibold">Completion</span>
+                    <span class="fw-bold {{ $completionRate >= 80 ? 'text-success' : ($completionRate >= 50 ? 'text-primary' : 'text-danger') }}">{{ $completionRate }}%</span>
+                </div>
+                <div class="progress" style="height: 6px;">
+                    <div class="progress-bar {{ $completionRate >= 80 ? 'bg-success' : ($completionRate >= 50 ? 'bg-primary' : 'bg-danger') }}" 
+                         role="progressbar" 
+                         style="width: {{ $completionRate }}%" 
+                         aria-valuenow="{{ $completionRate }}" 
+                         aria-valuemin="0" 
+                         aria-valuemax="100"></div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Section 1: Binary Task Evaluation -->
-<div class="card mb-4">
-    <div class="card-header">
-        <span><i class="fas fa-check-circle me-1 text-secondary"></i> Binary Task Performance (DONE / NOT DONE)</span>
-        <span class="badge bg-light text-secondary border">Section 1</span>
+<!-- Task Execution & Evaluation Table -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <div>
+            <h6 class="fw-bold mb-0 text-dark">
+                <i class="fas fa-check-circle text-primary me-2"></i>Weekly Tasks Evaluation
+            </h6>
+        </div>
+        <span class="badge bg-light text-secondary border">
+            {{ $doneTasks + $notDoneTasks }} / {{ $totalTasks }} Evaluated
+        </span>
     </div>
     <div class="table-responsive">
-        <table class="table table-hover mb-0">
-            <thead>
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
                 <tr>
-                    <th style="width: 100px;">Type</th>
-                    <th>Task & Target</th>
-                    <th style="width: 130px;" class="text-center">Status</th>
-                    <th>Evaluation Details & Corrective Plan</th>
-                    <th style="width: 160px;" class="text-end">Evaluate</th>
+                    <th style="width: 130px;">Type</th>
+                    <th>Task &amp; Target</th>
+                    <th style="width: 140px;" class="text-center">Status</th>
+                    <th>Evaluation Details</th>
+                    <th style="width: 170px;" class="text-end">Action</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse($tasks as $task)
                     <tr>
                         <td>
-                            @if($task->plan_type === 'STRATEGY')
-                                <span class="badge-strategy">Strategy</span>
-                            @else
-                                <span class="badge-operational">Operational</span>
-                            @endif
-                        </td>
-                        <td>
-                            <strong class="text-dark">{{ $task->task_title }}</strong>
-                            <div class="small text-muted"><strong>Target:</strong> {{ $task->expected_result }}</div>
-                        </td>
-                        <td class="text-center">
-                            @if($task->result && $task->result->isDone())
-                                <span class="badge-done"><i class="fas fa-check me-1"></i> DONE</span>
-                            @elseif($task->result && $task->result->isNotDone())
-                                <span class="badge-not-done"><i class="fas fa-times me-1"></i> NOT DONE</span>
-                            @else
-                                <span class="badge-pending"><i class="fas fa-clock me-1"></i> PENDING</span>
-                            @endif
-                        </td>
-                        <td>
-                            @if($task->result && $task->result->isDone())
-                                <span class="small text-success"><i class="fas fa-check-circle me-1"></i> Output Achieved</span>
-                            @elseif($task->result && $task->result->isNotDone())
-                                <div class="small">
-                                    <div class="text-secondary"><strong>Why:</strong> {{ $task->result->not_done_explanation }}</div>
-                                    <div class="text-primary mt-0.5"><strong>Next Action:</strong> {{ $task->result->next_action }}</div>
+                            <div class="d-flex flex-column gap-1">
+                                <div>
+                                    @if($task->plan_type === 'STRATEGY')
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Strategy</span>
+                                    @else
+                                        <span class="badge bg-secondary-subtle text-secondary border">Operational</span>
+                                    @endif
                                 </div>
-                            @else
-                                <span class="text-muted small">Awaiting evaluation</span>
-                            @endif
+                                <div>
+                                    @if($task->task_type === 'NEW_TASK')
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle" style="font-size: 0.68rem;">New Task</span>
+                                    @else
+                                        <span class="badge bg-light text-muted border" style="font-size: 0.68rem;">Planned</span>
+                                    @endif
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="fw-semibold text-dark">{{ $task->task_title }}</div>
+                            <div class="small text-muted mt-0.5">
+                                <span class="text-secondary fw-semibold">Target:</span> {{ $task->expected_result }}
+                            </div>
 
                             @if($task->result && $task->result->gm_comment)
-                                <div class="mt-1.5 p-2 rounded-2 border bg-warning-subtle text-dark" style="font-size: 0.78rem;">
-                                    <div class="d-flex align-items-center gap-1.5 fw-semibold text-warning-emphasis mb-0.5">
+                                <div class="mt-1.5 p-2 rounded border bg-warning-subtle text-dark" style="font-size: 0.78rem;">
+                                    <div class="d-flex align-items-center gap-1 fw-semibold text-warning-emphasis mb-0.5">
                                         <i class="fas fa-comment-dots text-warning"></i>
-                                        <span>GM Feedback</span>
-                                        @if($task->result->gm_comment_at)
-                                            <span class="text-muted fw-normal" style="font-size: 0.7rem;">({{ $task->result->gm_comment_at->diffForHumans() }})</span>
-                                        @endif
+                                        <span>GM Feedback:</span>
                                     </div>
                                     <div class="text-secondary" style="white-space: pre-wrap;">{{ $task->result->gm_comment }}</div>
                                 </div>
                             @elseif($task->gm_comment)
-                                <div class="mt-1.5 p-2 rounded-2 border bg-warning-subtle text-dark" style="font-size: 0.78rem;">
-                                    <div class="d-flex align-items-center gap-1.5 fw-semibold text-warning-emphasis mb-0.5">
+                                <div class="mt-1.5 p-2 rounded border bg-warning-subtle text-dark" style="font-size: 0.78rem;">
+                                    <div class="d-flex align-items-center gap-1 fw-semibold text-warning-emphasis mb-0.5">
                                         <i class="fas fa-comment-dots text-warning"></i>
-                                        <span>GM Feedback (Task)</span>
+                                        <span>GM Feedback:</span>
                                     </div>
                                     <div class="text-secondary" style="white-space: pre-wrap;">{{ $task->gm_comment }}</div>
                                 </div>
                             @endif
                         </td>
+                        <td class="text-center">
+                            @if($task->result && $task->result->isDone())
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                    <i class="fas fa-check me-1"></i> DONE
+                                </span>
+                            @elseif($task->result && $task->result->isNotDone())
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
+                                    <i class="fas fa-times me-1"></i> NOT DONE
+                                </span>
+                            @else
+                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1">
+                                    <i class="fas fa-clock me-1"></i> PENDING
+                                </span>
+                            @endif
+                        </td>
+                        <td>
+                            @if($task->result && $task->result->isDone())
+                                <span class="small text-success fw-medium">
+                                    <i class="fas fa-check-circle me-1"></i> Output Achieved
+                                </span>
+                            @elseif($task->result && $task->result->isNotDone())
+                                <div class="small">
+                                    <div class="text-danger fw-semibold">Reason: <span class="text-secondary fw-normal">{{ $task->result->not_done_explanation }}</span></div>
+                                    <div class="text-primary fw-semibold mt-0.5">Next Action: <span class="text-secondary fw-normal">{{ $task->result->next_action }}</span></div>
+                                </div>
+                            @else
+                                <span class="text-muted small fst-italic">Awaiting evaluation</span>
+                            @endif
+                        </td>
                         <td class="text-end">
                             <div class="d-inline-flex align-items-center gap-1">
                                 @if(auth()->user()->isGM() || auth()->user()->isSuperAdmin())
-                                    <button type="button" class="btn btn-xs btn-outline-warning py-0.5 px-1.5" 
+                                    <button type="button" class="btn btn-xs btn-outline-warning py-1 px-1.5" 
                                             onclick="openGmPerformanceCommentModal({{ $task->result ? $task->result->id : 0 }}, {{ $task->id }}, '{{ addslashes($task->task_title) }}', '{{ addslashes(($task->result ? $task->result->gm_comment : $task->gm_comment) ?? '') }}')" 
                                             title="Add / Edit GM Comment">
                                         <i class="fas fa-comment-dots"></i>
                                     </button>
                                 @endif
+
                                 @if($task->result && in_array($task->result->result, ['DONE', 'NOT_DONE']))
-                                    <span class="badge bg-light text-secondary border py-1.5 px-2" title="Evaluation is finalized and locked (one-time binary rule)">
-                                        <i class="fas fa-lock text-muted me-1"></i> Locked ({{ $task->result->result === 'DONE' ? 'DONE' : 'NOT DONE' }})
+                                    <span class="badge bg-light text-secondary border py-1.5 px-2" title="Finalized (Permanent)">
+                                        <i class="fas fa-lock text-muted me-1"></i> {{ $task->result->result === 'DONE' ? 'DONE' : 'NOT DONE' }}
                                     </span>
                                 @else
                                     <div class="btn-group btn-group-sm">
-                                        <form method="POST" action="{{ route('weekly.performance.evaluate') }}" class="d-inline" onsubmit="return confirm('Confirm marking task as DONE? In accordance with binary evaluation rules, this decision is permanent and cannot be altered.');">
+                                        <form method="POST" action="{{ route('weekly.performance.evaluate') }}" class="d-inline" onsubmit="return confirm('Confirm marking task as DONE? Evaluation is permanent.');">
                                             @csrf
                                             <input type="hidden" name="weekly_task_id" value="{{ $task->id }}">
                                             <input type="hidden" name="status" value="DONE">
-                                            <button type="submit" class="btn btn-outline-success btn-sm py-1 px-2" title="Mark Done (Permanent)">
-                                                <i class="fas fa-check"></i> Done
+                                            <button type="submit" class="btn btn-outline-success btn-sm py-1 px-2" title="Mark Done">
+                                                <i class="fas fa-check me-0.5"></i> Done
                                             </button>
                                         </form>
                                         <button type="button" class="btn btn-outline-danger btn-sm py-1 px-2" 
                                                 data-bs-toggle="modal" 
                                                 data-bs-target="#notDoneModal"
                                                 onclick="setupNotDoneModal({{ $task->id }}, '{{ addslashes($task->task_title) }}')"
-                                                title="Mark Not Done (Permanent)">
-                                            <i class="fas fa-times"></i> Not Done
+                                                title="Mark Not Done">
+                                            <i class="fas fa-times me-0.5"></i> Not Done
                                         </button>
                                     </div>
                                 @endif
@@ -284,9 +328,9 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="empty-state py-5">
-                            <i class="fas fa-tasks d-block opacity-25"></i>
-                            <h6>No Tasks Planned for Week {{ $selectedWeek }}</h6>
+                        <td colspan="5" class="text-center py-5">
+                            <i class="fas fa-tasks fa-2x text-muted opacity-50 mb-2 d-block"></i>
+                            <h6 class="fw-semibold text-dark">No Tasks Planned for Week {{ $selectedWeek }}</h6>
                             <p class="small text-muted mb-3">Please schedule tasks in the Weekly Plans module before recording performance.</p>
                             <a href="{{ route('weekly.plans', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" class="btn btn-sm btn-kaldis">
                                 <i class="fas fa-plus me-1"></i> Go to Weekly Plans
@@ -299,33 +343,32 @@
     </div>
 </div>
 
-<!-- Section 2: Independent Achievements & Challenges Row -->
+<!-- Compact Achievements & Challenges -->
 <div class="row g-3 mb-4">
     <!-- Achievements -->
     <div class="col-lg-6">
-        <div class="card h-100">
-            <div class="card-header">
-                <span><i class="fas fa-trophy me-1 text-warning"></i> Independent Achievements</span>
-                <button type="button" class="btn btn-xs btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#addAchievementModal">
-                    <i class="fas fa-plus me-1"></i> Add Achievement
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-2.5 border-bottom d-flex justify-content-between align-items-center">
+                <span class="fw-semibold small text-dark">
+                    <i class="fas fa-trophy text-warning me-1.5"></i> Independent Achievements
+                </span>
+                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-2" data-bs-toggle="modal" data-bs-target="#addAchievementModal">
+                    <i class="fas fa-plus me-1"></i> Add
                 </button>
             </div>
             <div class="card-body p-0">
                 @forelse($achievements as $ach)
-                    <div class="p-3 border-bottom d-flex justify-content-between align-items-start">
-                        <div>
-                            <div class="text-dark fw-bold">{{ $ach->achievement_text }}</div>
-                        </div>
+                    <div class="p-2.5 border-bottom d-flex justify-content-between align-items-start gap-2">
+                        <div class="small text-dark">{{ $ach->achievement_text }}</div>
                         <form method="POST" action="{{ route('weekly.achievements.destroy', $ach->id) }}" onsubmit="return confirm('Remove achievement?');">
                             @csrf
                             @method('DELETE')
-                            <button type="submit" class="btn btn-sm text-danger border-0 p-0"><i class="fas fa-times"></i></button>
+                            <button type="submit" class="btn btn-sm text-danger border-0 p-0" title="Delete"><i class="fas fa-times"></i></button>
                         </form>
                     </div>
                 @empty
-                    <div class="empty-state py-4">
-                        <i class="fas fa-award d-block opacity-25"></i>
-                        <p class="small text-muted mb-0">No independent achievements recorded for Week {{ $selectedWeek }}.</p>
+                    <div class="text-muted small text-center py-3">
+                        No independent achievements logged for Week {{ $selectedWeek }}.
                     </div>
                 @endforelse
             </div>
@@ -334,29 +377,28 @@
 
     <!-- Challenges -->
     <div class="col-lg-6">
-        <div class="card h-100">
-            <div class="card-header">
-                <span><i class="fas fa-exclamation-triangle me-1 text-danger"></i> Independent Challenges & Blockers</span>
-                <button type="button" class="btn btn-xs btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#addChallengeModal">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-2.5 border-bottom d-flex justify-content-between align-items-center">
+                <span class="fw-semibold small text-dark">
+                    <i class="fas fa-exclamation-triangle text-danger me-1.5"></i> Operational Challenges
+                </span>
+                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-2" data-bs-toggle="modal" data-bs-target="#addChallengeModal">
                     <i class="fas fa-plus me-1"></i> Log Challenge
                 </button>
             </div>
             <div class="card-body p-0">
                 @forelse($challenges as $ch)
-                    <div class="p-3 border-bottom d-flex justify-content-between align-items-start">
-                        <div>
-                            <div class="text-dark fw-bold">{{ $ch->challenge_text }}</div>
-                        </div>
+                    <div class="p-2.5 border-bottom d-flex justify-content-between align-items-start gap-2">
+                        <div class="small text-dark">{{ $ch->challenge_text }}</div>
                         <form method="POST" action="{{ route('weekly.challenges.destroy', $ch->id) }}" onsubmit="return confirm('Remove challenge?');">
                             @csrf
                             @method('DELETE')
-                            <button type="submit" class="btn btn-sm text-danger border-0 p-0"><i class="fas fa-times"></i></button>
+                            <button type="submit" class="btn btn-sm text-danger border-0 p-0" title="Delete"><i class="fas fa-times"></i></button>
                         </form>
                     </div>
                 @empty
-                    <div class="empty-state py-4">
-                        <i class="fas fa-shield-alt d-block opacity-25"></i>
-                        <p class="small text-muted mb-0">No operational challenges recorded for Week {{ $selectedWeek }}.</p>
+                    <div class="text-muted small text-center py-3">
+                        No operational challenges logged for Week {{ $selectedWeek }}.
                     </div>
                 @endforelse
             </div>
@@ -364,17 +406,17 @@
     </div>
 </div>
 
-<!-- Section 3: Official Weekly Governance Submission to GM -->
-<div class="card mb-4 border border-light-subtle shadow-sm">
+<!-- Submit to General Manager -->
+<div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
         <h6 class="fw-bold mb-0 text-dark">
-            <i class="fas fa-paper-plane text-warning me-1"></i> Submit Weekly Cycle to GM: Week {{ $selectedWeek }} Performance &amp; Week {{ $nextWeek }} Plan
+            <i class="fas fa-paper-plane text-primary me-2"></i>Submit Weekly Cycle to GM
         </h6>
-        <span class="badge bg-light text-secondary border" title="{{ $cycleDeadline['eth_full_str'] ?? '' }}">
-            <i class="fas fa-clock text-warning me-1"></i> Monday 6:30 LT (12:30 PM) Cutoff
+        <span class="badge bg-light text-secondary border">
+            <i class="fas fa-clock text-warning me-1"></i> Monday 12:30 PM (6:30 LT) Cutoff
         </span>
     </div>
-    <div class="card-body">
+    <div class="card-body p-4">
         <form method="POST" action="{{ route('weekly.report.submit') }}">
             @csrf
             <input type="hidden" name="department_id" value="{{ $department->id }}">
@@ -382,82 +424,71 @@
             <input type="hidden" name="month" value="{{ $selectedMonth }}">
             <input type="hidden" name="week_number" value="{{ $selectedWeek }}">
 
-            <!-- Dual Summary Grid -->
-            <div class="row g-3 mb-3">
-                <div class="col-md-6">
-                    <div class="p-3 rounded-3 bg-light border h-100">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="fw-bold small text-dark"><i class="fas fa-chart-line text-success me-1"></i> Week {{ $selectedWeek }} Performance Review</span>
-                            <span class="badge {{ $unratedTasks === 0 && $totalTasks > 0 ? 'bg-success' : 'bg-warning text-dark' }}">
-                                {{ $unratedTasks === 0 && $totalTasks > 0 ? 'Ready to Submit' : $unratedTasks . ' Tasks Pending' }}
-                            </span>
-                        </div>
-                        <div class="small text-muted mb-1">
-                            • Completion Rate: <strong class="text-dark">{{ $completionRate }}%</strong>
-                        </div>
-                        <div class="small text-muted mb-1">
-                            • Binary Status: <span class="text-success fw-bold">{{ $doneTasks }} DONE</span> &bull; <span class="text-danger fw-bold">{{ $notDoneTasks }} NOT DONE</span> ({{ $totalTasks }} total)
-                        </div>
-                        @if(kaldis_setting('voucher_enabled', 'true') === 'true')
-                            <div class="small text-muted">
-                                • Official Voucher: <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" target="_blank" class="fw-semibold text-primary"><i class="fas fa-file-invoice me-1"></i> Preview Performance Voucher</a>
-                            </div>
-                        @endif
-                    </div>
+            <!-- Evaluation Readiness Indicator -->
+            @if($totalTasks === 0)
+                <div class="alert alert-warning py-2.5 px-3 small mb-3 border-0">
+                    <i class="fas fa-exclamation-triangle me-1 text-warning"></i>
+                    <strong>No tasks scheduled:</strong> Please add weekly tasks before submitting to the General Manager.
                 </div>
-
-                <div class="col-md-6">
-                    <div class="p-3 rounded-3 bg-light border h-100">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="fw-bold small text-dark"><i class="fas fa-calendar-plus text-primary me-1"></i> Week {{ $nextWeek }} Upcoming Operational Plan</span>
-                            <span class="badge {{ ($nextWeekTasksCount ?? 0) > 0 ? 'bg-primary' : 'bg-secondary' }}">
-                                {{ ($nextWeekTasksCount ?? 0) }} Tasks Scheduled
-                            </span>
-                        </div>
-                        <div class="small text-muted mb-1">
-                            • Scheduled Deliverables: <strong class="text-dark">{{ ($nextWeekTasksCount ?? 0) }} Tasks</strong> ({{ $nextWeekStratCount ?? 0 }} Strategy, {{ $nextWeekOpsCount ?? 0 }} Operational)
-                        </div>
-                        <div class="small text-muted mb-2">
-                            • Status: {{ ($nextWeekTasksCount ?? 0) > 0 ? 'Will be bundled and submitted together with this report.' : 'No tasks scheduled yet for Week ' . $nextWeek . '.' }}
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <a href="{{ route('weekly.plans', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $nextWeek]) }}" class="btn btn-xs btn-outline-primary py-0.5 px-2" style="font-size: 0.75rem;">
-                                <i class="fas fa-tasks me-1"></i> Manage Week {{ $nextWeek }} Tasks
-                            </a>
-                            @if(($nextWeekTasksCount ?? 0) > 0 && kaldis_setting('voucher_enabled', 'true') === 'true')
-                                <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $nextWeek, 'type' => 'plan']) }}" target="_blank" class="btn btn-xs btn-outline-secondary py-0.5 px-2" style="font-size: 0.75rem;">
-                                    <i class="fas fa-file-invoice me-1"></i> Preview Plan Voucher
-                                </a>
-                            @endif
-                        </div>
+            @elseif($unratedTasks > 0)
+                <div class="alert alert-warning py-2.5 px-3 small mb-3 border-0 d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="fas fa-clock me-1 text-warning"></i>
+                        <strong>Evaluation in progress:</strong> {{ $unratedTasks }} task(s) awaiting evaluation before report can be submitted.
                     </div>
+                    <span class="badge bg-warning text-dark">{{ $doneTasks + $notDoneTasks }} / {{ $totalTasks }} Evaluated</span>
+                </div>
+            @else
+                <div class="alert alert-success py-2.5 px-3 small mb-3 border-0 d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="fas fa-check-circle me-1 text-success"></i>
+                        <strong>All tasks evaluated!</strong> Ready to submit Week {{ $selectedWeek }} performance report ({{ $doneTasks }} Done, {{ $notDoneTasks }} Not Done &bull; <strong>{{ $completionRate }}%</strong> completion rate).
+                    </div>
+                    <span class="badge bg-success">Ready</span>
+                </div>
+            @endif
+
+            <!-- Upcoming Week Plan Link Strip -->
+            <div class="d-flex align-items-center justify-content-between bg-light p-2.5 rounded border small mb-3">
+                <div>
+                    <i class="fas fa-calendar-alt text-primary me-2"></i>
+                    <strong>Week {{ $nextWeek }} Plan:</strong>
+                    @if(($nextWeekTasksCount ?? 0) > 0)
+                        <span>{{ $nextWeekTasksCount }} task(s) scheduled. <span class="text-muted">(Will be bundled with this submission)</span></span>
+                    @else
+                        <span class="text-muted">No tasks scheduled yet for Week {{ $nextWeek }}.</span>
+                    @endif
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{{ route('weekly.plans', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $nextWeek]) }}" class="btn btn-xs btn-outline-primary py-0.5 px-2" style="font-size: 0.75rem;">
+                        <i class="fas fa-tasks me-1"></i> Manage Week {{ $nextWeek }}
+                    </a>
+                    @if(($nextWeekTasksCount ?? 0) > 0 && kaldis_setting('voucher_enabled', 'true') === 'true')
+                        <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $nextWeek, 'type' => 'plan']) }}" target="_blank" class="btn btn-xs btn-outline-secondary py-0.5 px-2" style="font-size: 0.75rem;">
+                            <i class="fas fa-file-invoice me-1"></i> Preview Plan Voucher
+                        </a>
+                    @endif
                 </div>
             </div>
 
+            <!-- Department Remarks / Executive Summary -->
+            <div class="mb-3">
+                <label class="form-label small fw-semibold text-secondary">Department Remarks for GM (Optional)</label>
+                <textarea name="report_summary" class="form-control" rows="2" placeholder="Overall execution summary, operational highlights, or notes for General Management..."></textarea>
+            </div>
+
+            <!-- Delay Justification (if late or requesting extension) -->
             <div class="mb-3">
                 <label class="form-label small fw-semibold text-secondary">
-                    <i class="fas fa-clock text-warning me-1"></i> Delay Reason / Justification (If submitting past Monday 12:30 PM cutoff or requesting extension)
+                    <i class="fas fa-clock text-warning me-1"></i> Delay Reason / Justification (If submitting past Monday 12:30 PM cutoff)
                 </label>
                 <textarea name="delay_reason" class="form-control" rows="2" placeholder="State operational reason for delay. If approved by GM, this report will NOT be marked as Not Submitted.">{{ $submission->delay_reason ?? ($report->delay_reason ?? '') }}</textarea>
             </div>
 
-            <div class="mb-3">
-                <label class="form-label small fw-semibold text-secondary">Executive Summary &amp; Department Remarks for GM (Optional)</label>
-                <textarea name="report_summary" class="form-control" rows="2" placeholder="Overall execution summary, operational highlights, challenges, or notes for General Management..."></textarea>
-            </div>
-
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    @if($totalTasks === 0)
-                        <span class="text-danger small fw-semibold">* Please schedule weekly tasks before submitting.</span>
-                    @elseif($unratedTasks > 0)
-                        <span class="text-danger small fw-semibold">* Please evaluate all tasks ({{ $unratedTasks }} remaining) before submitting.</span>
-                    @else
-                        <span class="text-success small fw-semibold"><i class="fas fa-check-circle me-1"></i> Week {{ $selectedWeek }} evaluated. Ready to submit package to GM.</span>
-                    @endif
-                </div>
-                <button type="submit" class="btn btn-kaldis" {{ ($totalTasks === 0 || $unratedTasks > 0) ? 'disabled' : '' }}>
-                    <i class="fas fa-paper-plane me-1"></i> Submit Week {{ $selectedWeek }} Performance &amp; Week {{ $nextWeek }} Plan to GM
+            <!-- Submit Action -->
+            <div class="d-flex justify-content-end align-items-center pt-2">
+                <button type="submit" class="btn btn-kaldis px-4" {{ ($totalTasks === 0 || $unratedTasks > 0) ? 'disabled' : '' }}>
+                    <i class="fas fa-paper-plane me-1"></i> Submit Report to GM
                 </button>
             </div>
         </form>
@@ -485,7 +516,7 @@
                 <div class="modal-body p-4">
                     <div class="alert alert-info py-2 px-3 small mb-3 border-0">
                         <i class="fas fa-shield-alt text-primary me-1"></i>
-                        <strong>Executive Governance Rule:</strong> If you have an operational delay submitting the Week {{ $selectedWeek }} performance report and the <strong>General Manager Approves</strong>, this report will <strong>NOT</strong> be recorded as "Not Submitted", "Missing", or escalated.
+                        <strong>Executive Governance Rule:</strong> If you have an operational delay submitting the Week {{ $selectedWeek }} performance report and the <strong>General Manager Approves</strong>, this report will <strong>NOT</strong> be recorded as "Not Submitted".
                     </div>
 
                     <div class="bg-light p-3 rounded-3 mb-3 border small">
@@ -512,7 +543,7 @@
                         <label class="form-label small fw-semibold text-secondary">
                             Detailed Reason for Delay / Reporting Justification <span class="text-danger">*</span>
                         </label>
-                        <textarea name="delay_reason" class="form-control" rows="4" required placeholder="State why the weekly execution report could not be submitted by Monday 12:30 PM (6:30 LT), operational reasons, and expected time of submission...">{{ $submission->delay_reason ?? ($report->delay_reason ?? '') }}</textarea>
+                        <textarea name="delay_reason" class="form-control" rows="3" required placeholder="State why the weekly execution report could not be submitted by Monday 12:30 PM (6:30 LT)...">{{ $submission->delay_reason ?? ($report->delay_reason ?? '') }}</textarea>
                     </div>
                 </div>
 
@@ -542,7 +573,7 @@
                 </div>
                 <div class="modal-body p-4">
                     <div class="alert alert-warning py-2 px-3 small mb-3 border-0">
-                        <i class="fas fa-lock me-1"></i> <strong>Permanent Decision:</strong> In accordance with company governance, binary task performance evaluations are permanent (one-time rule). Once recorded as NOT DONE, this evaluation cannot be modified.
+                        <i class="fas fa-lock me-1"></i> <strong>Permanent Decision:</strong> In accordance with company governance, binary task performance evaluations are permanent. Once recorded as NOT DONE, this evaluation cannot be modified.
                     </div>
                     <div class="mb-3">
                         <label class="form-label small text-muted">Task Title</label>

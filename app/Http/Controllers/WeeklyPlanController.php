@@ -127,12 +127,20 @@ class WeeklyPlanController extends Controller
             'due_date' => 'nullable|date',
         ]);
 
+        $taskType = $validated['task_type'] ?? (!empty($validated['monthly_plan_id']) ? 'PLANNED' : 'NEW_TASK');
         $isStrategyMandatory = kaldis_setting('strategy_field_mandatory', 'true') === 'true';
-        if ($isStrategyMandatory && empty($validated['monthly_plan_id'])) {
-            return back()->withErrors(['monthly_plan_id' => 'Parent Monthly Strategic Plan is required (Mandatory by system policy).'])->withInput();
+
+        // Only enforce parent monthly plan if it is a PLANNED task and policy is mandatory
+        if ($taskType === 'PLANNED' && $isStrategyMandatory && empty($validated['monthly_plan_id'])) {
+            $hasMonthlyPlans = MonthlyPlan::where('department_id', $validated['department_id'])
+                ->where('year', $validated['year'])
+                ->where('month', $validated['month'])
+                ->exists();
+            if ($hasMonthlyPlans) {
+                return back()->withErrors(['monthly_plan_id' => 'Please select the parent monthly plan this weekly task executes.'])->withInput();
+            }
         }
 
-        $taskType = $validated['task_type'] ?? (!empty($validated['monthly_plan_id']) ? 'PLANNED' : 'NEW_TASK');
         $monthlyPlanId = ($taskType === 'PLANNED') ? ($validated['monthly_plan_id'] ?? null) : null;
 
         $monthlyPlan = !empty($monthlyPlanId)
