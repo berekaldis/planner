@@ -729,6 +729,7 @@ class AdminController extends Controller
 
         $complianceRows = [];
         $totalMonthlySubmitted = 0;
+        $totalDelayed = 0;
         $totalWeeklyTasksAll = 0;
         $doneWeeklyTasksAll = 0;
         $totalQuarterlySubmitted = 0;
@@ -751,9 +752,23 @@ class AdminController extends Controller
 
             $qSub = $quarterlySubmissions->get($dept->id);
 
+            // Determine status_key for quick reporting and filtering
+            $statusKey = 'NOT_STARTED';
             if ($mSub && ($mSub->submitted_at || $mSub->isDelayApproved())) {
                 $totalMonthlySubmitted++;
+                if ($mSub->isDelayApproved()) {
+                    $statusKey = 'DELAYED';
+                    $totalDelayed++;
+                } else {
+                    $statusKey = 'SUBMITTED';
+                }
+            } elseif ($mSub && $mSub->isDelayPending()) {
+                $statusKey = 'DELAYED';
+                $totalDelayed++;
+            } elseif ($totalMPlans > 0) {
+                $statusKey = 'DRAFT';
             }
+
             if ($qSub && $qSub->status === 'SUBMITTED') {
                 $totalQuarterlySubmitted++;
             }
@@ -762,6 +777,7 @@ class AdminController extends Controller
 
             $complianceRows[] = [
                 'department' => $dept,
+                'status_key' => $statusKey,
                 'monthly_submission' => $mSub,
                 'monthly_plans_total' => $totalMPlans,
                 'monthly_strat_count' => $stratCount,
@@ -776,6 +792,8 @@ class AdminController extends Controller
         }
 
         $overallWeeklyRate = $totalWeeklyTasksAll > 0 ? round(($doneWeeklyTasksAll / $totalWeeklyTasksAll) * 100, 1) : 0;
+        $doneWeeklyTasksCount = $doneWeeklyTasksAll;
+        $notDoneWeeklyTasksCount = $totalWeeklyTasksAll - $doneWeeklyTasksAll;
 
         return view('admin.reports', compact(
             'departments',
@@ -785,8 +803,11 @@ class AdminController extends Controller
             'selectedQuarter',
             'quarters',
             'totalMonthlySubmitted',
+            'totalDelayed',
             'totalQuarterlySubmitted',
             'totalWeeklyTasksAll',
+            'doneWeeklyTasksCount',
+            'notDoneWeeklyTasksCount',
             'overallWeeklyRate'
         ));
     }
