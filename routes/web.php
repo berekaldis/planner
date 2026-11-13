@@ -50,6 +50,7 @@ Route::middleware('auth')->group(function () {
     // Monthly Planning
     Route::get('/monthly/plans', [MonthlyPlanController::class, 'index'])->name('monthly.plans');
     Route::post('/monthly/plans', [MonthlyPlanController::class, 'store'])->name('monthly.plans.store');
+    Route::post('/monthly/plans/bulk-approve', [MonthlyPlanController::class, 'bulkApprove'])->name('monthly.plans.bulk_approve');
     Route::post('/monthly/plans/{id}/approve', [MonthlyPlanController::class, 'approve'])->name('monthly.plans.approve');
     Route::post('/monthly/plans/{id}/decline', [MonthlyPlanController::class, 'decline'])->name('monthly.plans.decline');
     Route::post('/monthly/plans/{id}/gm-comment', [MonthlyPlanController::class, 'saveGmComment'])->name('monthly.plans.gm_comment');
@@ -62,6 +63,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/weekly/plans', [WeeklyPlanController::class, 'index'])->name('weekly.plans');
     Route::get('/weekly/tasks', [WeeklyPlanController::class, 'index'])->name('weekly.tasks');
     Route::post('/weekly/tasks', [WeeklyPlanController::class, 'storeTask'])->name('weekly.tasks.store');
+    Route::post('/weekly/tasks/bulk-approve', [WeeklyPlanController::class, 'bulkApproveTasks'])->name('weekly.tasks.bulk_approve');
     Route::post('/weekly/tasks/{id}/approve', [WeeklyPlanController::class, 'approveTask'])->name('weekly.tasks.approve');
     Route::post('/weekly/tasks/{id}/decline', [WeeklyPlanController::class, 'declineTask'])->name('weekly.tasks.decline');
     Route::post('/weekly/tasks/{id}/gm-comment', [WeeklyPlanController::class, 'saveGmComment'])->name('weekly.tasks.gm_comment');

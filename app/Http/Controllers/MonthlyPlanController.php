@@ -406,6 +406,60 @@ class MonthlyPlanController extends Controller
         return back()->with('success', 'Monthly plan and associated weekly tasks removed successfully.');
     }
 
+    public function bulkApprove(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user->isGM() && !$user->isSuperAdmin()) {
+            abort(403, 'Only the General Manager or Administrator can approve plans.');
+        }
+
+        $query = MonthlyPlan::query();
+
+        if ($request->has('plan_ids') && is_array($request->input('plan_ids')) && count($request->input('plan_ids')) > 0) {
+            $ids = array_filter(array_map('intval', $request->input('plan_ids')));
+            $query->whereIn('id', $ids);
+        } elseif ($request->filled('department_id')) {
+            $query->where('department_id', (int)$request->input('department_id'));
+            if ($request->filled('year')) {
+                $query->where('year', $request->input('year'));
+            }
+            if ($request->filled('month')) {
+                $query->where('month', $request->input('month'));
+            }
+        } else {
+            return back()->with('error', 'No plans were selected for bulk approval.');
+        }
+
+        $query->where(function ($q) {
+            $q->where('approval_status', '!=', 'APPROVED')
+              ->orWhereNull('approval_status');
+        });
+
+        $count = $query->count();
+        if ($count === 0) {
+            return back()->with('info', 'All selected monthly plans are already approved.');
+        }
+
+        $affectedRows = $query->update([
+            'approval_status' => 'APPROVED',
+            'decline_reason' => null,
+            'approved_by' => $user->id,
+            'approved_at' => now(),
+        ]);
+
+        AuditLog::log('BULK_APPROVE_MONTHLY_PLANS', 'monthly_plans', "GM approved {$affectedRows} monthly plans in bulk");
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Successfully approved {$affectedRows} monthly plans in bulk.",
+                'count' => $affectedRows,
+            ]);
+        }
+
+        return back()->with('success', "Successfully approved {$affectedRows} monthly plan(s) in bulk.");
+    }
+
     public function approve($id)
     {
         $user = Auth::user();

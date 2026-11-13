@@ -155,20 +155,55 @@
     </form>
 </div>
 
+@php
+    $isReviewer = auth()->user()->isGM() || auth()->user()->isSuperAdmin();
+    $pendingPlansCount = $monthlyPlans->where('approval_status', '!=', 'APPROVED')->count();
+@endphp
+
 <!-- Plans Table -->
 <div class="card mb-4">
-    <div class="card-header">
-        <span><i class="fas fa-calendar-alt me-1 text-secondary"></i> Department Monthly Plans ({{ $monthlyPlans->count() }})</span>
-        <div class="d-flex gap-2">
-            <a href="{{ route('monthly.plans', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth]) }}" class="btn btn-xs btn-outline-secondary {{ empty($planTypeFilter) ? 'active' : '' }}">All</a>
-            <a href="{{ route('monthly.plans', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'plan_type' => 'STRATEGY']) }}" class="btn btn-xs btn-outline-secondary {{ $planTypeFilter === 'STRATEGY' ? 'active' : '' }}">Strategy</a>
-            <a href="{{ route('monthly.plans', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'plan_type' => 'OPERATIONAL']) }}" class="btn btn-xs btn-outline-secondary {{ $planTypeFilter === 'OPERATIONAL' ? 'active' : '' }}">Operational</a>
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <span><i class="fas fa-calendar-alt me-1 text-secondary"></i> Department Monthly Plans ({{ $monthlyPlans->count() }})</span>
+            @if($isReviewer && $pendingPlansCount > 0)
+                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle small">
+                    {{ $pendingPlansCount }} Pending
+                </span>
+            @endif
+        </div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            @if($isReviewer && $pendingPlansCount > 0)
+                <!-- Bulk Approve All Pending Form -->
+                <form method="POST" action="{{ route('monthly.plans.bulk_approve') }}" class="d-inline" onsubmit="return confirm('Approve ALL {{ $pendingPlansCount }} pending monthly plans for {{ $department->department_name }}?');">
+                    @csrf
+                    <input type="hidden" name="department_id" value="{{ $department->id }}">
+                    <input type="hidden" name="year" value="{{ $selectedYear }}">
+                    <input type="hidden" name="month" value="{{ $selectedMonth }}">
+                    <button type="submit" class="btn btn-xs btn-success fw-semibold shadow-xs" title="Approve all pending plans for this month">
+                        <i class="fas fa-check-double me-1"></i> Approve All Pending ({{ $pendingPlansCount }})
+                    </button>
+                </form>
+                <!-- Bulk Approve Selected Button -->
+                <button type="button" id="btnApproveSelectedPlans" class="btn btn-xs btn-outline-success fw-semibold d-none" onclick="submitSelectedPlans()">
+                    <i class="fas fa-check-circle me-1"></i> Approve Selected (<span id="selectedPlansCount">0</span>)
+                </button>
+            @endif
+            <div class="btn-group btn-group-sm">
+                <a href="{{ route('monthly.plans', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth]) }}" class="btn btn-xs btn-outline-secondary {{ empty($planTypeFilter) ? 'active' : '' }}">All</a>
+                <a href="{{ route('monthly.plans', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'plan_type' => 'STRATEGY']) }}" class="btn btn-xs btn-outline-secondary {{ $planTypeFilter === 'STRATEGY' ? 'active' : '' }}">Strategy</a>
+                <a href="{{ route('monthly.plans', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'plan_type' => 'OPERATIONAL']) }}" class="btn btn-xs btn-outline-secondary {{ $planTypeFilter === 'OPERATIONAL' ? 'active' : '' }}">Operational</a>
+            </div>
         </div>
     </div>
     <div class="table-responsive">
         <table class="table table-hover mb-0" id="monthlyPlansTable">
             <thead>
                 <tr>
+                    @if($isReviewer)
+                        <th style="width: 36px;" class="text-center">
+                            <input type="checkbox" id="selectAllPlans" class="form-check-input" title="Select all pending plans">
+                        </th>
+                    @endif
                     <th style="width: 100px;">Type</th>
                     <th style="width: 90px;">Goal</th>
                     <th>Plan Title &amp; Target</th>
@@ -180,6 +215,13 @@
             <tbody>
                 @forelse($monthlyPlans as $plan)
                     <tr>
+                        @if($isReviewer)
+                            <td class="text-center">
+                                @if($plan->approval_status !== 'APPROVED')
+                                    <input type="checkbox" class="form-check-input plan-chk" value="{{ $plan->id }}" title="Select plan #{{ $plan->id }}">
+                                @endif
+                            </td>
+                        @endif
                         <td>
                             @if($plan->plan_type === 'STRATEGY')
                                 <span class="badge-strategy">Strategy</span>
@@ -263,7 +305,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="empty-state py-5 text-center">
+                        <td colspan="{{ $isReviewer ? 7 : 6 }}" class="empty-state py-5 text-center">
                             <i class="fas fa-clipboard-list d-block opacity-25 fs-2 mb-2"></i>
                             <h6 class="fw-semibold text-dark">No monthly plans yet</h6>
                             <p class="small text-muted mb-3">Add monthly plans for this period.</p>
@@ -277,6 +319,14 @@
         </table>
     </div>
 </div>
+
+@if($isReviewer)
+    <!-- Hidden Form for Bulk Approving Selected Plans -->
+    <form id="bulkApprovePlansForm" method="POST" action="{{ route('monthly.plans.bulk_approve') }}" class="d-none">
+        @csrf
+        <div id="bulkApprovePlansInputs"></div>
+    </form>
+@endif
 
 <!-- Modal: Create Monthly Plan -->
 <div class="modal fade" id="createMonthlyPlanModal" tabindex="-1" aria-hidden="true">
@@ -701,8 +751,66 @@
         modal.show();
     }
 
+    function initPlanBulkSelection() {
+        const selectAll = document.getElementById('selectAllPlans');
+        const checkboxes = document.querySelectorAll('.plan-chk');
+        const btnSelected = document.getElementById('btnApproveSelectedPlans');
+        const countSpan = document.getElementById('selectedPlansCount');
+
+        if (!checkboxes.length) return;
+
+        function updateState() {
+            const checked = Array.from(checkboxes).filter(c => c.checked);
+            if (countSpan) countSpan.textContent = checked.length;
+            if (btnSelected) {
+                if (checked.length > 0) {
+                    btnSelected.classList.remove('d-none');
+                } else {
+                    btnSelected.classList.add('d-none');
+                }
+            }
+            if (selectAll) {
+                selectAll.checked = checked.length > 0 && checked.length === checkboxes.length;
+                selectAll.indeterminate = checked.length > 0 && checked.length < checkboxes.length;
+            }
+        }
+
+        if (selectAll) {
+            selectAll.addEventListener('change', function () {
+                checkboxes.forEach(c => c.checked = selectAll.checked);
+                updateState();
+            });
+        }
+
+        checkboxes.forEach(c => c.addEventListener('change', updateState));
+    }
+
+    function submitSelectedPlans() {
+        const checked = Array.from(document.querySelectorAll('.plan-chk:checked'));
+        if (!checked.length) {
+            alert('Please select at least one pending monthly plan to approve.');
+            return;
+        }
+        if (!confirm('Approve ' + checked.length + ' selected monthly plan(s)?')) return;
+
+        const form = document.getElementById('bulkApprovePlansForm');
+        const container = document.getElementById('bulkApprovePlansInputs');
+        if (!form || !container) return;
+
+        container.innerHTML = '';
+        checked.forEach(c => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'plan_ids[]';
+            input.value = c.value;
+            container.appendChild(input);
+        });
+        form.submit();
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         togglePlanType();
+        initPlanBulkSelection();
         const createModal = document.getElementById('createMonthlyPlanModal');
         if (createModal) {
             createModal.addEventListener('shown.bs.modal', function () {

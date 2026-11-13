@@ -173,16 +173,52 @@
     </form>
 </div>
 
+@php
+    $isReviewer = auth()->user()->isGM() || auth()->user()->isSuperAdmin();
+    $pendingTasksCount = $tasks->where('approval_status', '!=', 'APPROVED')->count();
+@endphp
+
 <!-- Tasks Table -->
 <div class="card mb-4">
-    <div class="card-header">
-        <span><i class="fas fa-tasks me-1 text-secondary"></i> Planned Tasks for Week {{ $selectedWeek }} ({{ $tasks->count() }})</span>
-        <span class="badge bg-light text-secondary border">Week {{ $selectedWeek }}</span>
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <span><i class="fas fa-tasks me-1 text-secondary"></i> Planned Tasks for Week {{ $selectedWeek }} ({{ $tasks->count() }})</span>
+            @if($isReviewer && $pendingTasksCount > 0)
+                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle small">
+                    {{ $pendingTasksCount }} Pending
+                </span>
+            @endif
+        </div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            @if($isReviewer && $pendingTasksCount > 0)
+                <!-- Bulk Approve All Pending Tasks Form -->
+                <form method="POST" action="{{ route('weekly.tasks.bulk_approve') }}" class="d-inline" onsubmit="return confirm('Approve ALL {{ $pendingTasksCount }} pending weekly tasks for {{ $department->department_name }} (Week {{ $selectedWeek }})?');">
+                    @csrf
+                    <input type="hidden" name="department_id" value="{{ $department->id }}">
+                    <input type="hidden" name="year" value="{{ $selectedYear }}">
+                    <input type="hidden" name="month" value="{{ $selectedMonth }}">
+                    <input type="hidden" name="week_number" value="{{ $selectedWeek }}">
+                    <button type="submit" class="btn btn-xs btn-success fw-semibold shadow-xs" title="Approve all pending tasks for Week {{ $selectedWeek }}">
+                        <i class="fas fa-check-double me-1"></i> Approve All Pending ({{ $pendingTasksCount }})
+                    </button>
+                </form>
+                <!-- Bulk Approve Selected Button -->
+                <button type="button" id="btnApproveSelectedTasks" class="btn btn-xs btn-outline-success fw-semibold d-none" onclick="submitSelectedTasks()">
+                    <i class="fas fa-check-circle me-1"></i> Approve Selected (<span id="selectedTasksCount">0</span>)
+                </button>
+            @endif
+            <span class="badge bg-light text-secondary border">Week {{ $selectedWeek }}</span>
+        </div>
     </div>
     <div class="table-responsive">
         <table class="table table-hover mb-0" id="weeklyTasksTable">
             <thead>
                 <tr>
+                    @if($isReviewer)
+                        <th style="width: 36px;" class="text-center">
+                            <input type="checkbox" id="selectAllTasks" class="form-check-input" title="Select all pending tasks">
+                        </th>
+                    @endif
                     <th style="width: 140px;">Type</th>
                     <th>Task Title</th>
                     <th>Parent Monthly Plan</th>
@@ -194,6 +230,13 @@
             <tbody>
                 @forelse($tasks as $task)
                     <tr>
+                        @if($isReviewer)
+                            <td class="text-center">
+                                @if($task->approval_status !== 'APPROVED')
+                                    <input type="checkbox" class="form-check-input task-chk" value="{{ $task->id }}" title="Select task #{{ $task->id }}">
+                                @endif
+                            </td>
+                        @endif
                         <td>
                             <div class="d-flex flex-column gap-1">
                                 <div>
@@ -290,7 +333,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="empty-state py-5 text-center">
+                        <td colspan="{{ $isReviewer ? 7 : 6 }}" class="empty-state py-5 text-center">
                             <i class="fas fa-calendar-plus d-block opacity-25 fs-2 mb-2"></i>
                             <h6 class="fw-semibold text-dark">No tasks planned yet for Week {{ $selectedWeek }}</h6>
                             <p class="small text-muted mb-3">Add weekly tasks to plan deliverables for this week.</p>
@@ -304,6 +347,14 @@
         </table>
     </div>
 </div>
+
+@if($isReviewer)
+    <!-- Hidden Form for Bulk Approving Selected Tasks -->
+    <form id="bulkApproveTasksForm" method="POST" action="{{ route('weekly.tasks.bulk_approve') }}" class="d-none">
+        @csrf
+        <div id="bulkApproveTasksInputs"></div>
+    </form>
+@endif
 
 <!-- Modal: Create Weekly Task -->
 <div class="modal fade" id="createTaskModal" tabindex="-1" aria-hidden="true">
@@ -684,8 +735,66 @@
         }
     }
 
+    function initTaskBulkSelection() {
+        const selectAll = document.getElementById('selectAllTasks');
+        const checkboxes = document.querySelectorAll('.task-chk');
+        const btnSelected = document.getElementById('btnApproveSelectedTasks');
+        const countSpan = document.getElementById('selectedTasksCount');
+
+        if (!checkboxes.length) return;
+
+        function updateState() {
+            const checked = Array.from(checkboxes).filter(c => c.checked);
+            if (countSpan) countSpan.textContent = checked.length;
+            if (btnSelected) {
+                if (checked.length > 0) {
+                    btnSelected.classList.remove('d-none');
+                } else {
+                    btnSelected.classList.add('d-none');
+                }
+            }
+            if (selectAll) {
+                selectAll.checked = checked.length > 0 && checked.length === checkboxes.length;
+                selectAll.indeterminate = checked.length > 0 && checked.length < checkboxes.length;
+            }
+        }
+
+        if (selectAll) {
+            selectAll.addEventListener('change', function () {
+                checkboxes.forEach(c => c.checked = selectAll.checked);
+                updateState();
+            });
+        }
+
+        checkboxes.forEach(c => c.addEventListener('change', updateState));
+    }
+
+    function submitSelectedTasks() {
+        const checked = Array.from(document.querySelectorAll('.task-chk:checked'));
+        if (!checked.length) {
+            alert('Please select at least one pending weekly task to approve.');
+            return;
+        }
+        if (!confirm('Approve ' + checked.length + ' selected weekly task(s)?')) return;
+
+        const form = document.getElementById('bulkApproveTasksForm');
+        const container = document.getElementById('bulkApproveTasksInputs');
+        if (!form || !container) return;
+
+        container.innerHTML = '';
+        checked.forEach(c => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'task_ids[]';
+            input.value = c.value;
+            container.appendChild(input);
+        });
+        form.submit();
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         toggleWeeklyTaskType();
+        initTaskBulkSelection();
         const createModal = document.getElementById('createTaskModal');
         if (createModal) {
             createModal.addEventListener('shown.bs.modal', function () {

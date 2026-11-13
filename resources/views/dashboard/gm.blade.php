@@ -649,13 +649,32 @@
                  TAB 3: MASTER MONTHLY PLANS EXPLORER (SEARCHABLE TABLE)
                  ───────────────────────────────────────────────────────────── -->
             <div class="tab-pane fade" id="content-all-plans" role="tabpanel" aria-labelledby="tab-all-plans">
+                @php
+                    $gmPendingPlansCount = $allMonthlyPlans->where('approval_status', '!=', 'APPROVED')->count();
+                @endphp
                 <div class="p-3 bg-light border-bottom">
                     <div class="row g-2 align-items-center">
-                        <div class="col-md-6">
+                        <div class="col-md-5">
                             <input type="text" id="gmAllPlansSearch" class="form-control form-control-sm" placeholder="Filter plans live by department, title, target, or responsible person...">
                         </div>
-                        <div class="col-md-6 text-md-end text-muted small">
-                            Total company-wide monthly plans: <strong>{{ $allMonthlyPlans->count() }}</strong>
+                        <div class="col-md-7 d-flex align-items-center justify-content-md-end gap-2 flex-wrap">
+                            <span class="text-muted small">Total: <strong>{{ $allMonthlyPlans->count() }}</strong></span>
+                            @if($gmPendingPlansCount > 0)
+                                <button type="button" id="btnGmApproveSelected" class="btn btn-xs btn-outline-success fw-semibold d-none" onclick="submitGmSelectedPlans()">
+                                    <i class="fas fa-check-circle me-1"></i> Approve Selected (<span id="gmSelectedPlansCount">0</span>)
+                                </button>
+                                <form method="POST" action="{{ route('monthly.plans.bulk_approve') }}" class="d-inline" onsubmit="return confirm('Approve ALL {{ $gmPendingPlansCount }} pending company-wide monthly plans for {{ $selectedMonth }} {{ $selectedYear }}?');">
+                                    @csrf
+                                    <input type="hidden" name="year" value="{{ $selectedYear }}">
+                                    <input type="hidden" name="month" value="{{ $selectedMonth }}">
+                                    @foreach($allMonthlyPlans->where('approval_status', '!=', 'APPROVED') as $p)
+                                        <input type="hidden" name="plan_ids[]" value="{{ $p->id }}">
+                                    @endforeach
+                                    <button type="submit" class="btn btn-xs btn-success fw-semibold shadow-xs" title="Bulk approve all pending monthly plans">
+                                        <i class="fas fa-check-double me-1"></i> Approve All Pending ({{ $gmPendingPlansCount }})
+                                    </button>
+                                </form>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -664,6 +683,9 @@
                     <table class="table table-hover align-middle mb-0" id="gmAllPlansTable">
                         <thead class="table-light sticky-top">
                             <tr>
+                                <th style="width: 36px;" class="text-center">
+                                    <input type="checkbox" id="gmSelectAllPlans" class="form-check-input" title="Select all pending">
+                                </th>
                                 <th>Dept</th>
                                 <th>Type</th>
                                 <th>Goal Link</th>
@@ -676,6 +698,11 @@
                         <tbody>
                             @forelse($allMonthlyPlans as $plan)
                                 <tr>
+                                    <td class="text-center">
+                                        @if($plan->approval_status !== 'APPROVED')
+                                            <input type="checkbox" class="form-check-input gm-plan-chk" value="{{ $plan->id }}" title="Select plan #{{ $plan->id }}">
+                                        @endif
+                                    </td>
                                     <td>
                                         <span class="badge bg-light text-secondary border font-monospace">{{ $plan->department->department_code ?? 'DEPT' }}</span>
                                     </td>
@@ -734,12 +761,18 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="text-center py-4 text-muted">No monthly plans found for {{ $selectedMonth }} {{ $selectedYear }}.</td>
+                                    <td colspan="8" class="text-center py-4 text-muted">No monthly plans found for {{ $selectedMonth }} {{ $selectedYear }}.</td>
                                 </tr>
                             @endforelse
                         </tbody>
                     </table>
                 </div>
+
+                <!-- Hidden Form for GM Bulk Approving Selected Plans -->
+                <form id="gmBulkApprovePlansForm" method="POST" action="{{ route('monthly.plans.bulk_approve') }}" class="d-none">
+                    @csrf
+                    <div id="gmBulkApprovePlansInputs"></div>
+                </form>
             </div>
 
         </div>
@@ -986,5 +1019,64 @@ function openGmDeclinePlanModal(planId, title) {
     const modal = new bootstrap.Modal(document.getElementById('gmDeclinePlanModal'));
     modal.show();
 }
+
+function initGmPlanBulkSelection() {
+    const selectAll = document.getElementById('gmSelectAllPlans');
+    const checkboxes = document.querySelectorAll('.gm-plan-chk');
+    const btnSelected = document.getElementById('btnGmApproveSelected');
+    const countSpan = document.getElementById('gmSelectedPlansCount');
+
+    if (!checkboxes.length) return;
+
+    function updateState() {
+        const checked = Array.from(checkboxes).filter(c => c.checked);
+        if (countSpan) countSpan.textContent = checked.length;
+        if (btnSelected) {
+            if (checked.length > 0) {
+                btnSelected.classList.remove('d-none');
+            } else {
+                btnSelected.classList.add('d-none');
+            }
+        }
+        if (selectAll) {
+            selectAll.checked = checked.length > 0 && checked.length === checkboxes.length;
+            selectAll.indeterminate = checked.length > 0 && checked.length < checkboxes.length;
+        }
+    }
+
+    if (selectAll) {
+        selectAll.addEventListener('change', function () {
+            checkboxes.forEach(c => c.checked = selectAll.checked);
+            updateState();
+        });
+    }
+
+    checkboxes.forEach(c => c.addEventListener('change', updateState));
+}
+
+function submitGmSelectedPlans() {
+    const checked = Array.from(document.querySelectorAll('.gm-plan-chk:checked'));
+    if (!checked.length) {
+        alert('Please select at least one pending monthly plan to approve.');
+        return;
+    }
+    if (!confirm('Approve ' + checked.length + ' selected monthly plan(s)?')) return;
+
+    const form = document.getElementById('gmBulkApprovePlansForm');
+    const container = document.getElementById('gmBulkApprovePlansInputs');
+    if (!form || !container) return;
+
+    container.innerHTML = '';
+    checked.forEach(c => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'plan_ids[]';
+        input.value = c.value;
+        container.appendChild(input);
+    });
+    form.submit();
+}
+
+document.addEventListener('DOMContentLoaded', initGmPlanBulkSelection);
 </script>
 @endsection

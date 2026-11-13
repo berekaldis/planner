@@ -362,6 +362,63 @@ class WeeklyPlanController extends Controller
         return back()->with('success', 'Weekly task removed successfully.');
     }
 
+    public function bulkApproveTasks(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user->isGM() && !$user->isSuperAdmin()) {
+            abort(403, 'Only the General Manager or Administrator can approve weekly tasks.');
+        }
+
+        $query = WeeklyTask::query();
+
+        if ($request->has('task_ids') && is_array($request->input('task_ids')) && count($request->input('task_ids')) > 0) {
+            $ids = array_filter(array_map('intval', $request->input('task_ids')));
+            $query->whereIn('id', $ids);
+        } elseif ($request->filled('department_id')) {
+            $query->where('department_id', (int)$request->input('department_id'));
+            if ($request->filled('year')) {
+                $query->where('year', $request->input('year'));
+            }
+            if ($request->filled('month')) {
+                $query->where('month', $request->input('month'));
+            }
+            if ($request->filled('week_number')) {
+                $query->where('week_number', (int)$request->input('week_number'));
+            }
+        } else {
+            return back()->with('error', 'No weekly tasks were selected for bulk approval.');
+        }
+
+        $query->where(function ($q) {
+            $q->where('approval_status', '!=', 'APPROVED')
+              ->orWhereNull('approval_status');
+        });
+
+        $count = $query->count();
+        if ($count === 0) {
+            return back()->with('info', 'All selected weekly tasks are already approved.');
+        }
+
+        $affectedRows = $query->update([
+            'approval_status' => 'APPROVED',
+            'decline_reason' => null,
+            'approved_by' => $user->id,
+            'approved_at' => now(),
+        ]);
+
+        AuditLog::log('BULK_APPROVE_WEEKLY_TASKS', 'weekly_tasks', "GM approved {$affectedRows} weekly tasks in bulk");
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Successfully approved {$affectedRows} weekly tasks in bulk.",
+                'count' => $affectedRows,
+            ]);
+        }
+
+        return back()->with('success', "Successfully approved {$affectedRows} weekly task(s) in bulk.");
+    }
+
     public function approveTask($id)
     {
         $user = Auth::user();
