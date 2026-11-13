@@ -18,23 +18,23 @@ class EnsurePasswordIsChanged
     {
         $user = Auth::user();
 
-        if ($user && !empty($user->must_change_password)) {
-            $allowedRouteNames = [
-                'password.change',
-                'password.update',
-                'logout',
-            ];
-
-            $currentRouteName = $request->route() ? $request->route()->getName() : null;
-
-            if (!in_array($currentRouteName, $allowedRouteNames)) {
-                if (!$request->session()->has('first_login_prompt_shown')) {
-                    $request->session()->flash('warning', 'Welcome to Kaldis Coffee Planning System! For your account security, you must set a new personal password on your first login before continuing.');
-                    $request->session()->put('first_login_prompt_shown', true);
-                }
-
-                return redirect()->route('password.change');
+        if ($user && (!empty($user->must_change_password) || $user->requiresPasswordChange())) {
+            // Allow password change routes, logout, and AJAX requests
+            if ($request->routeIs('password.change') ||
+                $request->routeIs('password.update') ||
+                $request->routeIs('logout') ||
+                $request->is('password/*') ||
+                $request->is('logout') ||
+                $request->ajax()) {
+                return $next($request);
             }
+
+            if (!$request->session()->has('first_login_prompt_shown')) {
+                $request->session()->flash('warning', 'Welcome to Kaldis Coffee Planning System! For your account security, you must set a new personal password on your first login before continuing.');
+                $request->session()->put('first_login_prompt_shown', true);
+            }
+
+            return redirect()->route('password.change');
         }
 
         return $next($request);

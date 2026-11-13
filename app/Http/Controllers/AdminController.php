@@ -177,6 +177,12 @@ class AdminController extends Controller
             $updateData['password_hash'] = Hash::make($validated['password']);
         }
 
+        $mustChange = $request->boolean('must_change_password') ? 1 : 0;
+        $updateData['must_change_password'] = $mustChange;
+        if ($mustChange && empty($user->must_change_password)) {
+            $updateData['password_changed_at'] = null;
+        }
+
         $user->update($updateData);
 
         AuditLog::log('UPDATE_USER', 'admin', "Updated user account {$user->username}", $user->id);
@@ -202,6 +208,48 @@ class AdminController extends Controller
         AuditLog::log($action, 'admin', "Changed user account '{$user->username}' status to {$statusText} ({$label})", $user->id);
 
         return back()->with('success', "User account '{$user->username}' has been {$label} successfully.");
+    }
+
+    public function toggleForcePassword($id)
+    {
+        $user = User::findOrFail($id);
+        $user->must_change_password = !$user->must_change_password;
+        if ($user->must_change_password) {
+            $user->password_changed_at = null;
+        }
+        $user->save();
+
+        $state = $user->must_change_password ? 'Required on Next Login' : 'Disabled';
+        AuditLog::log('TOGGLE_FORCE_PASSWORD', 'admin', "Set force password change for '{$user->username}' to {$state}", $user->id);
+
+        return back()->with('success', "Password change for user '{$user->username}' is now {$state}.");
+    }
+
+    public function resetUserPassword($id)
+    {
+        $user = User::findOrFail($id);
+        $defaultPassword = 'kaldis123';
+        $user->password_hash = Hash::make($defaultPassword);
+        $user->must_change_password = 1;
+        $user->password_changed_at = null;
+        $user->save();
+
+        AuditLog::log('RESET_PASSWORD_DEFAULT', 'admin', "Reset password for user '{$user->username}' to default and forced change on next login", $user->id);
+
+        return back()->with('success', "Password for '{$user->username}' has been reset to '{$defaultPassword}'. The user is required to set a new password on their next login.");
+    }
+
+    public function bulkForcePassword(Request $request)
+    {
+        $affected = User::where('role_id', '!=', 1)
+            ->update([
+                'must_change_password' => 1,
+                'password_changed_at' => null,
+            ]);
+
+        AuditLog::log('BULK_FORCE_PASSWORD', 'admin', "Enforced mandatory password change for all {$affected} department accounts on next login");
+
+        return back()->with('success', "Mandatory password change has been successfully enforced for all {$affected} department accounts on their next login.");
     }
 
     public function destroyUser($id)

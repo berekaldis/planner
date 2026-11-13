@@ -11,9 +11,17 @@
         </h4>
         <p class="text-muted small mb-0">System access control, role appointments, and department associations</p>
     </div>
-    <button type="button" class="btn btn-kaldis btn-sm" data-bs-toggle="modal" data-bs-target="#addUserModal">
-        <i class="fas fa-user-plus me-1"></i> Add New User
-    </button>
+    <div class="d-flex flex-wrap gap-2">
+        <form method="POST" action="{{ route('admin.users.bulk_force_password') }}" class="d-inline" onsubmit="return confirm('Enforce password change for ALL department accounts on their next login?');">
+            @csrf
+            <button type="submit" class="btn btn-outline-warning btn-sm" title="Force all non-admin users to change their password on next login">
+                <i class="fas fa-key me-1"></i> Force Password Change for All Users
+            </button>
+        </form>
+        <button type="button" class="btn btn-kaldis btn-sm" data-bs-toggle="modal" data-bs-target="#addUserModal">
+            <i class="fas fa-user-plus me-1"></i> Add New User
+        </button>
+    </div>
 </div>
 
 <!-- Users Table -->
@@ -42,9 +50,9 @@
                     <th>Email</th>
                     <th>Role</th>
                     <th>Department</th>
-                    <th style="width: 140px;">Status</th>
+                    <th style="width: 170px;">Status & Password</th>
                     <th>Last Login</th>
-                    <th style="width: 220px;" class="text-end">Actions</th>
+                    <th style="width: 250px;" class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -92,13 +100,25 @@
                                     @endif
                                 </form>
                             @endif
-                            @if(!empty($u->must_change_password))
-                                <div>
-                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle mt-1 small" style="font-size: 0.68rem;" title="User is required to change password on first login">
-                                        <i class="fas fa-key me-1"></i> First Login Required
-                                    </span>
-                                </div>
-                            @endif
+
+                            <div class="mt-1">
+                                <form method="POST" action="{{ route('admin.users.force_password', $u->id) }}" class="d-inline">
+                                    @csrf
+                                    @if(!empty($u->must_change_password))
+                                        <button type="submit" class="btn btn-sm p-0 border-0 bg-transparent" title="Click to cancel force password change requirement" onclick="return confirm('Remove forced password change requirement for user \'{{ $u->username }}\'?');">
+                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 rounded-pill cursor-pointer" style="font-size: 0.68rem;">
+                                                <i class="fas fa-key me-1 text-warning"></i> Force Pwd: Yes
+                                            </span>
+                                        </button>
+                                    @else
+                                        <button type="submit" class="btn btn-sm p-0 border-0 bg-transparent" title="Click to force password change on next login" onclick="return confirm('Force user \'{{ $u->username }}\' to change password on next login?');">
+                                            <span class="badge bg-light text-muted border px-2 py-1 rounded-pill opacity-75 cursor-pointer" style="font-size: 0.68rem;">
+                                                <i class="fas fa-lock me-1"></i> Force Pwd: No
+                                            </span>
+                                        </button>
+                                    @endif
+                                </form>
+                            </div>
                         </td>
                         <td class="small text-muted">
                             {{ $u->last_login_at ? $u->last_login_at->diffForHumans() : 'Never' }}
@@ -113,10 +133,17 @@
                                         'role_id' => $u->role_id,
                                         'department_id' => $u->department_id,
                                         'telegram_chat_id' => $u->telegram_chat_id,
-                                        'status' => $u->status
+                                        'status' => $u->status,
+                                        'must_change_password' => (bool)$u->must_change_password
                                     ]) }})" title="Edit User">
                                 <i class="fas fa-user-pen me-1"></i> Edit
                             </button>
+                            <form method="POST" action="{{ route('admin.users.reset_password', $u->id) }}" class="d-inline" onsubmit="return confirm('Reset password for user \'{{ $u->username }}\' to \'kaldis123\' and force change on next login?');">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-outline-secondary py-1 px-2 ms-1" title="Reset password to kaldis123 & force change on next login">
+                                    <i class="fas fa-rotate-left me-1"></i> Reset
+                                </button>
+                            </form>
                             @if($u->id !== auth()->id())
                                 <form method="POST" action="{{ route('admin.users.toggle_status', $u->id) }}" class="d-inline">
                                     @csrf
@@ -214,6 +241,14 @@
                             </select>
                         </div>
                     </div>
+                    <div class="form-check form-switch p-2.5 bg-light rounded border">
+                        <input type="hidden" name="must_change_password" value="0">
+                        <input class="form-check-input ms-0 me-2" type="checkbox" name="must_change_password" value="1" id="addMustChangePassword" checked>
+                        <label class="form-check-label small fw-semibold text-dark" for="addMustChangePassword">
+                            <i class="fas fa-key text-warning me-1"></i> Force Password Change on First Login
+                        </label>
+                        <div class="form-text small text-muted ps-4">User will be prompted to set their own password immediately upon initial login.</div>
+                    </div>
                 </div>
                 <div class="modal-footer bg-light">
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -283,6 +318,14 @@
                             </select>
                         </div>
                     </div>
+                    <div class="form-check form-switch p-2.5 bg-light rounded border">
+                        <input type="hidden" name="must_change_password" value="0">
+                        <input class="form-check-input ms-0 me-2" type="checkbox" name="must_change_password" value="1" id="editMustChangePassword">
+                        <label class="form-check-label small fw-semibold text-dark" for="editMustChangePassword">
+                            <i class="fas fa-key text-warning me-1"></i> Force Password Change on Next Login
+                        </label>
+                        <div class="form-text small text-muted ps-4">When enabled, the user will be redirected to change their password right after logging in.</div>
+                    </div>
                 </div>
                 <div class="modal-footer bg-light">
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -322,6 +365,11 @@ function openEditUserModal(user) {
         statusSelect.tomselect.setValue(user.status || 'ACTIVE');
     } else if (statusSelect) {
         statusSelect.value = user.status || 'ACTIVE';
+    }
+
+    const mustChangeCheckbox = document.getElementById('editMustChangePassword');
+    if (mustChangeCheckbox) {
+        mustChangeCheckbox.checked = !!user.must_change_password;
     }
 
     new bootstrap.Modal(document.getElementById('editUserModal')).show();

@@ -66,7 +66,14 @@ class AuthController extends Controller
                 }
 
                 // If user is required to change password on first login
-                if (!empty($localUser->must_change_password)) {
+                $requiresChange = !empty($localUser->must_change_password)
+                    || $localUser->requiresPasswordChange()
+                    || ($password === 'kaldis123' && is_null($localUser->password_changed_at));
+
+                if ($requiresChange) {
+                    if (empty($localUser->must_change_password)) {
+                        $localUser->update(['must_change_password' => 1]);
+                    }
                     AuditLog::log('FIRST_LOGIN_FORCE_PASSWORD', 'auth', "User {$localUser->username} prompted to change temporary password on first login", $localUser->id);
                     $request->session()->put('first_login_prompt_shown', true);
                     return redirect()->route('password.change')->with('warning', 'Welcome to Kaldis Coffee Planning System! For your account security, you must set a new personal password on your first login.');
@@ -140,11 +147,13 @@ class AuthController extends Controller
             'new_password.confirmed' => 'The new password confirmation does not match.',
         ]);
 
-        // Verify current password against bcrypt or legacy hash
+        // Verify current password against bcrypt, legacy hash, or initial default temporary password
         $currentValid = false;
         if (Hash::check($validated['current_password'], $user->password_hash)) {
             $currentValid = true;
         } elseif (password_verify($validated['current_password'], $user->password_hash)) {
+            $currentValid = true;
+        } elseif (!empty($user->must_change_password) && $validated['current_password'] === 'kaldis123') {
             $currentValid = true;
         }
 

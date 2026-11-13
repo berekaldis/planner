@@ -65,7 +65,17 @@ class User extends Authenticatable
 
     public function requiresPasswordChange(): bool
     {
-        return (bool)($this->must_change_password ?? false);
+        if (!empty($this->must_change_password)) {
+            return true;
+        }
+
+        // Global security policy: if enabled, non-admin accounts that never changed their initial password must change it
+        $enforceGlobal = function_exists('setting') ? setting('force_first_login_password_change', true) : true;
+        if ($enforceGlobal && !$this->isSuperAdmin() && empty($this->password_changed_at)) {
+            return true;
+        }
+
+        return false;
     }
 
     public function getNameAttribute(): string

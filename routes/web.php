@@ -136,6 +136,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/users', [AdminController::class, 'storeUser'])->name('users.store');
         Route::put('/users/{id}', [AdminController::class, 'updateUser'])->name('users.update');
         Route::post('/users/{id}/toggle-status', [AdminController::class, 'toggleUserStatus'])->name('users.toggle_status');
+        Route::post('/users/{id}/force-password', [AdminController::class, 'toggleForcePassword'])->name('users.force_password');
+        Route::post('/users/{id}/reset-password', [AdminController::class, 'resetUserPassword'])->name('users.reset_password');
+        Route::post('/users/bulk-force-password', [AdminController::class, 'bulkForcePassword'])->name('users.bulk_force_password');
         Route::delete('/users/{id}', [AdminController::class, 'destroyUser'])->name('users.destroy');
         Route::get('/departments', [AdminController::class, 'departments'])->name('departments');
         Route::post('/departments', [AdminController::class, 'storeDepartment'])->name('departments.store');

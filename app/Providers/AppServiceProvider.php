@@ -239,16 +239,22 @@ class AppServiceProvider extends ServiceProvider
             }
 
             // Auto-heal schema for users first-login force password change
-            if (!Cache::has('schema_users_must_change_password_v1')) {
-                if (Schema::hasTable('users')) {
-                    if (!Schema::hasColumn('users', 'must_change_password')) {
-                        DB::statement("ALTER TABLE `users` ADD COLUMN `must_change_password` TINYINT(1) NOT NULL DEFAULT 0 AFTER `is_active`");
-                    }
-                    if (!Schema::hasColumn('users', 'password_changed_at')) {
-                        DB::statement("ALTER TABLE `users` ADD COLUMN `password_changed_at` DATETIME NULL AFTER `must_change_password`");
-                    }
+            if (Schema::hasTable('users')) {
+                if (!Schema::hasColumn('users', 'must_change_password')) {
+                    DB::statement("ALTER TABLE `users` ADD COLUMN `must_change_password` TINYINT(1) NOT NULL DEFAULT 1 AFTER `is_active`");
                 }
-                Cache::forever('schema_users_must_change_password_v1', true);
+                if (!Schema::hasColumn('users', 'password_changed_at')) {
+                    DB::statement("ALTER TABLE `users` ADD COLUMN `password_changed_at` DATETIME NULL AFTER `must_change_password`");
+                }
+
+                // Ensure all non-superadmin users with no recorded password change have must_change_password = 1
+                if (!Cache::has('auto_flag_first_login_password_v4')) {
+                    DB::table('users')
+                        ->whereNotIn('role_id', [1, 5])
+                        ->whereNull('password_changed_at')
+                        ->update(['must_change_password' => 1]);
+                    Cache::forever('auto_flag_first_login_password_v4', true);
+                }
             }
 
             // Auto-heal schema for GM item-by-item comments

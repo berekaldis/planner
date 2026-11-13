@@ -3,10 +3,13 @@
 @section('title', 'Change Account Password - Kaldis Coffee PLC')
 
 @section('content')
+@php
+    $isFirstLogin = !empty($user->must_change_password) || (method_exists($user, 'requiresPasswordChange') && $user->requiresPasswordChange());
+@endphp
 <div class="container-fluid py-3" style="max-width: 900px; margin: 0 auto;">
 
     <!-- Breadcrumb -->
-    @if(empty($user->must_change_password))
+    @if(!$isFirstLogin)
         <nav aria-label="breadcrumb" class="mb-3">
             <ol class="breadcrumb mb-0 py-1" style="font-size: 0.85rem;">
                 <li class="breadcrumb-item"><a href="{{ route('overview') }}" class="text-decoration-none text-muted"><i class="fas fa-house me-1"></i> Overview</a></li>
@@ -15,7 +18,7 @@
         </nav>
     @endif
 
-    @if(!empty($user->must_change_password))
+    @if($isFirstLogin)
         <!-- First Login Alert Banner -->
         <div class="alert alert-warning border border-warning shadow-sm rounded-4 p-3.5 mb-4 d-flex align-items-center gap-3">
             <div class="rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center shadow-xs" style="width: 48px; height: 48px; min-width: 48px; font-size: 1.35rem;">
@@ -44,10 +47,10 @@
                     </div>
                     <div>
                         <h4 class="fw-bold mb-1 text-dark d-flex align-items-center gap-2">
-                            <span>{{ !empty($user->must_change_password) ? 'Welcome! Set Your Password' : 'Account Security' }}</span>
-                            <span class="badge {{ !empty($user->must_change_password) ? 'bg-warning-subtle text-warning-emphasis border border-warning-subtle' : 'bg-success-subtle text-success border border-success-subtle' }} py-1 px-2.5 rounded-pill" style="font-size: 0.72rem;">
-                                <i class="fas {{ !empty($user->must_change_password) ? 'fa-triangle-exclamation' : 'fa-shield-halved' }} me-1"></i>
-                                {{ !empty($user->must_change_password) ? 'First Login Setup' : 'Active' }}
+                            <span>{{ $isFirstLogin ? 'Welcome! Set Your Password' : 'Account Security' }}</span>
+                            <span class="badge {{ $isFirstLogin ? 'bg-warning-subtle text-warning-emphasis border border-warning-subtle' : 'bg-success-subtle text-success border border-success-subtle' }} py-1 px-2.5 rounded-pill" style="font-size: 0.72rem;">
+                                <i class="fas {{ $isFirstLogin ? 'fa-triangle-exclamation' : 'fa-shield-halved' }} me-1"></i>
+                                {{ $isFirstLogin ? 'First Login Setup' : 'Active' }}
                             </span>
                         </h4>
                         <div class="text-muted small">
@@ -63,7 +66,7 @@
                         </div>
                     </div>
                 </div>
-                @if(empty($user->must_change_password))
+                @if(!$isFirstLogin)
                     <a href="{{ route('overview') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
                         <i class="fas fa-arrow-left me-1"></i> Back to Overview
                     </a>
@@ -79,10 +82,10 @@
                 <div class="card-header bg-transparent border-0 pt-4 px-4 pb-2">
                     <h5 class="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
                         <i class="fas fa-key text-warning"></i>
-                        <span>{{ !empty($user->must_change_password) ? 'Set New Personal Password' : 'Change Password' }}</span>
+                        <span>{{ $isFirstLogin ? 'Set New Personal Password' : 'Change Password' }}</span>
                     </h5>
                     <p class="text-muted small mb-0">
-                        {{ !empty($user->must_change_password) ? 'Enter your initial temporary password and choose a new personal secure password.' : 'Update your account credentials to keep your profile secure.' }}
+                        {{ $isFirstLogin ? 'Enter your initial temporary password and choose a new personal secure password.' : 'Update your account credentials to keep your profile secure.' }}
                     </p>
                 </div>
                 <div class="card-body p-4 pt-2">
@@ -113,6 +116,11 @@
                                     <div class="invalid-feedback d-block">{{ $message }}</div>
                                 @enderror
                             </div>
+                            @if($isFirstLogin)
+                                <div class="form-text small text-muted mt-1">
+                                    <i class="fas fa-lightbulb text-warning me-1"></i> If you were assigned a temporary initial account password, it is default: <code class="fw-bold">kaldis123</code>
+                                </div>
+                            @endif
                         </div>
 
                         <!-- New Password -->
@@ -170,10 +178,10 @@
                         <!-- Submit Buttons -->
                         <div class="d-flex align-items-center gap-2 pt-2">
                             <button type="submit" class="btn btn-success fw-semibold px-4 py-2.5 shadow-sm rounded-pill d-inline-flex align-items-center gap-2">
-                                <i class="fas {{ !empty($user->must_change_password) ? 'fa-circle-check' : 'fa-floppy-disk' }}"></i>
-                                <span>{{ !empty($user->must_change_password) ? 'Save New Password & Enter Portal' : 'Save New Password' }}</span>
+                                <i class="fas {{ $isFirstLogin ? 'fa-circle-check' : 'fa-floppy-disk' }}"></i>
+                                <span>{{ $isFirstLogin ? 'Save New Password & Enter Portal' : 'Save New Password' }}</span>
                             </button>
-                            @if(empty($user->must_change_password))
+                            @if(!$isFirstLogin)
                                 <a href="{{ route('overview') }}" class="btn btn-light border fw-semibold px-3 py-2 rounded-pill">
                                     Cancel
                                 </a>

@@ -136,6 +136,39 @@
                                     </div>
                                 </div>
 
+                                <!-- Policy 3: Force Password Change on First Login -->
+                                @php
+                                    $isForcePasswordChange = kaldis_setting('force_first_login_password_change', 'true') === 'true';
+                                @endphp
+                                <div class="p-3.5 rounded-3 border {{ $isForcePasswordChange ? 'border-warning bg-warning bg-opacity-10' : 'border-secondary bg-light' }}">
+                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                        <label class="fw-bold text-dark small text-uppercase mb-0">
+                                            <i class="fas fa-key me-1.5 {{ $isForcePasswordChange ? 'text-warning' : 'text-secondary' }}"></i>
+                                            First Login Password Change
+                                        </label>
+                                        <span class="badge {{ $isForcePasswordChange ? 'bg-warning text-dark' : 'bg-secondary text-white' }} fw-bold">
+                                            {{ $isForcePasswordChange ? 'Enabled (True)' : 'Disabled (False)' }}
+                                        </span>
+                                    </div>
+                                    <p class="text-muted small mb-3">
+                                        Forces users logging in for the first time or with temporary default passwords (<code class="fw-bold">kaldis123</code>) to set a new personal password before accessing the system.
+                                    </p>
+                                    <div class="d-flex gap-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="force_first_login_password_change" id="forcePwdTrue" value="true" {{ $isForcePasswordChange ? 'checked' : '' }}>
+                                            <label class="form-check-label small fw-semibold" for="forcePwdTrue">
+                                                <strong>Enabled (True)</strong> &mdash; Mandatory password change
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="force_first_login_password_change" id="forcePwdFalse" value="false" {{ !$isForcePasswordChange ? 'checked' : '' }}>
+                                            <label class="form-check-label small fw-semibold" for="forcePwdFalse">
+                                                <strong>Disabled (False)</strong> &mdash; Allow direct dashboard access
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div class="mt-auto">
                                     <button type="submit" class="btn btn-kaldis w-100 fw-bold py-2 shadow-sm">
                                         <i class="fas fa-save me-1"></i> Save Policies

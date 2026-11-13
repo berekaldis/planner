@@ -571,13 +571,17 @@
             }
         }
 
-        @if(auth()->check() && !empty(auth()->user()->must_change_password))
+        @if(auth()->check() && (!empty(auth()->user()->must_change_password) || auth()->user()->requiresPasswordChange()))
         /* Lock down sidebar navigation during required first-login password change */
-        .app-sidebar .sidebar-nav {
-            pointer-events: none;
-            opacity: 0.35;
-            filter: grayscale(0.5);
-            user-select: none;
+        .kaldis-sidebar .sidebar-nav-scroll,
+        .kaldis-sidebar .sidebar-footer,
+        .app-sidebar .sidebar-nav,
+        .app-sidebar-header .breadcrumbs-container,
+        #sidebarToggle {
+            pointer-events: none !important;
+            opacity: 0.35 !important;
+            filter: grayscale(0.6) !important;
+            user-select: none !important;
         }
         @endif
 
