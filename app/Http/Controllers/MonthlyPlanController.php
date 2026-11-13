@@ -198,15 +198,24 @@ class MonthlyPlanController extends Controller
             $notifMessage .= "\n💬 <b>Remarks:</b> <i>" . htmlspecialchars($validated['notes'], ENT_QUOTES, 'UTF-8') . "</i>";
         }
 
+        $voucherEnabled = kaldis_setting('voucher_enabled', 'true') === 'true';
+        $portalUrl = route('monthly.plans', [
+            'department_id' => $deptId,
+            'year' => $validated['year'],
+            'month' => $validated['month'],
+        ]);
+        $btnText = $voucherEnabled ? '📄 View Official Monthly Plan Voucher' : '🌐 View Submitted Monthly Plans';
+        $targetUrl = $voucherEnabled ? $voucherUrl : $portalUrl;
+
         $replyMarkup = [
             'inline_keyboard' => [
                 [
-                    ['text' => '📄 View Official Monthly Plan Voucher', 'url' => $voucherUrl]
+                    ['text' => $btnText, 'url' => $targetUrl]
                 ]
             ]
         ];
 
-        notify_both_gm_and_head($deptId, $notifTitle, $notifMessage, $voucherUrl, $replyMarkup);
+        notify_both_gm_and_head($deptId, $notifTitle, $notifMessage, $targetUrl, $replyMarkup);
 
         return back()->with('success', "Monthly Plan package submitted successfully to General Management! Timing Status: {$status} (Deadline: {$deadlineInfo['deadline_formatted']}).");
     }
@@ -338,27 +347,33 @@ class MonthlyPlanController extends Controller
         $validated['responsible_person'] = $validated['responsible_person'] ?? ($user->full_name ?: ($user->username ?: 'Department'));
         $validated['approval_status'] = 'PENDING';
 
+        $isStrategyMandatory = kaldis_setting('strategy_field_mandatory', 'true') === 'true';
+
         if ($validated['plan_type'] === 'STRATEGY') {
-            if (empty($validated['annual_goal_id'])) {
-                return back()->withErrors(['annual_goal_id' => 'Strategy plans must be linked to a GM-activated Annual Strategy Goal.'])->withInput();
+            if ($isStrategyMandatory && empty($validated['annual_goal_id'])) {
+                return back()->withErrors(['annual_goal_id' => 'Strategy plans must be linked to a GM-activated Annual Strategy Goal (Mandatory by system policy).'])->withInput();
             }
 
-            // Verify GM Activation for this department (or company-wide) and month
-            $isActivated = MonthlyStrategyActivation::where('annual_goal_id', $validated['annual_goal_id'])
-                ->where('year', $validated['year'])
-                ->where('month', $validated['month'])
-                ->where(function ($q) use ($validated) {
-                    $q->where('department_id', $validated['department_id'])
-                      ->orWhereNull('department_id');
-                })
-                ->where('active', 'YES')
-                ->exists();
+            if (!empty($validated['annual_goal_id'])) {
+                // Verify GM Activation for this department (or company-wide) and month
+                $isActivated = MonthlyStrategyActivation::where('annual_goal_id', $validated['annual_goal_id'])
+                    ->where('year', $validated['year'])
+                    ->where('month', $validated['month'])
+                    ->where(function ($q) use ($validated) {
+                        $q->where('department_id', $validated['department_id'])
+                          ->orWhereNull('department_id');
+                    })
+                    ->where('active', 'YES')
+                    ->exists();
 
-            if (!$isActivated) {
-                return back()->withErrors(['annual_goal_id' => 'The selected annual strategy has not been activated by the General Manager for your department this month.'])->withInput();
+                if (!$isActivated) {
+                    return back()->withErrors(['annual_goal_id' => 'The selected annual strategy has not been activated by the General Manager for your department this month.'])->withInput();
+                }
+            } else {
+                $validated['annual_goal_id'] = null;
             }
         } else {
-            $validated['annual_goal_id'] = null;
+            $validated['annual_goal_id'] = !empty($validated['annual_goal_id']) ? $validated['annual_goal_id'] : null;
         }
 
         $validated['created_by'] = $user->id;
@@ -450,5 +465,40 @@ class MonthlyPlanController extends Controller
         }
 
         return back()->with('success', "Monthly plan \"{$plan->title}\" declined.");
+    }
+
+    public function saveGmComment(Request $request, $id)
+    {
+        $user = Auth::user();
+        if (!$user->isGM() && !$user->isSuperAdmin()) {
+            abort(403, 'Only the General Manager or Administrator can comment on plans.');
+        }
+
+        $validated = $request->validate([
+            'gm_comment' => 'nullable|string|max:2000',
+        ]);
+
+        $plan = MonthlyPlan::findOrFail($id);
+        $comment = !empty($validated['gm_comment']) ? trim($validated['gm_comment']) : null;
+
+        $plan->update([
+            'gm_comment' => $comment,
+            'gm_comment_at' => $comment ? now() : null,
+            'gm_comment_by' => $comment ? $user->id : null,
+        ]);
+
+        AuditLog::log('GM_COMMENT_MONTHLY_PLAN', 'monthly_plans', "GM commented on monthly plan #{$plan->id}: {$plan->title}", $plan->id);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'GM comment saved successfully.',
+                'gm_comment' => $plan->gm_comment,
+                'gm_comment_at' => $plan->gm_comment_at ? $plan->gm_comment_at->format('M d, Y H:i') : null,
+                'gm_commenter' => $user->full_name ?: $user->username,
+            ]);
+        }
+
+        return back()->with('success', "GM comment for monthly plan \"{$plan->title}\" saved successfully.");
     }
 }

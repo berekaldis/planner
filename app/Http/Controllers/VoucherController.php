@@ -22,6 +22,10 @@ class VoucherController extends Controller
      */
     public function monthly(Request $request)
     {
+        if (kaldis_setting('voucher_enabled', 'true') === 'false') {
+            return back()->with('error', 'Official vouchers are currently disabled by System Administrator.');
+        }
+
         $user = Auth::user();
         $deptId = (int)$request->query('department_id', $user->department_id ?: 1);
 
@@ -81,6 +85,10 @@ class VoucherController extends Controller
      */
     public function weekly(Request $request)
     {
+        if (kaldis_setting('voucher_enabled', 'true') === 'false') {
+            return back()->with('error', 'Official vouchers are currently disabled by System Administrator.');
+        }
+
         $user = Auth::user();
         $deptId = (int)$request->query('department_id', $user->department_id ?: 1);
 
@@ -174,6 +182,10 @@ class VoucherController extends Controller
      */
     public function quarterly(Request $request)
     {
+        if (kaldis_setting('voucher_enabled', 'true') === 'false') {
+            return back()->with('error', 'Official vouchers are currently disabled by System Administrator.');
+        }
+
         $user = Auth::user();
         $deptId = (int)$request->query('department_id', $user->department_id ?: 1);
 

@@ -702,10 +702,10 @@ body,
 
 /* Sidebar Footer & NavUser */
 .sidebar-footer {
-    height: calc(var(--kaldis-footer-height, 3.125rem) + 0.5rem);
-    min-height: calc(var(--kaldis-footer-height, 3.125rem) + 0.5rem);
-    max-height: calc(var(--kaldis-footer-height, 3.125rem) + 0.5rem);
-    padding: 0 0.5rem 0.5rem 0.5rem;
+    height: var(--kaldis-footer-height, 3.125rem);
+    min-height: var(--kaldis-footer-height, 3.125rem);
+    max-height: var(--kaldis-footer-height, 3.125rem);
+    padding: 0 0.5rem;
     border-top: 1px solid var(--sidebar-border, #E4E4E7);
     background-color: var(--sidebar, #FAFAFA);
     margin-top: auto;

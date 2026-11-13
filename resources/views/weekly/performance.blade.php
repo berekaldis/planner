@@ -10,9 +10,11 @@
         <p class="text-muted small mb-0">{{ $department->department_name }} &bull; Week {{ $selectedWeek }} ({{ $selectedMonth }} {{ $selectedYear }})</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
-        <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" class="btn btn-outline-dark btn-sm" target="_blank" title="Open Official Voucher in new tab">
-            <i class="fas fa-file-invoice me-1"></i> View Official Voucher
-        </a>
+        @if(kaldis_setting('voucher_enabled', 'true') === 'true')
+            <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" class="btn btn-outline-dark btn-sm" target="_blank" title="Open Official Voucher in new tab">
+                <i class="fas fa-file-invoice me-1"></i> View Official Voucher
+            </a>
+        @endif
         <a href="{{ route('weekly.plans', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" class="btn btn-outline-secondary btn-sm">
             <i class="fas fa-tasks me-1"></i> Edit Planned Tasks
         </a>
@@ -223,31 +225,61 @@
                             @else
                                 <span class="text-muted small">Awaiting evaluation</span>
                             @endif
-                        </td>
-                        <td class="text-end">
-                            @if($task->result && in_array($task->result->result, ['DONE', 'NOT_DONE']))
-                                <span class="badge bg-light text-secondary border py-1.5 px-2" title="Evaluation is finalized and locked (one-time binary rule)">
-                                    <i class="fas fa-lock text-muted me-1"></i> Locked ({{ $task->result->result === 'DONE' ? 'DONE' : 'NOT DONE' }})
-                                </span>
-                            @else
-                                <div class="btn-group btn-group-sm">
-                                    <form method="POST" action="{{ route('weekly.performance.evaluate') }}" class="d-inline" onsubmit="return confirm('Confirm marking task as DONE? In accordance with binary evaluation rules, this decision is permanent and cannot be altered.');">
-                                        @csrf
-                                        <input type="hidden" name="weekly_task_id" value="{{ $task->id }}">
-                                        <input type="hidden" name="status" value="DONE">
-                                        <button type="submit" class="btn btn-outline-success btn-sm py-1 px-2" title="Mark Done (Permanent)">
-                                            <i class="fas fa-check"></i> Done
-                                        </button>
-                                    </form>
-                                    <button type="button" class="btn btn-outline-danger btn-sm py-1 px-2" 
-                                            data-bs-toggle="modal" 
-                                            data-bs-target="#notDoneModal"
-                                            onclick="setupNotDoneModal({{ $task->id }}, '{{ addslashes($task->task_title) }}')"
-                                            title="Mark Not Done (Permanent)">
-                                        <i class="fas fa-times"></i> Not Done
-                                    </button>
+
+                            @if($task->result && $task->result->gm_comment)
+                                <div class="mt-1.5 p-2 rounded-2 border bg-warning-subtle text-dark" style="font-size: 0.78rem;">
+                                    <div class="d-flex align-items-center gap-1.5 fw-semibold text-warning-emphasis mb-0.5">
+                                        <i class="fas fa-comment-dots text-warning"></i>
+                                        <span>GM Feedback</span>
+                                        @if($task->result->gm_comment_at)
+                                            <span class="text-muted fw-normal" style="font-size: 0.7rem;">({{ $task->result->gm_comment_at->diffForHumans() }})</span>
+                                        @endif
+                                    </div>
+                                    <div class="text-secondary" style="white-space: pre-wrap;">{{ $task->result->gm_comment }}</div>
+                                </div>
+                            @elseif($task->gm_comment)
+                                <div class="mt-1.5 p-2 rounded-2 border bg-warning-subtle text-dark" style="font-size: 0.78rem;">
+                                    <div class="d-flex align-items-center gap-1.5 fw-semibold text-warning-emphasis mb-0.5">
+                                        <i class="fas fa-comment-dots text-warning"></i>
+                                        <span>GM Feedback (Task)</span>
+                                    </div>
+                                    <div class="text-secondary" style="white-space: pre-wrap;">{{ $task->gm_comment }}</div>
                                 </div>
                             @endif
+                        </td>
+                        <td class="text-end">
+                            <div class="d-inline-flex align-items-center gap-1">
+                                @if(auth()->user()->isGM() || auth()->user()->isSuperAdmin())
+                                    <button type="button" class="btn btn-xs btn-outline-warning py-0.5 px-1.5" 
+                                            onclick="openGmPerformanceCommentModal({{ $task->result ? $task->result->id : 0 }}, {{ $task->id }}, '{{ addslashes($task->task_title) }}', '{{ addslashes(($task->result ? $task->result->gm_comment : $task->gm_comment) ?? '') }}')" 
+                                            title="Add / Edit GM Comment">
+                                        <i class="fas fa-comment-dots"></i>
+                                    </button>
+                                @endif
+                                @if($task->result && in_array($task->result->result, ['DONE', 'NOT_DONE']))
+                                    <span class="badge bg-light text-secondary border py-1.5 px-2" title="Evaluation is finalized and locked (one-time binary rule)">
+                                        <i class="fas fa-lock text-muted me-1"></i> Locked ({{ $task->result->result === 'DONE' ? 'DONE' : 'NOT DONE' }})
+                                    </span>
+                                @else
+                                    <div class="btn-group btn-group-sm">
+                                        <form method="POST" action="{{ route('weekly.performance.evaluate') }}" class="d-inline" onsubmit="return confirm('Confirm marking task as DONE? In accordance with binary evaluation rules, this decision is permanent and cannot be altered.');">
+                                            @csrf
+                                            <input type="hidden" name="weekly_task_id" value="{{ $task->id }}">
+                                            <input type="hidden" name="status" value="DONE">
+                                            <button type="submit" class="btn btn-outline-success btn-sm py-1 px-2" title="Mark Done (Permanent)">
+                                                <i class="fas fa-check"></i> Done
+                                            </button>
+                                        </form>
+                                        <button type="button" class="btn btn-outline-danger btn-sm py-1 px-2" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#notDoneModal"
+                                                onclick="setupNotDoneModal({{ $task->id }}, '{{ addslashes($task->task_title) }}')"
+                                                title="Mark Not Done (Permanent)">
+                                            <i class="fas fa-times"></i> Not Done
+                                        </button>
+                                    </div>
+                                @endif
+                            </div>
                         </td>
                     </tr>
                 @empty
@@ -366,9 +398,11 @@
                         <div class="small text-muted mb-1">
                             • Binary Status: <span class="text-success fw-bold">{{ $doneTasks }} DONE</span> &bull; <span class="text-danger fw-bold">{{ $notDoneTasks }} NOT DONE</span> ({{ $totalTasks }} total)
                         </div>
-                        <div class="small text-muted">
-                            • Official Voucher: <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" target="_blank" class="fw-semibold text-primary"><i class="fas fa-file-invoice me-1"></i> Preview Performance Voucher</a>
-                        </div>
+                        @if(kaldis_setting('voucher_enabled', 'true') === 'true')
+                            <div class="small text-muted">
+                                • Official Voucher: <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" target="_blank" class="fw-semibold text-primary"><i class="fas fa-file-invoice me-1"></i> Preview Performance Voucher</a>
+                            </div>
+                        @endif
                     </div>
                 </div>
 
@@ -390,7 +424,7 @@
                             <a href="{{ route('weekly.plans', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $nextWeek]) }}" class="btn btn-xs btn-outline-primary py-0.5 px-2" style="font-size: 0.75rem;">
                                 <i class="fas fa-tasks me-1"></i> Manage Week {{ $nextWeek }} Tasks
                             </a>
-                            @if(($nextWeekTasksCount ?? 0) > 0)
+                            @if(($nextWeekTasksCount ?? 0) > 0 && kaldis_setting('voucher_enabled', 'true') === 'true')
                                 <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $nextWeek, 'type' => 'plan']) }}" target="_blank" class="btn btn-xs btn-outline-secondary py-0.5 px-2" style="font-size: 0.75rem;">
                                     <i class="fas fa-file-invoice me-1"></i> Preview Plan Voucher
                                 </a>
@@ -600,6 +634,37 @@
         </div>
     </div>
 </div>
+
+<!-- Modal: GM Performance Feedback & Comment -->
+<div class="modal fade" id="gmCommentPerformanceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" id="gmCommentPerformanceForm" action="">
+                @csrf
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold text-dark fs-6">
+                        <i class="fas fa-comment-dots text-warning me-2"></i> GM Feedback &amp; Comment
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="text-secondary small mb-2">Item: <strong id="gmCommentPerfTaskTitle" class="text-dark"></strong></p>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">General Manager Comment / Instructions</label>
+                        <textarea name="gm_comment" id="gmCommentPerfInput" class="form-control" rows="4" placeholder="Enter performance feedback, observations, or directives..."></textarea>
+                        <div class="small text-muted mt-1">Leave empty and save to remove the comment.</div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-warning text-dark fw-bold">
+                        <i class="fas fa-save me-1"></i> Save GM Comment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
@@ -616,6 +681,19 @@
             const dl = form.querySelector('input[name="next_action_deadline"]');
             if (dl) dl.value = '';
         }
+    }
+
+    function openGmPerformanceCommentModal(resultId, taskId, title, comment) {
+        const form = document.getElementById('gmCommentPerformanceForm');
+        if (resultId > 0) {
+            form.action = "{{ url('/weekly/results') }}/" + resultId + "/gm-comment";
+        } else {
+            form.action = "{{ url('/weekly/tasks') }}/" + taskId + "/gm-comment";
+        }
+        document.getElementById('gmCommentPerfTaskTitle').innerText = title;
+        document.getElementById('gmCommentPerfInput').value = comment || '';
+        const modal = new bootstrap.Modal(document.getElementById('gmCommentPerformanceModal'));
+        modal.show();
     }
 </script>
 @endsection

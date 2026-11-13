@@ -250,6 +250,26 @@ class AppServiceProvider extends ServiceProvider
                 }
                 Cache::forever('schema_users_must_change_password_v1', true);
             }
+
+            // Auto-heal schema for GM item-by-item comments
+            if (!Cache::has('schema_gm_comments_v1')) {
+                if (Schema::hasTable('monthly_plans')) {
+                    if (!Schema::hasColumn('monthly_plans', 'gm_comment')) {
+                        DB::statement("ALTER TABLE `monthly_plans` ADD COLUMN `gm_comment` TEXT NULL, ADD COLUMN `gm_comment_at` DATETIME NULL, ADD COLUMN `gm_comment_by` BIGINT UNSIGNED NULL");
+                    }
+                }
+                if (Schema::hasTable('weekly_tasks')) {
+                    if (!Schema::hasColumn('weekly_tasks', 'gm_comment')) {
+                        DB::statement("ALTER TABLE `weekly_tasks` ADD COLUMN `gm_comment` TEXT NULL, ADD COLUMN `gm_comment_at` DATETIME NULL, ADD COLUMN `gm_comment_by` BIGINT UNSIGNED NULL");
+                    }
+                }
+                if (Schema::hasTable('weekly_task_results')) {
+                    if (!Schema::hasColumn('weekly_task_results', 'gm_comment')) {
+                        DB::statement("ALTER TABLE `weekly_task_results` ADD COLUMN `gm_comment` TEXT NULL, ADD COLUMN `gm_comment_at` DATETIME NULL, ADD COLUMN `gm_comment_by` BIGINT UNSIGNED NULL");
+                    }
+                }
+                Cache::forever('schema_gm_comments_v1', true);
+            }
         } catch (\Throwable $e) {
             // Graceful fallback if database connection or migration is not yet initialized
         }

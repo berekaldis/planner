@@ -67,7 +67,7 @@ $day = $et['day'] ?? (int)date('j');
 $results = [];
 
 // 3. Weekly Automation (Deadline: Monday 12:30 PM / 6:30 LT)
-if ($type === 'weekly' || $type === 'all') {
+if (($type === 'weekly' || $type === 'all') && (kaldis_setting('enable_weekly_reminders', 'true') === 'true' || $force)) {
     $dayOfWeek = (int)date('N'); // 1 = Monday, 6 = Saturday, 7 = Sunday
     $currentTime = date('H:i');
 
@@ -123,7 +123,7 @@ if ($type === 'weekly' || $type === 'all') {
 }
 
 // 4. Monthly Automation (Deadline: Day 26 at 17:00 / 11:00 LT)
-if ($type === 'monthly' || $type === 'all') {
+if (($type === 'monthly' || $type === 'all') && (kaldis_setting('enable_monthly_reminders', 'true') === 'true' || $force)) {
     $rawDay = (int)kaldis_setting('monthly_plan_deadline_day', 26);
     $deadlineDay = ($rawDay >= 20 && $rawDay <= 30) ? $rawDay : 26;
     $currentTime = date('H:i');

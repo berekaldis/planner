@@ -26,6 +26,9 @@ class WeeklyTask extends Model
         'due_date',
         'dependency',
         'notes',
+        'gm_comment',
+        'gm_comment_at',
+        'gm_comment_by',
         'approval_status',
         'decline_reason',
         'approved_by',
@@ -61,6 +64,20 @@ class WeeklyTask extends Model
     public function challenges()
     {
         return $this->hasMany(WeeklyChallenge::class, 'related_weekly_task_id');
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'gm_comment_at' => 'datetime',
+            'approved_at' => 'datetime',
+            'due_date' => 'date',
+        ];
+    }
+
+    public function gmCommenter()
+    {
+        return $this->belongsTo(User::class, 'gm_comment_by');
     }
 
     public function getTaskTargetAttribute(): ?string

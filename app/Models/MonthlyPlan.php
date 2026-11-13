@@ -23,6 +23,9 @@ class MonthlyPlan extends Model
         'dependency',
         'responsible_person',
         'notes',
+        'gm_comment',
+        'gm_comment_at',
+        'gm_comment_by',
         'performance_status',
         'actual_result',
         'achievement_percentage',
@@ -50,7 +53,14 @@ class MonthlyPlan extends Model
         return [
             'target_percentage' => 'decimal:2',
             'achievement_percentage' => 'integer',
+            'gm_comment_at' => 'datetime',
+            'approved_at' => 'datetime',
         ];
+    }
+
+    public function gmCommenter()
+    {
+        return $this->belongsTo(User::class, 'gm_comment_by');
     }
 
     public function department()

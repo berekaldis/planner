@@ -10,9 +10,11 @@
         <p class="text-muted small mb-0">{{ $department->department_name }} &bull; {{ $selectedMonth }} {{ $selectedYear }}</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
-        <a href="{{ route('monthly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth]) }}" class="btn btn-outline-dark btn-sm" target="_blank" title="Open Official Monthly Plan Voucher">
-            <i class="fas fa-file-invoice me-1"></i> View Official Voucher
-        </a>
+        @if(kaldis_setting('voucher_enabled', 'true') === 'true')
+            <a href="{{ route('monthly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth]) }}" class="btn btn-outline-dark btn-sm" target="_blank" title="Open Official Monthly Plan Voucher">
+                <i class="fas fa-file-invoice me-1"></i> View Official Voucher
+            </a>
+        @endif
         <button type="button" class="btn {{ $submission ? 'btn-outline-success' : 'btn-success' }} btn-sm" data-bs-toggle="modal" data-bs-target="#submitPackageModal">
             <i class="fas {{ $submission ? 'fa-redo' : 'fa-paper-plane' }} me-1"></i> {{ $submission ? 'Re-Submit to GM' : 'Submit to GM' }}
         </button>
@@ -195,6 +197,18 @@
                         <td>
                             <strong class="text-dark">{{ $plan->title }}</strong>
                             <div class="small text-muted">Target: {{ $plan->monthly_target }}</div>
+                            @if($plan->gm_comment)
+                                <div class="mt-1.5 p-2 rounded-2 border bg-warning-subtle text-dark" style="font-size: 0.78rem;">
+                                    <div class="d-flex align-items-center gap-1.5 fw-semibold text-warning-emphasis mb-0.5">
+                                        <i class="fas fa-comment-dots text-warning"></i>
+                                        <span>GM Comment</span>
+                                        @if($plan->gm_comment_at)
+                                            <span class="text-muted fw-normal" style="font-size: 0.7rem;">({{ $plan->gm_comment_at->diffForHumans() }})</span>
+                                        @endif
+                                    </div>
+                                    <div class="text-secondary" style="white-space: pre-wrap;">{{ $plan->gm_comment }}</div>
+                                </div>
+                            @endif
                         </td>
                         <td>
                             <div class="small text-secondary">{{ $plan->definition_of_done }}</div>
@@ -218,6 +232,11 @@
                         <td class="text-end">
                             <div class="d-inline-flex align-items-center gap-1">
                                 @if(auth()->user()->isGM() || auth()->user()->isSuperAdmin())
+                                    <button type="button" class="btn btn-xs btn-outline-warning py-0.5 px-1.5" 
+                                            onclick="openGmCommentModal({{ $plan->id }}, '{{ addslashes($plan->title) }}', '{{ addslashes($plan->gm_comment ?? '') }}')" 
+                                            title="Add / Edit GM Comment">
+                                        <i class="fas fa-comment-dots"></i>
+                                    </button>
                                     @if($plan->approval_status !== 'APPROVED')
                                         <form method="POST" action="{{ route('monthly.plans.approve', $plan->id) }}" class="d-inline">
                                             @csrf
@@ -314,21 +333,35 @@
                         </div>
                     </div>
 
+                    @php
+                        $isStratMandatory = kaldis_setting('strategy_field_mandatory', 'true') === 'true';
+                    @endphp
                     <!-- Step 2: GM Activated Strategy Selector -->
                     <div id="strategyGoalSection" class="mb-3">
-                        <label class="form-label small fw-bold text-secondary text-uppercase">SELECT GM-ACTIVATED ANNUAL STRATEGY <span class="text-danger">*</span></label>
+                        <label class="form-label small fw-bold text-secondary text-uppercase">
+                            SELECT GM-ACTIVATED ANNUAL STRATEGY 
+                            @if($isStratMandatory)
+                                <span class="badge bg-danger-subtle text-danger ms-1">Mandatory</span>
+                            @else
+                                <span class="badge bg-secondary-subtle text-secondary ms-1">Optional</span>
+                            @endif
+                        </label>
                         @if($activatedGoals->isEmpty())
                             <div class="alert alert-warning py-2 px-3 small border-0 rounded-3">
                                 <i class="fas fa-exclamation-triangle me-1"></i> No GM-activated strategic goals found for <strong>{{ $department->department_name }}</strong> in <strong>{{ $selectedMonth }} {{ $selectedYear }}</strong>.
-                                @if(auth()->user()->isGM() || auth()->user()->isSuperAdmin())
-                                    <a href="{{ route('strategy.activation', ['year' => $selectedYear, 'month' => $selectedMonth]) }}" class="alert-link ms-1">Activate goals here &rarr;</a>
+                                @if($isStratMandatory)
+                                    @if(auth()->user()->isGM() || auth()->user()->isSuperAdmin())
+                                        <a href="{{ route('strategy.activation', ['year' => $selectedYear, 'month' => $selectedMonth]) }}" class="alert-link ms-1">Activate goals here &rarr;</a>
+                                    @else
+                                        <span class="text-muted">Please contact the General Manager to activate strategies for this month.</span>
+                                    @endif
                                 @else
-                                    <span class="text-muted">Please contact the General Manager to activate strategies for this month.</span>
+                                    <span class="text-muted">Strategy field is currently optional. You may proceed without selecting an annual goal.</span>
                                 @endif
                             </div>
                         @else
                             <select name="annual_goal_id" id="annualGoalSelect" class="form-select" data-no-search="true" onchange="autoFillStrategyGoal()">
-                                <option value="">-- Choose Activated Annual Goal --</option>
+                                <option value="">-- Choose Activated Annual Goal {{ $isStratMandatory ? '' : '(Optional)' }} --</option>
                                 @foreach($activatedGoals as $ag)
                                     <option value="{{ $ag->id }}" 
                                             data-title="{{ e($ag->goal_title) }}" 
@@ -573,6 +606,37 @@
         </div>
     </div>
 </div>
+
+<!-- Modal: GM Item Comment (GM Granular Inline Feedback) -->
+<div class="modal fade" id="gmCommentMonthlyModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" id="gmCommentMonthlyForm" action="">
+                @csrf
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold text-dark fs-6">
+                        <i class="fas fa-comment-dots text-warning me-2"></i> GM Feedback &amp; Comment
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="text-secondary small mb-2">Monthly Plan: <strong id="gmCommentPlanTitle" class="text-dark"></strong></p>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">General Manager Comment / Instructions</label>
+                        <textarea name="gm_comment" id="gmCommentInput" class="form-control" rows="4" placeholder="Enter constructive feedback, adjustments, or guidance for this plan..."></textarea>
+                        <div class="small text-muted mt-1">Leave empty and save to remove the comment.</div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-warning text-dark fw-bold">
+                        <i class="fas fa-save me-1"></i> Save GM Comment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
@@ -625,6 +689,15 @@
         form.action = "{{ url('/monthly/plans') }}/" + planId + "/decline";
         document.getElementById('monthlyDeclineReasonInput').value = '';
         const modal = new bootstrap.Modal(document.getElementById('declineMonthlyPlanModal'));
+        modal.show();
+    }
+
+    function openGmCommentModal(planId, title, comment) {
+        const form = document.getElementById('gmCommentMonthlyForm');
+        form.action = "{{ url('/monthly/plans') }}/" + planId + "/gm-comment";
+        document.getElementById('gmCommentPlanTitle').innerText = title;
+        document.getElementById('gmCommentInput').value = comment || '';
+        const modal = new bootstrap.Modal(document.getElementById('gmCommentMonthlyModal'));
         modal.show();
     }
 

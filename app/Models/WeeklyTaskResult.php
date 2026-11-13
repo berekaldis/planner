@@ -22,6 +22,9 @@ class WeeklyTaskResult extends Model
         'next_action',
         'expected_completion_date',
         'attachment',
+        'gm_comment',
+        'gm_comment_at',
+        'gm_comment_by',
     ];
 
     protected function casts(): array
@@ -29,7 +32,13 @@ class WeeklyTaskResult extends Model
         return [
             'completed_at' => 'datetime',
             'expected_completion_date' => 'date',
+            'gm_comment_at' => 'datetime',
         ];
+    }
+
+    public function gmCommenter()
+    {
+        return $this->belongsTo(User::class, 'gm_comment_by');
     }
 
     public function task()

@@ -10,9 +10,11 @@
         <p class="text-muted small mb-0">{{ $department->department_name }} &bull; Week {{ $selectedWeek }} ({{ $selectedMonth }} {{ $selectedYear }})</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
-        <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek, 'type' => 'plan']) }}" class="btn btn-outline-dark btn-sm" target="_blank" title="Open Official Plan Voucher in new tab">
-            <i class="fas fa-file-invoice me-1"></i> View Plan Voucher
-        </a>
+        @if(kaldis_setting('voucher_enabled', 'true') === 'true')
+            <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek, 'type' => 'plan']) }}" class="btn btn-outline-dark btn-sm" target="_blank" title="Open Official Plan Voucher in new tab">
+                <i class="fas fa-file-invoice me-1"></i> View Plan Voucher
+            </a>
+        @endif
         <button type="button" class="btn btn-kaldis btn-sm" data-bs-toggle="modal" data-bs-target="#createTaskModal">
             <i class="fas fa-plus-circle me-1"></i> Add Task
         </button>
@@ -212,6 +214,18 @@
                         </td>
                         <td>
                             <strong class="text-dark">{{ $task->task_title }}</strong>
+                            @if($task->gm_comment)
+                                <div class="mt-1.5 p-2 rounded-2 border bg-warning-subtle text-dark" style="font-size: 0.78rem;">
+                                    <div class="d-flex align-items-center gap-1.5 fw-semibold text-warning-emphasis mb-0.5">
+                                        <i class="fas fa-comment-dots text-warning"></i>
+                                        <span>GM Comment</span>
+                                        @if($task->gm_comment_at)
+                                            <span class="text-muted fw-normal" style="font-size: 0.7rem;">({{ $task->gm_comment_at->diffForHumans() }})</span>
+                                        @endif
+                                    </div>
+                                    <div class="text-secondary" style="white-space: pre-wrap;">{{ $task->gm_comment }}</div>
+                                </div>
+                            @endif
                         </td>
                         <td>
                             @if($task->monthlyPlan)
@@ -245,6 +259,11 @@
                         <td class="text-end">
                             <div class="d-inline-flex align-items-center gap-1">
                                 @if(auth()->user()->isGM() || auth()->user()->isSuperAdmin())
+                                    <button type="button" class="btn btn-xs btn-outline-warning py-0.5 px-1.5" 
+                                            onclick="openGmCommentModal({{ $task->id }}, '{{ addslashes($task->task_title) }}', '{{ addslashes($task->gm_comment ?? '') }}')" 
+                                            title="Add / Edit GM Comment">
+                                        <i class="fas fa-comment-dots"></i>
+                                    </button>
                                     @if($task->approval_status !== 'APPROVED')
                                         <form method="POST" action="{{ route('weekly.tasks.approve', $task->id) }}" class="d-inline">
                                             @csrf
@@ -343,20 +362,28 @@
                     </div>
 
                     <!-- Step 2: Parent Monthly Plan -->
+                    @php
+                        $isStratMandatory = kaldis_setting('strategy_field_mandatory', 'true') === 'true';
+                    @endphp
                     <div class="row g-3 mb-3">
                         <div class="col-12" id="taskMonthlyPlanWrapper">
                             <label class="form-label small fw-semibold text-secondary">
-                                Parent Monthly Plan <span class="text-danger">*</span>
+                                Parent Monthly Plan 
+                                @if($isStratMandatory)
+                                    <span class="badge bg-danger-subtle text-danger ms-1">Mandatory</span>
+                                @else
+                                    <span class="badge bg-secondary-subtle text-secondary ms-1">Optional</span>
+                                @endif
                             </label>
-                            <select name="monthly_plan_id" id="taskMonthlyPlanSelect" class="form-select" data-no-search="true" onchange="handleMonthlyPlanSelect(this)">
-                                <option value="">-- Choose Monthly Plan --</option>
+                            <select name="monthly_plan_id" id="taskMonthlyPlanSelect" class="form-select" data-no-search="true" onchange="handleMonthlyPlanSelect(this)" {{ $isStratMandatory ? 'required' : '' }}>
+                                <option value="">-- Choose Monthly Plan {{ $isStratMandatory ? '' : '(Optional)' }} --</option>
                                 @foreach($monthlyPlans as $mp)
                                     <option value="{{ $mp->id }}" data-type="{{ $mp->plan_type }}" data-dod="{{ e($mp->definition_of_done) }}" data-target="{{ e($mp->monthly_target) }}">
                                         [{{ $mp->plan_type }}] {{ $mp->title }} (Target: {{ $mp->monthly_target }})
                                     </option>
                                 @endforeach
                             </select>
-                            <div class="small text-muted mt-1">Select the monthly plan this weekly task executes.</div>
+                            <div class="small text-muted mt-1">Select the monthly plan this weekly task executes{{ $isStratMandatory ? '' : ' (optional)' }}.</div>
                         
                             <input type="hidden" name="plan_type" id="taskPlanTypeSelect" value="OPERATIONAL">
                         </div>
@@ -451,9 +478,11 @@
                                 <div class="small text-muted mb-1">
                                     • Operational Tasks: <strong class="text-dark">{{ $tasks->where('plan_type', 'OPERATIONAL')->count() }}</strong>
                                 </div>
-                                <div class="small text-muted">
-                                    • Official Voucher: <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek, 'type' => 'plan']) }}" target="_blank" class="fw-semibold text-primary"><i class="fas fa-file-invoice me-1"></i> Preview Plan Voucher</a>
-                                </div>
+                                @if(kaldis_setting('voucher_enabled', 'true') === 'true')
+                                    <div class="small text-muted">
+                                        • Official Voucher: <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek, 'type' => 'plan']) }}" target="_blank" class="fw-semibold text-primary"><i class="fas fa-file-invoice me-1"></i> Preview Plan Voucher</a>
+                                    </div>
+                                @endif
                             </div>
                         </div>
 
@@ -572,6 +601,37 @@
         </div>
     </div>
 </div>
+
+<!-- Modal: GM Weekly Task Comment (Inline Feedback) -->
+<div class="modal fade" id="gmCommentWeeklyTaskModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" id="gmCommentWeeklyTaskForm" action="">
+                @csrf
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold text-dark fs-6">
+                        <i class="fas fa-comment-dots text-warning me-2"></i> GM Feedback &amp; Comment
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="text-secondary small mb-2">Weekly Task: <strong id="gmCommentTaskTitle" class="text-dark"></strong></p>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">General Manager Comment / Instructions</label>
+                        <textarea name="gm_comment" id="gmCommentTaskInput" class="form-control" rows="4" placeholder="Enter constructive feedback, adjustments, or guidance for this task..."></textarea>
+                        <div class="small text-muted mt-1">Leave empty and save to remove the comment.</div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-warning text-dark fw-bold">
+                        <i class="fas fa-save me-1"></i> Save GM Comment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
@@ -597,6 +657,15 @@
         form.action = "{{ url('/weekly/tasks') }}/" + taskId + "/decline";
         document.getElementById('weeklyTaskDeclineReasonInput').value = '';
         const modal = new bootstrap.Modal(document.getElementById('declineWeeklyTaskModal'));
+        modal.show();
+    }
+
+    function openGmCommentModal(taskId, title, comment) {
+        const form = document.getElementById('gmCommentWeeklyTaskForm');
+        form.action = "{{ url('/weekly/tasks') }}/" + taskId + "/gm-comment";
+        document.getElementById('gmCommentTaskTitle').innerText = title;
+        document.getElementById('gmCommentTaskInput').value = comment || '';
+        const modal = new bootstrap.Modal(document.getElementById('gmCommentWeeklyTaskModal'));
         modal.show();
     }
 

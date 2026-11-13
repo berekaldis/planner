@@ -127,6 +127,11 @@ class WeeklyPlanController extends Controller
             'due_date' => 'nullable|date',
         ]);
 
+        $isStrategyMandatory = kaldis_setting('strategy_field_mandatory', 'true') === 'true';
+        if ($isStrategyMandatory && empty($validated['monthly_plan_id'])) {
+            return back()->withErrors(['monthly_plan_id' => 'Parent Monthly Strategic Plan is required (Mandatory by system policy).'])->withInput();
+        }
+
         $taskType = $validated['task_type'] ?? (!empty($validated['monthly_plan_id']) ? 'PLANNED' : 'NEW_TASK');
         $monthlyPlanId = ($taskType === 'PLANNED') ? ($validated['monthly_plan_id'] ?? null) : null;
 
@@ -416,5 +421,76 @@ class WeeklyPlanController extends Controller
         }
 
         return back()->with('success', "Weekly task \"{$task->task_title}\" declined.");
+    }
+
+    public function saveGmComment(Request $request, $id)
+    {
+        $user = Auth::user();
+        if (!$user->isGM() && !$user->isSuperAdmin()) {
+            abort(403, 'Only the General Manager or Administrator can comment on tasks.');
+        }
+
+        $validated = $request->validate([
+            'gm_comment' => 'nullable|string|max:2000',
+        ]);
+
+        $task = WeeklyTask::findOrFail($id);
+        $comment = !empty($validated['gm_comment']) ? trim($validated['gm_comment']) : null;
+
+        $task->update([
+            'gm_comment' => $comment,
+            'gm_comment_at' => $comment ? now() : null,
+            'gm_comment_by' => $comment ? $user->id : null,
+        ]);
+
+        AuditLog::log('GM_COMMENT_WEEKLY_TASK', 'weekly_tasks', "GM commented on weekly task #{$task->id}: {$task->task_title}", $task->id);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'GM comment saved successfully.',
+                'gm_comment' => $task->gm_comment,
+                'gm_comment_at' => $task->gm_comment_at ? $task->gm_comment_at->format('M d, Y H:i') : null,
+                'gm_commenter' => $user->full_name ?: $user->username,
+            ]);
+        }
+
+        return back()->with('success', "GM comment for weekly task \"{$task->task_title}\" saved successfully.");
+    }
+
+    public function saveResultGmComment(Request $request, $id)
+    {
+        $user = Auth::user();
+        if (!$user->isGM() && !$user->isSuperAdmin()) {
+            abort(403, 'Only the General Manager or Administrator can comment on performance execution.');
+        }
+
+        $validated = $request->validate([
+            'gm_comment' => 'nullable|string|max:2000',
+        ]);
+
+        $result = WeeklyTaskResult::findOrFail($id);
+        $comment = !empty($validated['gm_comment']) ? trim($validated['gm_comment']) : null;
+
+        $result->update([
+            'gm_comment' => $comment,
+            'gm_comment_at' => $comment ? now() : null,
+            'gm_comment_by' => $comment ? $user->id : null,
+        ]);
+
+        $taskTitle = $result->task ? $result->task->task_title : "Result #{$result->id}";
+        AuditLog::log('GM_COMMENT_PERFORMANCE_RESULT', 'weekly_task_results', "GM commented on weekly performance result for {$taskTitle}", $result->id);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'GM performance comment saved successfully.',
+                'gm_comment' => $result->gm_comment,
+                'gm_comment_at' => $result->gm_comment_at ? $result->gm_comment_at->format('M d, Y H:i') : null,
+                'gm_commenter' => $user->full_name ?: $user->username,
+            ]);
+        }
+
+        return back()->with('success', "GM comment for performance result saved successfully.");
     }
 }

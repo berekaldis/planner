@@ -459,6 +459,10 @@ class AdminController extends Controller
                     'desc' => 'Dispatch direct executive alerts and nudges to missing department heads',
                     'super_admin' => true, 'gm_management' => true, 'dept_head' => false, 'it_admin' => true,
                 ],
+                'GM Item-by-Item Plan & Performance Comments' => [
+                    'desc' => 'Allow General Manager to add granular comments on individual plans, tasks, and performance results',
+                    'super_admin' => true, 'gm_management' => true, 'dept_head' => false, 'it_admin' => false,
+                ],
             ],
             'Department Operations & Planning' => [
                 'Formulate Monthly Plans' => [

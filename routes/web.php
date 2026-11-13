@@ -52,6 +52,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/monthly/plans', [MonthlyPlanController::class, 'store'])->name('monthly.plans.store');
     Route::post('/monthly/plans/{id}/approve', [MonthlyPlanController::class, 'approve'])->name('monthly.plans.approve');
     Route::post('/monthly/plans/{id}/decline', [MonthlyPlanController::class, 'decline'])->name('monthly.plans.decline');
+    Route::post('/monthly/plans/{id}/gm-comment', [MonthlyPlanController::class, 'saveGmComment'])->name('monthly.plans.gm_comment');
     Route::post('/monthly/submit-package', [MonthlyPlanController::class, 'submitPackage'])->name('monthly.plans.submit_package');
     Route::post('/monthly/delay-reason', [MonthlyPlanController::class, 'submitDelayReason'])->name('monthly.delay_reason');
     Route::post('/monthly/feedback', [MonthlyPlanController::class, 'saveFeedback'])->name('monthly.feedback');
@@ -63,6 +64,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/weekly/tasks', [WeeklyPlanController::class, 'storeTask'])->name('weekly.tasks.store');
     Route::post('/weekly/tasks/{id}/approve', [WeeklyPlanController::class, 'approveTask'])->name('weekly.tasks.approve');
     Route::post('/weekly/tasks/{id}/decline', [WeeklyPlanController::class, 'declineTask'])->name('weekly.tasks.decline');
+    Route::post('/weekly/tasks/{id}/gm-comment', [WeeklyPlanController::class, 'saveGmComment'])->name('weekly.tasks.gm_comment');
     Route::post('/weekly/plans/submit', [WeeklyPlanController::class, 'submitPlan'])->name('weekly.plans.submit');
     Route::post('/weekly/plans/delay-reason', [WeeklyPlanController::class, 'submitDelayReason'])->name('weekly.plans.delay_reason');
     Route::delete('/weekly/tasks/{id}', [WeeklyPlanController::class, 'destroyTask'])->name('weekly.tasks.destroy');
@@ -70,6 +72,8 @@ Route::middleware('auth')->group(function () {
     // Weekly Performance Execution
     Route::get('/weekly/performance', [PerformanceController::class, 'execution'])->name('weekly.performance');
     Route::post('/weekly/performance/evaluate', [PerformanceController::class, 'saveEvaluation'])->name('weekly.performance.evaluate');
+    Route::post('/weekly/performance/{id}/gm-comment', [WeeklyPlanController::class, 'saveResultGmComment'])->name('weekly.performance.gm_comment');
+    Route::post('/weekly/results/{id}/gm-comment', [WeeklyPlanController::class, 'saveResultGmComment'])->name('weekly.results.gm_comment');
     Route::get('/weekly/achievements', fn() => redirect()->route('performance.achievements'));
     Route::post('/weekly/achievements', [PerformanceController::class, 'saveAchievement'])->name('weekly.achievements.store');
     Route::delete('/weekly/achievements/{id}', [PerformanceController::class, 'deleteAchievement'])->name('weekly.achievements.destroy');

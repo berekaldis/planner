@@ -362,12 +362,12 @@
             opacity: 1;
         }
 
-        /* Sidebar Footer (Matches App Footer height 3.125rem + 0.5rem inset bottom margin offset so top borders align seamlessly) */
+        /* Sidebar Footer (Same size & height as App Footer: 3.125rem / 50px, aligned at bottom) */
         .sidebar-footer {
-            height: calc(var(--kaldis-footer-height, 3.125rem) + 0.5rem);
-            min-height: calc(var(--kaldis-footer-height, 3.125rem) + 0.5rem);
-            max-height: calc(var(--kaldis-footer-height, 3.125rem) + 0.5rem);
-            padding: 0 0.5rem 0.5rem 0.5rem;
+            height: var(--kaldis-footer-height, 3.125rem);
+            min-height: var(--kaldis-footer-height, 3.125rem);
+            max-height: var(--kaldis-footer-height, 3.125rem);
+            padding: 0 0.5rem;
             border-top: 1px solid var(--sidebar-border);
             background-color: var(--sidebar);
             margin-top: auto;
@@ -516,10 +516,10 @@
             }
 
             html.sidebar-collapsed .sidebar-footer {
-                height: calc(var(--kaldis-footer-height, 3.125rem) + 0.5rem);
-                min-height: calc(var(--kaldis-footer-height, 3.125rem) + 0.5rem);
-                max-height: calc(var(--kaldis-footer-height, 3.125rem) + 0.5rem);
-                padding: 0 0 0.5rem 0;
+                height: var(--kaldis-footer-height, 3.125rem);
+                min-height: var(--kaldis-footer-height, 3.125rem);
+                max-height: var(--kaldis-footer-height, 3.125rem);
+                padding: 0;
                 justify-content: center;
             }
 
@@ -595,11 +595,12 @@
 
         @media (min-width: 992px) {
             .sidebar-inset-container {
-                margin: 0.5rem 0.5rem 0.5rem 0;
-                border-radius: var(--radius);
+                margin: 0.5rem 0.5rem 0 0;
+                border-radius: var(--radius) var(--radius) 0 0;
                 border: 1px solid var(--border);
+                border-bottom: none;
                 box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
-                min-height: calc(var(--app-vh, 100vh) - 1rem);
+                min-height: calc(var(--app-vh, 100vh) - 0.5rem);
             }
         }
 
@@ -713,8 +714,6 @@
             align-items: center;
             font-size: 0.8125rem;
             color: var(--muted-foreground);
-            border-bottom-left-radius: var(--radius);
-            border-bottom-right-radius: var(--radius);
             box-sizing: border-box;
         }
 
