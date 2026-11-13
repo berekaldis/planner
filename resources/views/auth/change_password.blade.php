@@ -1,290 +1,143 @@
 @extends('layouts.app')
 
-@section('title', 'Change Account Password - Kaldis Coffee PLC')
+@section('title', 'Change Password - Kaldis Coffee PLC')
 
 @section('content')
 @php
     $isFirstLogin = !empty($user->must_change_password) || (method_exists($user, 'requiresPasswordChange') && $user->requiresPasswordChange());
 @endphp
-<div class="container-fluid py-3" style="max-width: 900px; margin: 0 auto;">
 
-    <!-- Breadcrumb -->
-    @if(!$isFirstLogin)
-        <nav aria-label="breadcrumb" class="mb-3">
-            <ol class="breadcrumb mb-0 py-1" style="font-size: 0.85rem;">
-                <li class="breadcrumb-item"><a href="{{ route('overview') }}" class="text-decoration-none text-muted"><i class="fas fa-house me-1"></i> Overview</a></li>
-                <li class="breadcrumb-item active text-dark fw-semibold" aria-current="page">Change Password</li>
-            </ol>
-        </nav>
-    @endif
+<div class="d-flex align-items-center justify-content-center py-4 py-md-5">
+    <div class="card border-0 shadow-sm" style="max-width: 440px; width: 100%; border-radius: 12px; background: var(--kaldis-card-bg, #ffffff);">
+        <div class="card-body p-4 p-sm-5">
 
-    @if($isFirstLogin)
-        <!-- First Login Alert Banner -->
-        <div class="alert alert-warning border border-warning shadow-sm rounded-4 p-3.5 mb-4 d-flex align-items-center gap-3">
-            <div class="rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center shadow-xs" style="width: 48px; height: 48px; min-width: 48px; font-size: 1.35rem;">
-                <i class="fas fa-key"></i>
-            </div>
-            <div>
-                <h5 class="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
-                    <span>First-Time Login Security Setup</span>
-                    <span class="badge bg-dark text-white px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Action Required</span>
-                </h5>
-                <p class="small text-dark mb-0 opacity-90">
-                    Welcome to <strong>Kaldis Coffee Planning System</strong>! Because this is your first login with an initial temporary password, company policy requires you to choose a new, personal password before accessing the system.
+            <!-- Clean Header -->
+            <div class="text-center mb-4">
+                <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-warning bg-opacity-10 text-warning mb-3" style="width: 52px; height: 52px; font-size: 1.4rem;">
+                    <i class="fas fa-key"></i>
+                </div>
+                <h4 class="fw-bold text-dark mb-1">
+                    {{ $isFirstLogin ? 'Set New Password' : 'Change Password' }}
+                </h4>
+                <p class="text-muted small mb-0">
+                    {{ $isFirstLogin ? 'Please set a personal password to continue.' : 'Enter your current password and choose a new one.' }}
                 </p>
+                <div class="mt-2">
+                    <span class="badge bg-light text-dark border font-monospace">{{ $user->username }}</span>
+                </div>
             </div>
-        </div>
-    @endif
 
-    <!-- Header Card -->
-    <div class="card border-0 shadow-sm mb-4" style="background: var(--kaldis-card-bg); border-radius: 16px;">
-        <div class="card-body p-4 p-md-4">
-            <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center fw-bold shadow-xs" 
-                         style="width: 52px; height: 52px; font-size: 1.4rem;">
-                        {{ strtoupper(substr($user->full_name ?? $user->username ?? 'U', 0, 1)) }}
+            <!-- Simple Form -->
+            <form method="POST" action="{{ route('password.update') }}">
+                @csrf
+
+                <!-- Current Password -->
+                <div class="mb-3">
+                    <label for="current_password" class="form-label small fw-semibold text-secondary">
+                        Current Password <span class="text-danger">*</span>
+                    </label>
+                    <div class="input-group">
+                        <input type="password" 
+                               id="current_password" 
+                               name="current_password" 
+                               class="form-control @error('current_password') is-invalid @enderror" 
+                               placeholder="Current password" 
+                               required 
+                               autocomplete="current-password">
+                        <button type="button" class="btn btn-outline-secondary toggle-pwd" data-target="current_password" tabindex="-1">
+                            <i class="far fa-eye"></i>
+                        </button>
                     </div>
-                    <div>
-                        <h4 class="fw-bold mb-1 text-dark d-flex align-items-center gap-2">
-                            <span>{{ $isFirstLogin ? 'Welcome! Set Your Password' : 'Account Security' }}</span>
-                            <span class="badge {{ $isFirstLogin ? 'bg-warning-subtle text-warning-emphasis border border-warning-subtle' : 'bg-success-subtle text-success border border-success-subtle' }} py-1 px-2.5 rounded-pill" style="font-size: 0.72rem;">
-                                <i class="fas {{ $isFirstLogin ? 'fa-triangle-exclamation' : 'fa-shield-halved' }} me-1"></i>
-                                {{ $isFirstLogin ? 'First Login Setup' : 'Active' }}
-                            </span>
-                        </h4>
-                        <div class="text-muted small">
-                            <strong>{{ $user->full_name ?? $user->username }}</strong>
-                            <span class="mx-1">&bull;</span>
-                            <span class="badge bg-light text-dark border">{{ $user->username }}</span>
-                            @if($user->department)
-                                <span class="mx-1">&bull;</span>
-                                <span>{{ $user->department->department_name }}</span>
-                            @endif
-                            <span class="mx-1">&bull;</span>
-                            <span class="badge bg-warning text-dark">{{ $user->role->display_name ?? $user->role->name ?? 'User' }}</span>
+                    @error('current_password')
+                        <div class="text-danger small mt-1">{{ $message }}</div>
+                    @enderror
+                    @if($isFirstLogin)
+                        <div class="text-muted small mt-1" style="font-size: 0.78rem;">
+                            Default password: <code class="fw-bold">kaldis123</code>
                         </div>
+                    @endif
+                </div>
+
+                <!-- New Password -->
+                <div class="mb-3">
+                    <label for="new_password" class="form-label small fw-semibold text-secondary">
+                        New Password <span class="text-danger">*</span>
+                    </label>
+                    <div class="input-group">
+                        <input type="password" 
+                               id="new_password" 
+                               name="new_password" 
+                               class="form-control @error('new_password') is-invalid @enderror" 
+                               placeholder="At least 6 characters" 
+                               required 
+                               minlength="6" 
+                               autocomplete="new-password">
+                        <button type="button" class="btn btn-outline-secondary toggle-pwd" data-target="new_password" tabindex="-1">
+                            <i class="far fa-eye"></i>
+                        </button>
+                    </div>
+                    @error('new_password')
+                        <div class="text-danger small mt-1">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <!-- Confirm New Password -->
+                <div class="mb-4">
+                    <label for="new_password_confirmation" class="form-label small fw-semibold text-secondary">
+                        Confirm New Password <span class="text-danger">*</span>
+                    </label>
+                    <div class="input-group">
+                        <input type="password" 
+                               id="new_password_confirmation" 
+                               name="new_password_confirmation" 
+                               class="form-control" 
+                               placeholder="Re-enter new password" 
+                               required 
+                               autocomplete="new-password">
+                        <button type="button" class="btn btn-outline-secondary toggle-pwd" data-target="new_password_confirmation" tabindex="-1">
+                            <i class="far fa-eye"></i>
+                        </button>
                     </div>
                 </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn btn-kaldis w-100 py-2 fw-semibold shadow-sm mb-2">
+                    <i class="fas fa-check-circle me-1.5"></i> Save Password
+                </button>
+
                 @if(!$isFirstLogin)
-                    <a href="{{ route('overview') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
-                        <i class="fas fa-arrow-left me-1"></i> Back to Overview
-                    </a>
-                @endif
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Form Grid -->
-    <div class="row g-4">
-        <div class="col-lg-7">
-            <div class="card border-0 shadow-sm" style="background: var(--kaldis-card-bg); border-radius: 16px;">
-                <div class="card-header bg-transparent border-0 pt-4 px-4 pb-2">
-                    <h5 class="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
-                        <i class="fas fa-key text-warning"></i>
-                        <span>{{ $isFirstLogin ? 'Set New Personal Password' : 'Change Password' }}</span>
-                    </h5>
-                    <p class="text-muted small mb-0">
-                        {{ $isFirstLogin ? 'Enter your initial temporary password and choose a new personal secure password.' : 'Update your account credentials to keep your profile secure.' }}
-                    </p>
-                </div>
-                <div class="card-body p-4 pt-2">
-
-                    <form method="POST" action="{{ route('password.update') }}" id="changePasswordForm">
-                        @csrf
-
-                        <!-- Current Password -->
-                        <div class="mb-3">
-                            <label for="current_password" class="form-label fw-semibold text-dark small">
-                                Current Password <span class="text-danger">*</span>
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0 text-muted">
-                                    <i class="fas fa-lock"></i>
-                                </span>
-                                <input type="password" 
-                                       id="current_password" 
-                                       name="current_password" 
-                                       class="form-control border-start-0 border-end-0 @error('current_password') is-invalid @enderror" 
-                                       placeholder="Enter your current password" 
-                                       required 
-                                       autocomplete="current-password">
-                                <button type="button" class="btn btn-outline-secondary border-start-0 toggle-password-btn" data-target="current_password" tabindex="-1">
-                                    <i class="far fa-eye"></i>
-                                </button>
-                                @error('current_password')
-                                    <div class="invalid-feedback d-block">{{ $message }}</div>
-                                @enderror
-                            </div>
-                            @if($isFirstLogin)
-                                <div class="form-text small text-muted mt-1">
-                                    <i class="fas fa-lightbulb text-warning me-1"></i> If you were assigned a temporary initial account password, it is default: <code class="fw-bold">kaldis123</code>
-                                </div>
-                            @endif
-                        </div>
-
-                        <!-- New Password -->
-                        <div class="mb-3">
-                            <label for="new_password" class="form-label fw-semibold text-dark small">
-                                New Password <span class="text-danger">*</span>
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0 text-muted">
-                                    <i class="fas fa-shield-alt"></i>
-                                </span>
-                                <input type="password" 
-                                       id="new_password" 
-                                       name="new_password" 
-                                       class="form-control border-start-0 border-end-0 @error('new_password') is-invalid @enderror" 
-                                       placeholder="Enter new password (min. 6 characters)" 
-                                       required 
-                                       minlength="6"
-                                       autocomplete="new-password">
-                                <button type="button" class="btn btn-outline-secondary border-start-0 toggle-password-btn" data-target="new_password" tabindex="-1">
-                                    <i class="far fa-eye"></i>
-                                </button>
-                                @error('new_password')
-                                    <div class="invalid-feedback d-block">{{ $message }}</div>
-                                @enderror
-                            </div>
-                            <div class="form-text small" style="font-size: 0.78rem;">
-                                <i class="fas fa-info-circle text-primary me-1"></i> Must be at least 6 characters long and different from current password.
-                            </div>
-                        </div>
-
-                        <!-- Confirm New Password -->
-                        <div class="mb-4">
-                            <label for="new_password_confirmation" class="form-label fw-semibold text-dark small">
-                                Confirm New Password <span class="text-danger">*</span>
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0 text-muted">
-                                    <i class="fas fa-check-double"></i>
-                                </span>
-                                <input type="password" 
-                                       id="new_password_confirmation" 
-                                       name="new_password_confirmation" 
-                                       class="form-control border-start-0 border-end-0" 
-                                       placeholder="Re-enter your new password" 
-                                       required 
-                                       autocomplete="new-password">
-                                <button type="button" class="btn btn-outline-secondary border-start-0 toggle-password-btn" data-target="new_password_confirmation" tabindex="-1">
-                                    <i class="far fa-eye"></i>
-                                </button>
-                            </div>
-                            <div id="passwordMatchHint" class="form-text small d-none" style="font-size: 0.78rem;"></div>
-                        </div>
-
-                        <!-- Submit Buttons -->
-                        <div class="d-flex align-items-center gap-2 pt-2">
-                            <button type="submit" class="btn btn-success fw-semibold px-4 py-2.5 shadow-sm rounded-pill d-inline-flex align-items-center gap-2">
-                                <i class="fas {{ $isFirstLogin ? 'fa-circle-check' : 'fa-floppy-disk' }}"></i>
-                                <span>{{ $isFirstLogin ? 'Save New Password & Enter Portal' : 'Save New Password' }}</span>
-                            </button>
-                            @if(!$isFirstLogin)
-                                <a href="{{ route('overview') }}" class="btn btn-light border fw-semibold px-3 py-2 rounded-pill">
-                                    Cancel
-                                </a>
-                            @endif
-                        </div>
-
-                    </form>
-
-                </div>
-            </div>
-        </div>
-
-        <!-- Sidebar / Guidance Column -->
-        <div class="col-lg-5">
-            <div class="card border-0 shadow-sm mb-4" style="background: var(--kaldis-card-bg); border-radius: 16px;">
-                <div class="card-body p-4">
-                    <h6 class="fw-bold text-dark mb-3 d-flex align-items-center gap-2">
-                        <i class="fas fa-shield-heart text-success"></i>
-                        <span>Security Best Practices</span>
-                    </h6>
-                    <ul class="list-unstyled mb-0 d-flex flex-column gap-2 text-muted small" style="font-size: 0.82rem; line-height: 1.5;">
-                        <li class="d-flex align-items-start gap-2">
-                            <i class="fas fa-circle-check text-success mt-1"></i>
-                            <span>Use a unique password that you do not use on other platforms.</span>
-                        </li>
-                        <li class="d-flex align-items-start gap-2">
-                            <i class="fas fa-circle-check text-success mt-1"></i>
-                            <span>Combine letters, numbers, and symbols to make your password harder to guess.</span>
-                        </li>
-                        <li class="d-flex align-items-start gap-2">
-                            <i class="fas fa-circle-check text-success mt-1"></i>
-                            <span>Never share your Planner credentials or password with anyone else.</span>
-                        </li>
-                        <li class="d-flex align-items-start gap-2">
-                            <i class="fas fa-circle-check text-success mt-1"></i>
-                            <span>All password updates are permanently recorded in the system audit trail for security.</span>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="card border-0 shadow-sm" style="background: rgba(217, 119, 6, 0.04); border: 1.5px dashed rgba(217, 119, 6, 0.3) !important; border-radius: 16px;">
-                <div class="card-body p-3.5">
-                    <div class="d-flex align-items-center gap-2.5">
-                        <div class="p-2 bg-warning-subtle text-warning rounded-circle">
-                            <i class="fas fa-headset fs-5"></i>
-                        </div>
-                        <div>
-                            <div class="fw-bold text-dark small">Need Help or Account Recovery?</div>
-                            <div class="text-muted" style="font-size: 0.76rem;">Contact the IT Department or System Administrator if you forget your password.</div>
-                        </div>
+                    <div class="text-center mt-3">
+                        <a href="{{ route('overview') }}" class="text-muted small text-decoration-none">
+                            <i class="fas fa-arrow-left me-1"></i> Cancel
+                        </a>
                     </div>
-                </div>
-            </div>
+                @else
+                    <div class="text-center mt-3">
+                        <form method="POST" action="{{ route('logout') }}" class="d-inline">
+                            @csrf
+                            <button type="submit" class="btn btn-link text-muted small p-0 text-decoration-none">
+                                <i class="fas fa-arrow-right-from-bracket me-1"></i> Log out
+                            </button>
+                        </form>
+                    </div>
+                @endif
+
+            </form>
+
         </div>
     </div>
-
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    // Password visibility toggle
-    document.querySelectorAll('.toggle-password-btn').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            const targetId = this.getAttribute('data-target');
-            const input = document.getElementById(targetId);
-            const icon = this.querySelector('i');
-            if (input) {
-                if (input.type === 'password') {
-                    input.type = 'text';
-                    icon.classList.remove('fa-eye');
-                    icon.classList.add('fa-eye-slash');
-                } else {
-                    input.type = 'password';
-                    icon.classList.remove('fa-eye-slash');
-                    icon.classList.add('fa-eye');
-                }
-            }
-        });
+document.querySelectorAll('.toggle-pwd').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const input = document.getElementById(this.dataset.target);
+        if (input) {
+            const isPwd = input.type === 'password';
+            input.type = isPwd ? 'text' : 'password';
+            this.querySelector('i').className = isPwd ? 'far fa-eye-slash' : 'far fa-eye';
+        }
     });
-
-    // Real-time password confirmation check
-    const newPwd = document.getElementById('new_password');
-    const confPwd = document.getElementById('new_password_confirmation');
-    const matchHint = document.getElementById('passwordMatchHint');
-
-    function checkMatch() {
-        if (!confPwd.value) {
-            matchHint.classList.add('d-none');
-            return;
-        }
-        matchHint.classList.remove('d-none');
-        if (newPwd.value === confPwd.value) {
-            matchHint.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i> Passwords match</span>';
-        } else {
-            matchHint.innerHTML = '<span class="text-danger"><i class="fas fa-triangle-exclamation me-1"></i> Passwords do not match</span>';
-        }
-    }
-
-    if (newPwd && confPwd && matchHint) {
-        newPwd.addEventListener('input', checkMatch);
-        confPwd.addEventListener('input', checkMatch);
-    }
 });
 </script>
 @endsection

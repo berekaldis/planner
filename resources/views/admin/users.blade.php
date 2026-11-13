@@ -12,10 +12,10 @@
         <p class="text-muted small mb-0">System access control, role appointments, and department associations</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
-        <form method="POST" action="{{ route('admin.users.bulk_force_password') }}" class="d-inline" onsubmit="return confirm('Enforce password change for ALL department accounts on their next login?');">
+        <form method="POST" action="{{ route('admin.users.bulk_force_password') }}" class="d-inline" onsubmit="return confirm('Require all department users to change their password on next login?');">
             @csrf
-            <button type="submit" class="btn btn-outline-warning btn-sm" title="Force all non-admin users to change their password on next login">
-                <i class="fas fa-key me-1"></i> Force Password Change for All Users
+            <button type="submit" class="btn btn-outline-secondary btn-sm" title="Force password change for all non-admin users on next login">
+                <i class="fas fa-key me-1"></i> Force Password (All)
             </button>
         </form>
         <button type="button" class="btn btn-kaldis btn-sm" data-bs-toggle="modal" data-bs-target="#addUserModal">
@@ -50,9 +50,9 @@
                     <th>Email</th>
                     <th>Role</th>
                     <th>Department</th>
-                    <th style="width: 170px;">Status & Password</th>
+                    <th style="width: 130px;">Status</th>
                     <th>Last Login</th>
-                    <th style="width: 250px;" class="text-end">Actions</th>
+                    <th style="width: 220px;" class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -79,21 +79,21 @@
                         </td>
                         <td>
                             @if($u->id === auth()->id())
-                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1.5 rounded-pill fw-semibold" title="Current Administrator Account">
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill fw-semibold" title="Current Administrator Account">
                                     <i class="fas fa-shield-halved me-1"></i> Active (You)
                                 </span>
                             @else
                                 <form method="POST" action="{{ route('admin.users.toggle_status', $u->id) }}" class="d-inline">
                                     @csrf
                                     @if($u->is_active)
-                                        <button type="submit" class="btn btn-sm p-0 border-0 bg-transparent" title="Click to Disable User (Make Inactive)" onclick="return confirm('Disable access for user \'{{ $u->username }}\'? They will be prevented from logging in.');">
-                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1.5 rounded-pill fw-semibold cursor-pointer">
+                                        <button type="submit" class="btn btn-sm p-0 border-0 bg-transparent" title="Click to Disable User" onclick="return confirm('Disable access for user \'{{ $u->username }}\'?');">
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill fw-semibold cursor-pointer">
                                                 <i class="fas fa-circle-check text-success me-1"></i> Active
                                             </span>
                                         </button>
                                     @else
-                                        <button type="submit" class="btn btn-sm p-0 border-0 bg-transparent" title="Click to Enable User (Make Active)" onclick="return confirm('Enable access for user \'{{ $u->username }}\'?');">
-                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2.5 py-1.5 rounded-pill fw-semibold cursor-pointer">
+                                        <button type="submit" class="btn btn-sm p-0 border-0 bg-transparent" title="Click to Enable User" onclick="return confirm('Enable access for user \'{{ $u->username }}\'?');">
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 rounded-pill fw-semibold cursor-pointer">
                                                 <i class="fas fa-circle-xmark text-danger me-1"></i> Inactive
                                             </span>
                                         </button>
@@ -101,24 +101,13 @@
                                 </form>
                             @endif
 
-                            <div class="mt-1">
-                                <form method="POST" action="{{ route('admin.users.force_password', $u->id) }}" class="d-inline">
-                                    @csrf
-                                    @if(!empty($u->must_change_password))
-                                        <button type="submit" class="btn btn-sm p-0 border-0 bg-transparent" title="Click to cancel force password change requirement" onclick="return confirm('Remove forced password change requirement for user \'{{ $u->username }}\'?');">
-                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 rounded-pill cursor-pointer" style="font-size: 0.68rem;">
-                                                <i class="fas fa-key me-1 text-warning"></i> Force Pwd: Yes
-                                            </span>
-                                        </button>
-                                    @else
-                                        <button type="submit" class="btn btn-sm p-0 border-0 bg-transparent" title="Click to force password change on next login" onclick="return confirm('Force user \'{{ $u->username }}\' to change password on next login?');">
-                                            <span class="badge bg-light text-muted border px-2 py-1 rounded-pill opacity-75 cursor-pointer" style="font-size: 0.68rem;">
-                                                <i class="fas fa-lock me-1"></i> Force Pwd: No
-                                            </span>
-                                        </button>
-                                    @endif
-                                </form>
-                            </div>
+                            @if(!empty($u->must_change_password))
+                                <div class="mt-1">
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-1.5 py-0.5" style="font-size: 0.65rem;" title="Password change required on next login">
+                                        <i class="fas fa-key me-1"></i> Pwd Change
+                                    </span>
+                                </div>
+                            @endif
                         </td>
                         <td class="small text-muted">
                             {{ $u->last_login_at ? $u->last_login_at->diffForHumans() : 'Never' }}
