@@ -222,6 +222,22 @@ class WeeklyPlanController extends Controller
             return back()->withErrors(['submission' => 'Cannot submit an empty weekly plan. Please schedule at least one task first.']);
         }
 
+        // Enforce Mandatory Last Week Performance
+        $isLastWeekMandatory = kaldis_setting('last_week_performance_mandatory', 'true') === 'true';
+        $lastWeekPerf = get_last_week_performance_data(
+            (int)$validated['department_id'],
+            $validated['year'],
+            $validated['month'],
+            (int)$validated['week_number']
+        );
+
+        if ($isLastWeekMandatory && !empty($lastWeekPerf['is_mandatory_missing'])) {
+            $prevWeekLabel = "Week {$lastWeekPerf['prev_week']}" . (!empty($lastWeekPerf['prev_month']) ? " ({$lastWeekPerf['prev_month']} {$lastWeekPerf['prev_year']})" : "");
+            return back()->withErrors([
+                'submission' => "Cannot submit Week {$validated['week_number']} plan: Last week's performance report ({$prevWeekLabel}) is mandatory and must be evaluated and submitted to General Management first."
+            ])->withInput();
+        }
+
         $existingPlan = WeeklyPlan::where('department_id', $validated['department_id'])
             ->where('year', $validated['year'])
             ->where('month', $validated['month'])

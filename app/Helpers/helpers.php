@@ -902,6 +902,7 @@ if (!function_exists('get_last_week_performance_data')) {
         $totalTasks = $tasks->count();
         $doneTasks = $tasks->filter(fn($t) => $t->result && $t->result->result === 'DONE')->count();
         $notDoneTasks = $tasks->filter(fn($t) => $t->result && $t->result->result === 'NOT_DONE')->count();
+        $unratedTasks = $tasks->filter(fn($t) => !$t->result || !in_array($t->result->result, ['DONE', 'NOT_DONE']))->count();
         $calcRate = $totalTasks > 0 ? round(($doneTasks / $totalTasks) * 100, 1) : 0;
 
         $hasData = ($report !== null) || ($totalTasks > 0) || ($submission !== null);
@@ -914,6 +915,23 @@ if (!function_exists('get_last_week_performance_data')) {
         $timingStatus = $submission->status ?? ($report->submission_status ?? ($hasData ? 'SUBMITTED' : 'NOT_RECORDED'));
         $remarks = $submission->remarks ?? ($report->notes ?? '');
 
+        // Check if delay was approved by GM
+        $isDelayApproved = ($submission && ($submission->status === 'DELAY_APPROVED' || $submission->delay_status === 'APPROVED'))
+            || ($report && ($report->submission_status === 'DELAY_APPROVED' || $report->delay_status === 'APPROVED'));
+
+        // Check if officially submitted or approved
+        $isSubmitted = ($submission && in_array($submission->status, ['ON_TIME', 'LATE', 'SUBMITTED', 'DELAY_APPROVED']))
+            || ($report && in_array($report->status, ['SUBMITTED', 'APPROVED']));
+
+        // Is last week performance completed?
+        // Satisfied if: delay is approved, OR (submitted AND all tasks evaluated AND at least one task recorded)
+        $isComplete = $isDelayApproved || ($isSubmitted && $unratedTasks === 0 && $totalCount > 0);
+
+        // Mandatory check:
+        // For Week > 1: prior week is always mandatory
+        // For Week 1: mandatory if preceding month had tasks or reports
+        $isMandatoryMissing = ($weekNumber > 1) ? !$isComplete : ($hasData && !$isComplete);
+
         return [
             'has_data' => $hasData,
             'prev_year' => $prevYear,
@@ -922,8 +940,13 @@ if (!function_exists('get_last_week_performance_data')) {
             'total_tasks' => $totalCount,
             'done_tasks' => $doneCount,
             'not_done_tasks' => $notDoneCount,
+            'unrated_tasks' => $unratedTasks,
             'completion_rate' => $completionRate,
             'timing_status' => $timingStatus,
+            'is_submitted' => $isSubmitted,
+            'is_delay_approved' => $isDelayApproved,
+            'is_complete' => $isComplete,
+            'is_mandatory_missing' => $isMandatoryMissing,
             'remarks' => $remarks,
             'report' => $report,
             'submission' => $submission,

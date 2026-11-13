@@ -78,15 +78,31 @@
         </div>
     </div>
 @elseif($tasks->isNotEmpty())
-    <div class="alert alert-warning border-0 shadow-sm d-flex justify-content-between align-items-center mb-3">
+    @php
+        $isLastWeekMandatory = kaldis_setting('last_week_performance_mandatory', 'true') === 'true';
+        $isLastWeekMissing = !empty($lastWeekPerf['is_mandatory_missing']) && $isLastWeekMandatory;
+    @endphp
+    <div class="alert alert-warning border-0 shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
         <div>
-            <i class="fas fa-info-circle me-2 text-warning"></i>
-            <strong>Draft Tasks Saved ({{ $tasks->count() }} Tasks):</strong> Click <strong>Submit Plan to GM</strong> when ready.
+            <i class="fas {{ $isLastWeekMissing ? 'fa-lock text-danger' : 'fa-info-circle text-warning' }} me-2"></i>
+            <strong>Draft Tasks Saved ({{ $tasks->count() }} Tasks):</strong>
+            @if($isLastWeekMissing)
+                <span class="text-danger fw-semibold">Week {{ $lastWeekPerf['prev_week'] }} Performance Report is mandatory before submitting to GM.</span>
+            @else
+                <span>Click <strong>Submit Plan to GM</strong> when ready.</span>
+            @endif
             <span class="badge bg-secondary ms-2">DRAFT</span>
         </div>
-        <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#submitWeeklyPlanModal">
-            Submit Plan to GM
-        </button>
+        <div class="d-flex gap-2">
+            @if($isLastWeekMissing)
+                <a href="{{ route('weekly.performance', ['department_id' => $department->id, 'year' => $lastWeekPerf['prev_year'], 'month' => $lastWeekPerf['prev_month'], 'week' => $lastWeekPerf['prev_week']]) }}" class="btn btn-outline-danger btn-sm">
+                    <i class="fas fa-chart-line me-1"></i> Go to Week {{ $lastWeekPerf['prev_week'] }} Performance
+                </a>
+            @endif
+            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#submitWeeklyPlanModal">
+                Submit Plan to GM
+            </button>
+        </div>
     </div>
 @endif
 
@@ -505,6 +521,28 @@
                 </div>
 
                 <div class="modal-body p-4">
+                    @php
+                        $isLastWeekMandatory = kaldis_setting('last_week_performance_mandatory', 'true') === 'true';
+                        $isLastWeekMissing = !empty($lastWeekPerf['is_mandatory_missing']) && $isLastWeekMandatory;
+                    @endphp
+
+                    @if($isLastWeekMissing)
+                        <div class="alert alert-danger border-0 shadow-sm py-2.5 px-3 small mb-3">
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <i class="fas fa-lock text-danger fs-5"></i>
+                                <strong class="text-danger">Mandatory Requirement: Last Week's Performance Missing</strong>
+                            </div>
+                            <div class="text-dark">
+                                Company governance requires <strong>Week {{ $lastWeekPerf['prev_week'] }}</strong> Performance Report to be evaluated and submitted to General Management before <strong>Week {{ $selectedWeek }}</strong> plan can be submitted.
+                            </div>
+                            <div class="mt-2">
+                                <a href="{{ route('weekly.performance', ['department_id' => $department->id, 'year' => $lastWeekPerf['prev_year'], 'month' => $lastWeekPerf['prev_month'], 'week' => $lastWeekPerf['prev_week']]) }}" class="btn btn-xs btn-danger text-white fw-bold">
+                                    <i class="fas fa-chart-line me-1"></i> Go to Week {{ $lastWeekPerf['prev_week'] }} Performance &rarr;
+                                </a>
+                            </div>
+                        </div>
+                    @endif
+
                     <div class="alert alert-info border-0 py-2 px-3 small mb-3">
                         <i class="fas fa-info-circle me-1"></i>
                         Submitting this plan will notify General Management and the Department Head via Telegram with the complete <strong>Weekly Task Schedule</strong> and <strong>Last Week's Performance Report</strong>.
@@ -535,12 +573,12 @@
                         </div>
 
                         <div class="col-md-6">
-                            <div class="p-3 rounded-3 bg-light border h-100">
+                            <div class="p-3 rounded-3 bg-light border h-100 {{ $isLastWeekMissing ? 'border-danger border-opacity-50' : '' }}">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <span class="fw-bold small text-dark">
-                                        <i class="fas fa-chart-line text-success me-1"></i> Last Week Performance Report
+                                        <i class="fas fa-chart-line {{ $isLastWeekMissing ? 'text-danger' : 'text-success' }} me-1"></i> Last Week Performance Report
                                     </span>
-                                    <span class="badge {{ !empty($lastWeekPerf['has_data']) ? 'bg-success' : 'bg-secondary' }}">
+                                    <span class="badge {{ $isLastWeekMissing ? 'bg-danger text-white' : (!empty($lastWeekPerf['has_data']) ? 'bg-success' : 'bg-secondary') }}">
                                         Week {{ $lastWeekPerf['prev_week'] ?? max(1, $selectedWeek - 1) }}
                                     </span>
                                 </div>
@@ -552,11 +590,20 @@
                                         • Binary Execution: <span class="text-success fw-bold">{{ $lastWeekPerf['done_tasks'] }} DONE</span> &bull; <span class="text-danger fw-bold">{{ $lastWeekPerf['not_done_tasks'] }} NOT DONE</span> ({{ $lastWeekPerf['total_tasks'] }} total)
                                     </div>
                                     <div class="small text-muted">
-                                        • Status: <span class="badge bg-light text-dark border">{{ $lastWeekPerf['timing_status'] }}</span>
+                                        • Status: 
+                                        @if($isLastWeekMissing)
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-bold">PENDING / NOT SUBMITTED</span>
+                                        @else
+                                            <span class="badge bg-light text-dark border">{{ $lastWeekPerf['timing_status'] }}</span>
+                                        @endif
                                     </div>
                                 @else
                                     <div class="small text-muted py-2">
-                                        <i>Initial cycle: No prior weekly report on file.</i>
+                                        @if($isLastWeekMissing)
+                                            <span class="text-danger fw-semibold"><i class="fas fa-exclamation-triangle me-1"></i> No performance report recorded for Week {{ $lastWeekPerf['prev_week'] }}.</span>
+                                        @else
+                                            <i>Initial cycle: No prior weekly report on file.</i>
+                                        @endif
                                     </div>
                                 @endif
                             </div>
@@ -576,11 +623,18 @@
                     </div>
                 </div>
 
-                <div class="modal-footer bg-light">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-sm btn-success">
-                        <i class="fas fa-paper-plane me-1"></i> Submit Weekly Plan to GM
-                    </button>
+                <div class="modal-footer bg-light d-flex justify-content-between">
+                    <div>
+                        @if($isLastWeekMissing)
+                            <span class="text-danger small fw-semibold"><i class="fas fa-lock me-1"></i> Week {{ $lastWeekPerf['prev_week'] }} performance required first.</span>
+                        @endif
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-sm btn-success" {{ ($tasks->isEmpty() || $isLastWeekMissing) ? 'disabled' : '' }}>
+                            <i class="fas fa-paper-plane me-1"></i> Submit Weekly Plan to GM
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>

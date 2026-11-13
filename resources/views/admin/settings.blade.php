@@ -169,6 +169,39 @@
                                     </div>
                                 </div>
 
+                                <!-- Policy 4: Last Week Performance Mandatory on Weekly Plan Submission -->
+                                @php
+                                    $isLastWeekPerfMandatory = kaldis_setting('last_week_performance_mandatory', 'true') === 'true';
+                                @endphp
+                                <div class="p-3.5 rounded-3 border {{ $isLastWeekPerfMandatory ? 'border-primary bg-primary bg-opacity-10' : 'border-secondary bg-light' }}">
+                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                        <label class="fw-bold text-dark small text-uppercase mb-0">
+                                            <i class="fas fa-chart-line me-1.5 {{ $isLastWeekPerfMandatory ? 'text-primary' : 'text-secondary' }}"></i>
+                                            Last Week Performance Requirement
+                                        </label>
+                                        <span class="badge {{ $isLastWeekPerfMandatory ? 'bg-primary text-white' : 'bg-secondary text-white' }} fw-bold">
+                                            {{ $isLastWeekPerfMandatory ? 'Mandatory (True)' : 'Optional (False)' }}
+                                        </span>
+                                    </div>
+                                    <p class="text-muted small mb-3">
+                                        When enabled (Mandatory), department heads must evaluate and submit the prior week's performance report to GM before submitting their new weekly task plan.
+                                    </p>
+                                    <div class="d-flex gap-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="last_week_performance_mandatory" id="lastWeekMandatoryTrue" value="true" {{ $isLastWeekPerfMandatory ? 'checked' : '' }}>
+                                            <label class="form-check-label small fw-semibold" for="lastWeekMandatoryTrue">
+                                                <strong>Mandatory (True)</strong> &mdash; Prior performance required
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="last_week_performance_mandatory" id="lastWeekMandatoryFalse" value="false" {{ !$isLastWeekPerfMandatory ? 'checked' : '' }}>
+                                            <label class="form-check-label small fw-semibold" for="lastWeekMandatoryFalse">
+                                                <strong>Optional (False)</strong> &mdash; Allow direct plan submission
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div class="mt-auto">
                                     <button type="submit" class="btn btn-kaldis w-100 fw-bold py-2 shadow-sm">
                                         <i class="fas fa-save me-1"></i> Save Policies
