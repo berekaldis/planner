@@ -237,6 +237,19 @@ class AppServiceProvider extends ServiceProvider
                 }
                 Cache::forever('schema_company_system_links_v1', true);
             }
+
+            // Auto-heal schema for users first-login force password change
+            if (!Cache::has('schema_users_must_change_password_v1')) {
+                if (Schema::hasTable('users')) {
+                    if (!Schema::hasColumn('users', 'must_change_password')) {
+                        DB::statement("ALTER TABLE `users` ADD COLUMN `must_change_password` TINYINT(1) NOT NULL DEFAULT 0 AFTER `is_active`");
+                    }
+                    if (!Schema::hasColumn('users', 'password_changed_at')) {
+                        DB::statement("ALTER TABLE `users` ADD COLUMN `password_changed_at` DATETIME NULL AFTER `must_change_password`");
+                    }
+                }
+                Cache::forever('schema_users_must_change_password_v1', true);
+            }
         } catch (\Throwable $e) {
             // Graceful fallback if database connection or migration is not yet initialized
         }

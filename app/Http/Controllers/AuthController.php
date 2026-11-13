@@ -65,6 +65,13 @@ class AuthController extends Controller
                     $request->session()->regenerate();
                 }
 
+                // If user is required to change password on first login
+                if (!empty($localUser->must_change_password)) {
+                    AuditLog::log('FIRST_LOGIN_FORCE_PASSWORD', 'auth', "User {$localUser->username} prompted to change temporary password on first login", $localUser->id);
+                    $request->session()->put('first_login_prompt_shown', true);
+                    return redirect()->route('password.change')->with('warning', 'Welcome to Kaldis Coffee Planning System! For your account security, you must set a new personal password on your first login.');
+                }
+
                 return redirect()->intended(route('dashboard'));
             }
         }
@@ -154,10 +161,18 @@ class AuthController extends Controller
             ])->withInput();
         }
 
-        // Update password hash
+        $wasFirstLogin = !empty($user->must_change_password);
+
+        // Update password hash and clear first login flag
         $newHash = Hash::make($validated['new_password']);
         $user->password_hash = $newHash;
+        $user->must_change_password = 0;
+        $user->password_changed_at = now();
         $user->save();
+
+        if ($request->hasSession()) {
+            $request->session()->forget('first_login_prompt_shown');
+        }
 
         // Sync to Company System if connected
         try {
@@ -172,7 +187,11 @@ class AuthController extends Controller
             Log::warning("Could not sync updated password to company system: " . $e->getMessage());
         }
 
-        AuditLog::log('CHANGE_PASSWORD', 'auth', "User {$user->username} successfully changed their account password", $user->id);
+        AuditLog::log('CHANGE_PASSWORD', 'auth', "User {$user->username} successfully changed their account password" . ($wasFirstLogin ? ' (First Login Setup Completed)' : ''), $user->id);
+
+        if ($wasFirstLogin) {
+            return redirect()->route('dashboard')->with('success', 'Your personal password has been set successfully! Welcome to Kaldis Coffee Planning System.');
+        }
 
         return back()->with('success', 'Your password has been changed successfully.');
     }

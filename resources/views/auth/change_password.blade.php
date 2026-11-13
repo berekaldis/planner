@@ -6,12 +6,32 @@
 <div class="container-fluid py-3" style="max-width: 900px; margin: 0 auto;">
 
     <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb mb-0 py-1" style="font-size: 0.85rem;">
-            <li class="breadcrumb-item"><a href="{{ route('overview') }}" class="text-decoration-none text-muted"><i class="fas fa-house me-1"></i> Overview</a></li>
-            <li class="breadcrumb-item active text-dark fw-semibold" aria-current="page">Change Password</li>
-        </ol>
-    </nav>
+    @if(empty($user->must_change_password))
+        <nav aria-label="breadcrumb" class="mb-3">
+            <ol class="breadcrumb mb-0 py-1" style="font-size: 0.85rem;">
+                <li class="breadcrumb-item"><a href="{{ route('overview') }}" class="text-decoration-none text-muted"><i class="fas fa-house me-1"></i> Overview</a></li>
+                <li class="breadcrumb-item active text-dark fw-semibold" aria-current="page">Change Password</li>
+            </ol>
+        </nav>
+    @endif
+
+    @if(!empty($user->must_change_password))
+        <!-- First Login Alert Banner -->
+        <div class="alert alert-warning border border-warning shadow-sm rounded-4 p-3.5 mb-4 d-flex align-items-center gap-3">
+            <div class="rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center shadow-xs" style="width: 48px; height: 48px; min-width: 48px; font-size: 1.35rem;">
+                <i class="fas fa-key"></i>
+            </div>
+            <div>
+                <h5 class="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+                    <span>First-Time Login Security Setup</span>
+                    <span class="badge bg-dark text-white px-2 py-0.5 rounded-pill" style="font-size: 0.7rem;">Action Required</span>
+                </h5>
+                <p class="small text-dark mb-0 opacity-90">
+                    Welcome to <strong>Kaldis Coffee Planning System</strong>! Because this is your first login with an initial temporary password, company policy requires you to choose a new, personal password before accessing the system.
+                </p>
+            </div>
+        </div>
+    @endif
 
     <!-- Header Card -->
     <div class="card border-0 shadow-sm mb-4" style="background: var(--kaldis-card-bg); border-radius: 16px;">
@@ -24,9 +44,10 @@
                     </div>
                     <div>
                         <h4 class="fw-bold mb-1 text-dark d-flex align-items-center gap-2">
-                            <span>Account Security</span>
-                            <span class="badge bg-success-subtle text-success border border-success-subtle py-1 px-2.5 rounded-pill" style="font-size: 0.72rem;">
-                                <i class="fas fa-shield-halved me-1"></i> Active
+                            <span>{{ !empty($user->must_change_password) ? 'Welcome! Set Your Password' : 'Account Security' }}</span>
+                            <span class="badge {{ !empty($user->must_change_password) ? 'bg-warning-subtle text-warning-emphasis border border-warning-subtle' : 'bg-success-subtle text-success border border-success-subtle' }} py-1 px-2.5 rounded-pill" style="font-size: 0.72rem;">
+                                <i class="fas {{ !empty($user->must_change_password) ? 'fa-triangle-exclamation' : 'fa-shield-halved' }} me-1"></i>
+                                {{ !empty($user->must_change_password) ? 'First Login Setup' : 'Active' }}
                             </span>
                         </h4>
                         <div class="text-muted small">
@@ -42,9 +63,11 @@
                         </div>
                     </div>
                 </div>
-                <a href="{{ route('overview') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
-                    <i class="fas fa-arrow-left me-1"></i> Back to Overview
-                </a>
+                @if(empty($user->must_change_password))
+                    <a href="{{ route('overview') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+                        <i class="fas fa-arrow-left me-1"></i> Back to Overview
+                    </a>
+                @endif
             </div>
         </div>
     </div>
@@ -56,9 +79,11 @@
                 <div class="card-header bg-transparent border-0 pt-4 px-4 pb-2">
                     <h5 class="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
                         <i class="fas fa-key text-warning"></i>
-                        <span>Change Password</span>
+                        <span>{{ !empty($user->must_change_password) ? 'Set New Personal Password' : 'Change Password' }}</span>
                     </h5>
-                    <p class="text-muted small mb-0">Update your account credentials to keep your profile secure.</p>
+                    <p class="text-muted small mb-0">
+                        {{ !empty($user->must_change_password) ? 'Enter your initial temporary password and choose a new personal secure password.' : 'Update your account credentials to keep your profile secure.' }}
+                    </p>
                 </div>
                 <div class="card-body p-4 pt-2">
 
@@ -144,13 +169,15 @@
 
                         <!-- Submit Buttons -->
                         <div class="d-flex align-items-center gap-2 pt-2">
-                            <button type="submit" class="btn btn-success fw-semibold px-4 py-2 shadow-sm rounded-pill d-inline-flex align-items-center gap-2">
-                                <i class="fas fa-floppy-disk"></i>
-                                <span>Save New Password</span>
+                            <button type="submit" class="btn btn-success fw-semibold px-4 py-2.5 shadow-sm rounded-pill d-inline-flex align-items-center gap-2">
+                                <i class="fas {{ !empty($user->must_change_password) ? 'fa-circle-check' : 'fa-floppy-disk' }}"></i>
+                                <span>{{ !empty($user->must_change_password) ? 'Save New Password & Enter Portal' : 'Save New Password' }}</span>
                             </button>
-                            <a href="{{ route('overview') }}" class="btn btn-light border fw-semibold px-3 py-2 rounded-pill">
-                                Cancel
-                            </a>
+                            @if(empty($user->must_change_password))
+                                <a href="{{ route('overview') }}" class="btn btn-light border fw-semibold px-3 py-2 rounded-pill">
+                                    Cancel
+                                </a>
+                            @endif
                         </div>
 
                     </form>

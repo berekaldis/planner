@@ -23,6 +23,8 @@ class User extends Authenticatable
         'telegram_chat_id',
         'telegram_username',
         'is_active',
+        'must_change_password',
+        'password_changed_at',
     ];
 
     protected $hidden = [
@@ -54,9 +56,16 @@ class User extends Authenticatable
     {
         return [
             'is_active' => 'boolean',
+            'must_change_password' => 'boolean',
+            'password_changed_at' => 'datetime',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
+    }
+
+    public function requiresPasswordChange(): bool
+    {
+        return (bool)($this->must_change_password ?? false);
     }
 
     public function getNameAttribute(): string

@@ -571,6 +571,16 @@
             }
         }
 
+        @if(auth()->check() && !empty(auth()->user()->must_change_password))
+        /* Lock down sidebar navigation during required first-login password change */
+        .app-sidebar .sidebar-nav {
+            pointer-events: none;
+            opacity: 0.35;
+            filter: grayscale(0.5);
+            user-select: none;
+        }
+        @endif
+
         /* ══════════════════════════════════════════════════════════
            INSET CONTAINER & APP CONTENT (MATCHING COMPANYSYSTEM)
            ══════════════════════════════════════════════════════════ */

@@ -133,13 +133,15 @@ class AdminController extends Controller
         $rawPassword = !empty($validated['password']) ? $validated['password'] : 'kaldis123';
         $validated['password_hash'] = Hash::make($rawPassword);
         $validated['is_active'] = ($validated['status'] === 'ACTIVE') ? 1 : 0;
+        $validated['must_change_password'] = 1;
+        $validated['password_changed_at'] = null;
         unset($validated['password'], $validated['status']);
 
         $user = User::create($validated);
 
-        AuditLog::log('CREATE_USER', 'admin', "Created user account {$user->username}", $user->id);
+        AuditLog::log('CREATE_USER', 'admin', "Created user account {$user->username} (must change password on first login)", $user->id);
 
-        return back()->with('success', "User account {$user->username} created successfully (Default password: kaldis123).");
+        return back()->with('success', "User account {$user->username} created successfully (Initial password: {$rawPassword}). User will be required to change password on first login.");
     }
 
     public function updateUser(Request $request, $id)

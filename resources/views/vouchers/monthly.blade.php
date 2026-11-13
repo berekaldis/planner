@@ -252,13 +252,11 @@
                     <table class="voucher-table">
                         <thead>
                             <tr>
-                                <th style="width: 40px;" class="text-center">#</th>
-                                <th style="width: 140px;">Strategic Goal</th>
+                                <th style="width: 45px;" class="text-center">#</th>
+                                <th style="width: 180px;">Strategic Goal</th>
                                 <th>Monthly Plan Title</th>
                                 <th>Target Output</th>
                                 <th>Definition of Done (DOD)</th>
-                                <th style="width: 80px;" class="text-center">Priority</th>
-                                <th style="width: 120px;">Responsible</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -276,12 +274,6 @@
                                     <td class="fw-bold text-dark">{{ $sp->title }}</td>
                                     <td class="text-primary fw-semibold">{{ $sp->monthly_target }}</td>
                                     <td class="text-muted small">{{ $sp->definition_of_done }}</td>
-                                    <td class="text-center">
-                                        <span class="badge {{ $sp->priority === 'HIGH' ? 'bg-danger' : ($sp->priority === 'LOW' ? 'bg-secondary' : 'bg-warning text-dark') }} small">
-                                            {{ $sp->priority }}
-                                        </span>
-                                    </td>
-                                    <td class="small">{{ $sp->responsible_person ?: 'Department Team' }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -308,13 +300,10 @@
                     <table class="voucher-table">
                         <thead>
                             <tr>
-                                <th style="width: 40px;" class="text-center">#</th>
+                                <th style="width: 45px;" class="text-center">#</th>
                                 <th>Operational Routine Title</th>
                                 <th>Monthly Target / Frequency</th>
                                 <th>Definition of Done (DOD)</th>
-                                <th style="width: 80px;" class="text-center">Target %</th>
-                                <th style="width: 80px;" class="text-center">Priority</th>
-                                <th style="width: 120px;">Responsible</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -324,13 +313,6 @@
                                     <td class="fw-bold text-dark">{{ $op->title }}</td>
                                     <td class="text-info fw-semibold">{{ $op->monthly_target }}</td>
                                     <td class="text-muted small">{{ $op->definition_of_done }}</td>
-                                    <td class="text-center font-monospace">{{ $op->target_percentage }}%</td>
-                                    <td class="text-center">
-                                        <span class="badge {{ $op->priority === 'HIGH' ? 'bg-danger' : ($op->priority === 'LOW' ? 'bg-secondary' : 'bg-warning text-dark') }} small">
-                                            {{ $op->priority }}
-                                        </span>
-                                    </td>
-                                    <td class="small">{{ $op->responsible_person ?: 'Operational Staff' }}</td>
                                 </tr>
                             @endforeach
                         </tbody>

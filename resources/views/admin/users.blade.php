@@ -92,6 +92,13 @@
                                     @endif
                                 </form>
                             @endif
+                            @if(!empty($u->must_change_password))
+                                <div>
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle mt-1 small" style="font-size: 0.68rem;" title="User is required to change password on first login">
+                                        <i class="fas fa-key me-1"></i> First Login Required
+                                    </span>
+                                </div>
+                            @endif
                         </td>
                         <td class="small text-muted">
                             {{ $u->last_login_at ? $u->last_login_at->diffForHumans() : 'Never' }}

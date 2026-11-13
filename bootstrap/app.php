@@ -28,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
             \App\Http\Middleware\AutoScheduleRunner::class,
+            \App\Http\Middleware\EnsurePasswordIsChanged::class,
         ]);
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
