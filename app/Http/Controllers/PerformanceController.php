@@ -126,6 +126,7 @@ class PerformanceController extends Controller
         $validated = $request->validate([
             'weekly_task_id' => 'required|exists:weekly_tasks,id',
             'status' => 'required',
+            'comment' => 'nullable|string',
             'actual_output' => 'nullable|string',
             'reason_category_id' => 'nullable',
             'not_done_reason_id' => 'nullable',
@@ -157,6 +158,7 @@ class PerformanceController extends Controller
         $reasonId = $validated['not_done_reason_id'] ?? ($validated['reason_category_id'] ?? null);
         $explanation = $validated['not_done_explanation'] ?? ($validated['reason_explanation'] ?? null);
         $deadline = $validated['expected_completion_date'] ?? ($validated['next_action_deadline'] ?? null);
+        $comment = $validated['comment'] ?? ($validated['actual_output'] ?? null);
 
         $result = WeeklyTaskResult::updateOrCreate(
             ['weekly_task_id' => $task->id],
@@ -168,6 +170,7 @@ class PerformanceController extends Controller
                 'result' => $status,
                 'completed_at' => now(),
                 'completed_by' => $user->id,
+                'comment' => $status === 'DONE' ? $comment : null,
                 'not_done_reason_id' => $status === 'NOT_DONE' ? $reasonId : null,
                 'not_done_explanation' => $status === 'NOT_DONE' ? $explanation : null,
                 'next_action' => $status === 'NOT_DONE' ? ($validated['next_action'] ?? null) : null,
@@ -178,7 +181,7 @@ class PerformanceController extends Controller
         AuditLog::log(
             'EVALUATE_TASK',
             'performance',
-            "Task '{$task->task_title}' evaluated as {$status}",
+            "Task '{$task->task_title}' evaluated as {$status}" . (!empty($comment) ? " (Comment: {$comment})" : ""),
             $task->id
         );
 

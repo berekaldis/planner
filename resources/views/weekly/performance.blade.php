@@ -281,6 +281,11 @@
                                 <span class="small text-success fw-medium">
                                     <i class="fas fa-check-circle me-1"></i> Output Achieved
                                 </span>
+                                @if(!empty($task->result->comment))
+                                    <div class="small text-secondary mt-1" style="font-size: 0.8rem; white-space: pre-wrap;">
+                                        <i class="far fa-comment-dots text-muted me-1"></i>{{ $task->result->comment }}
+                                    </div>
+                                @endif
                             @elseif($task->result && $task->result->isNotDone())
                                 <div class="small">
                                     <div class="text-danger fw-semibold">Reason: <span class="text-secondary fw-normal">{{ $task->result->not_done_explanation }}</span></div>
@@ -306,14 +311,13 @@
                                     </span>
                                 @else
                                     <div class="btn-group btn-group-sm">
-                                        <form method="POST" action="{{ route('weekly.performance.evaluate') }}" class="d-inline" onsubmit="return confirm('Confirm marking task as DONE? Evaluation is permanent.');">
-                                            @csrf
-                                            <input type="hidden" name="weekly_task_id" value="{{ $task->id }}">
-                                            <input type="hidden" name="status" value="DONE">
-                                            <button type="submit" class="btn btn-outline-success btn-sm py-1 px-2" title="Mark Done">
-                                                <i class="fas fa-check me-0.5"></i> Done
-                                            </button>
-                                        </form>
+                                        <button type="button" class="btn btn-outline-success btn-sm py-1 px-2" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#doneModal"
+                                                onclick="setupDoneModal({{ $task->id }}, '{{ addslashes($task->task_title) }}')"
+                                                title="Mark Done">
+                                            <i class="fas fa-check me-0.5"></i> Done
+                                        </button>
                                         <button type="button" class="btn btn-outline-danger btn-sm py-1 px-2" 
                                                 data-bs-toggle="modal" 
                                                 data-bs-target="#notDoneModal"
@@ -558,6 +562,47 @@
     </div>
 </div>
 
+<!-- Modal: Done Evaluation -->
+<div class="modal fade" id="doneModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" action="{{ route('weekly.performance.evaluate') }}">
+                @csrf
+                <input type="hidden" name="weekly_task_id" id="doneTaskId">
+                <input type="hidden" name="status" value="DONE">
+
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold text-dark fs-6"><i class="fas fa-check-circle text-success me-2"></i> Record DONE Status</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-success-subtle border border-success-subtle text-success-emphasis py-2 px-3 small mb-3">
+                        <i class="fas fa-lock me-1"></i> <strong>Permanent Decision:</strong> In accordance with company governance, binary task performance evaluations are permanent. Once recorded as DONE, this evaluation cannot be modified.
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">Task Title</label>
+                        <div id="doneTaskTitle" class="fw-bold text-dark"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label small fw-bold text-secondary mb-0">Comment / Output Note</label>
+                            <span class="badge bg-secondary-subtle text-secondary fw-normal">Optional</span>
+                        </div>
+                        <textarea name="comment" class="form-control" rows="3" placeholder="Add optional comments, outputs achieved, or execution remarks..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-success fw-semibold">
+                        <i class="fas fa-check me-1"></i> Save DONE Record
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Modal: Not Done Evaluation -->
 <div class="modal fade" id="notDoneModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
@@ -700,6 +745,16 @@
 
 @section('scripts')
 <script>
+    function setupDoneModal(taskId, title) {
+        document.getElementById('doneTaskId').value = taskId;
+        document.getElementById('doneTaskTitle').textContent = title;
+        const form = document.querySelector('#doneModal form');
+        if (form) {
+            const comment = form.querySelector('textarea[name="comment"]');
+            if (comment) comment.value = '';
+        }
+    }
+
     function setupNotDoneModal(taskId, title) {
         document.getElementById('notDoneTaskId').value = taskId;
         document.getElementById('notDoneTaskTitle').textContent = title;

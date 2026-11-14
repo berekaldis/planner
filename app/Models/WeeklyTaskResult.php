@@ -17,6 +17,7 @@ class WeeklyTaskResult extends Model
         'result',
         'completed_at',
         'completed_by',
+        'comment',
         'not_done_reason_id',
         'not_done_explanation',
         'next_action',

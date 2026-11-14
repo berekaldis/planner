@@ -339,6 +339,8 @@
                                                     @endif
                                                 </small>
                                             @endif
+                                        @elseif($res === 'DONE' && $task->result && !empty($task->result->comment))
+                                            <div class="text-secondary small" style="white-space: pre-line;">{{ $task->result->comment }}</div>
                                         @else
                                             <span class="text-muted small">&mdash;</span>
                                         @endif
