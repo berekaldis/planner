@@ -207,78 +207,16 @@ class DashboardController extends Controller
 
         $pendingTasks = max(0, $totalTasks - ($doneTasks + $notDoneTasks));
 
-        // Submissions statistics
-        $submissions = Submission::where('year', $selectedYear)
-            ->where('month', $selectedMonth)
-            ->get();
-
-        $onTimeSubmissions = $submissions->where('status', 'ON_TIME')->count();
-        $lateSubmissions = $submissions->where('status', 'LATE')->count();
-        $delayApprovedSubmissions = $submissions->filter(fn($s) => $s->status === 'DELAY_APPROVED' || $s->delay_status === 'APPROVED')->count();
-        $missingSubmissions = $submissions->filter(fn($s) => $s->status === 'MISSING' && $s->delay_status !== 'APPROVED')->count();
-        $submittedDeptIds = $submissions->filter(fn($s) => in_array($s->status, ['ON_TIME', 'LATE', 'DELAY_APPROVED']) || $s->delay_status === 'APPROVED')->pluck('department_id')->unique()->toArray();
-        $waitingSubmissions = max(0, $totalDepartments - count($submittedDeptIds));
-
-        // Root cause breakdown
-        $rootCauses = DB::table('reason_categories as rc')
-            ->leftJoin('weekly_task_results as wtr', function ($join) use ($selectedYear, $selectedMonth) {
-                $join->on('rc.id', '=', 'wtr.not_done_reason_id')
-                    ->where('wtr.result', '=', 'NOT_DONE');
-            })
-            ->leftJoin('weekly_tasks as wt', 'wtr.weekly_task_id', '=', 'wt.id')
-            ->where(function ($q) use ($selectedYear, $selectedMonth) {
-                $q->whereNull('wt.id')
-                  ->orWhere(function ($sub) use ($selectedYear, $selectedMonth) {
-                      $sub->where('wt.year', $selectedYear)->where('wt.month', $selectedMonth);
-                  });
-            })
-            ->select('rc.name as category_name', DB::raw('COUNT(wtr.id) as count'))
-            ->groupBy('rc.id', 'rc.name')
-            ->orderByDesc('count')
-            ->get();
-
-        // Department performance breakdown - optimized single aggregate query
-        $departments = Department::where('active', 1)->orderBy('department_name')->get();
-        $deptAggregates = DB::table('weekly_tasks as wt')
-            ->leftJoin('weekly_task_results as wtr', 'wt.id', '=', 'wtr.weekly_task_id')
-            ->where('wt.year', $selectedYear)
-            ->where('wt.month', $selectedMonth)
-            ->select(
-                'wt.department_id',
-                DB::raw('COUNT(wt.id) as total'),
-                DB::raw("SUM(CASE WHEN wtr.result = 'DONE' THEN 1 ELSE 0 END) as done"),
-                DB::raw("SUM(CASE WHEN wtr.result = 'NOT_DONE' THEN 1 ELSE 0 END) as not_done")
-            )
-            ->groupBy('wt.department_id')
-            ->get()
-            ->keyBy('department_id');
-
-        $departmentPerformances = [];
-        foreach ($departments as $dept) {
-            $agg = $deptAggregates->get($dept->id);
-            $dTotal = (int)($agg->total ?? 0);
-            $dDone = (int)($agg->done ?? 0);
-            $dNotDone = (int)($agg->not_done ?? 0);
-            $rate = $dTotal > 0 ? round(($dDone / $dTotal) * 100, 1) : 0;
-
-            $departmentPerformances[] = [
-                'department' => $dept,
-                'total' => $dTotal,
-                'done' => $dDone,
-                'not_done' => $dNotDone,
-                'rate' => $rate,
-            ];
-        }
-
         $selectedWeek = (int)$request->query('week', (function_exists('get_current_planning_week') ? get_current_planning_week() : 1) ?: 1);
 
-        // Monthly submissions by department
+        $departments = Department::where('active', 1)->orderBy('department_name')->get();
+
+        // Monthly submissions & formulated plans by department
         $monthlySubmissions = \App\Models\MonthlySubmission::where('year', $selectedYear)
             ->where('month', $selectedMonth)
             ->get()
             ->keyBy('department_id');
 
-        // All monthly plans across departments
         $allMonthlyPlans = MonthlyPlan::with(['department', 'annualGoal'])
             ->where('year', $selectedYear)
             ->where('month', $selectedMonth)
@@ -288,7 +226,53 @@ class DashboardController extends Controller
 
         $monthlyPlansByDept = $allMonthlyPlans->groupBy('department_id');
 
-        // Weekly submissions & reports for selected week
+        // Calculate Monthly Plans compliance across all departments
+        $monthlyOnTimeCount = 0;
+        $monthlyLateCount = 0;
+        $monthlyDelayApprovedCount = 0;
+        $monthlySubmittedCount = 0;
+        $monthlyNotSubmittedCount = 0;
+
+        foreach ($departments as $dept) {
+            $mSub = $monthlySubmissions->get($dept->id);
+            $deptPlans = $monthlyPlansByDept->get($dept->id, collect());
+            
+            $isMDelayApproved = $mSub && ($mSub->isDelayApproved() || $mSub->status === 'DELAY_APPROVED');
+            $isSubmitted = false;
+            $mStatus = 'NOT_SUBMITTED';
+
+            if ($isMDelayApproved) {
+                $mStatus = 'DELAY_APPROVED';
+                $isSubmitted = true;
+            } elseif ($mSub && $mSub->submitted_at) {
+                $mStatus = $mSub->status ?: 'ON_TIME';
+                $isSubmitted = true;
+            } elseif ($mSub && in_array($mSub->status, ['ON_TIME', 'LATE', 'SUBMITTED', 'APPROVED'])) {
+                $mStatus = $mSub->status === 'SUBMITTED' ? 'ON_TIME' : $mSub->status;
+                $isSubmitted = true;
+            } elseif ($deptPlans->count() > 0) {
+                $deadlineInfo = function_exists('get_monthly_plan_deadline_info')
+                    ? get_monthly_plan_deadline_info($selectedMonth, $selectedYear)
+                    : ['status' => 'ON_TIME'];
+                $mStatus = $deadlineInfo['status'] ?? 'ON_TIME';
+                $isSubmitted = true;
+            }
+
+            if ($isSubmitted) {
+                $monthlySubmittedCount++;
+                if ($mStatus === 'DELAY_APPROVED') {
+                    $monthlyDelayApprovedCount++;
+                } elseif ($mStatus === 'LATE') {
+                    $monthlyLateCount++;
+                } else {
+                    $monthlyOnTimeCount++;
+                }
+            } else {
+                $monthlyNotSubmittedCount++;
+            }
+        }
+
+        // Weekly submissions, reports & plans for selected week
         $weeklySubmissions = Submission::with('submitter')
             ->where('year', $selectedYear)
             ->where('month', $selectedMonth)
@@ -308,6 +292,103 @@ class DashboardController extends Controller
             ->where('week_number', $selectedWeek)
             ->get()
             ->keyBy('department_id');
+
+        // Department performance breakdown - optimized single aggregate query
+        $deptAggregates = DB::table('weekly_tasks as wt')
+            ->leftJoin('weekly_task_results as wtr', 'wt.id', '=', 'wtr.weekly_task_id')
+            ->where('wt.year', $selectedYear)
+            ->where('wt.month', $selectedMonth)
+            ->where('wt.week_number', $selectedWeek)
+            ->select(
+                'wt.department_id',
+                DB::raw('COUNT(wt.id) as total'),
+                DB::raw("SUM(CASE WHEN wtr.result = 'DONE' THEN 1 ELSE 0 END) as done"),
+                DB::raw("SUM(CASE WHEN wtr.result = 'NOT_DONE' THEN 1 ELSE 0 END) as not_done")
+            )
+            ->groupBy('wt.department_id')
+            ->get()
+            ->keyBy('department_id');
+
+        $departmentPerformances = [];
+        $onTimeSubmissions = 0;
+        $lateSubmissions = 0;
+        $delayApprovedSubmissions = 0;
+        $missingSubmissions = 0;
+        $waitingSubmissions = 0;
+
+        foreach ($departments as $dept) {
+            $agg = $deptAggregates->get($dept->id);
+            $dTotal = (int)($agg->total ?? 0);
+            $dDone = (int)($agg->done ?? 0);
+            $dNotDone = (int)($agg->not_done ?? 0);
+            $rate = $dTotal > 0 ? round(($dDone / $dTotal) * 100, 1) : 0;
+
+            $departmentPerformances[] = [
+                'department' => $dept,
+                'total' => $dTotal,
+                'done' => $dDone,
+                'not_done' => $dNotDone,
+                'rate' => $rate,
+            ];
+
+            // Evaluate Weekly Submission timing (Plan / Report / Submission record)
+            $wSub = $weeklySubmissions->get($dept->id);
+            $wRep = $weeklyReports->get($dept->id);
+            $wPlan = $weeklyPlans->get($dept->id);
+
+            $isDelayApproved = ($wSub && $wSub->isDelayApproved()) 
+                || ($wRep && $wRep->isDelayApproved()) 
+                || ($wPlan && ($wPlan->isDelayApproved() || $wPlan->submission_status === 'DELAY_APPROVED'))
+                || ($wSub && $wSub->status === 'DELAY_APPROVED');
+
+            if ($isDelayApproved) {
+                $delayApprovedSubmissions++;
+            } elseif ($wSub && $wSub->submitted_at) {
+                if ($wSub->status === 'LATE') {
+                    $lateSubmissions++;
+                } else {
+                    $onTimeSubmissions++;
+                }
+            } elseif ($wRep && $wRep->submitted_at) {
+                if ($wRep->submission_status === 'LATE') {
+                    $lateSubmissions++;
+                } else {
+                    $onTimeSubmissions++;
+                }
+            } elseif ($wPlan && ($wPlan->status === 'SUBMITTED' || !empty($wPlan->submitted_at))) {
+                if ($wPlan->submission_status === 'LATE') {
+                    $lateSubmissions++;
+                } else {
+                    $onTimeSubmissions++;
+                }
+            } elseif ($wSub && $wSub->status === 'MISSING') {
+                $missingSubmissions++;
+            } elseif ($dTotal > 0) {
+                $onTimeSubmissions++;
+            } else {
+                $waitingSubmissions++;
+            }
+        }
+
+        // Root cause breakdown
+        $rootCauses = DB::table('reason_categories as rc')
+            ->leftJoin('weekly_task_results as wtr', function ($join) use ($selectedYear, $selectedMonth) {
+                $join->on('rc.id', '=', 'wtr.not_done_reason_id')
+                    ->where('wtr.result', '=', 'NOT_DONE');
+            })
+            ->leftJoin('weekly_tasks as wt', 'wtr.weekly_task_id', '=', 'wt.id')
+            ->where(function ($q) use ($selectedYear, $selectedMonth, $selectedWeek) {
+                $q->whereNull('wt.id')
+                  ->orWhere(function ($sub) use ($selectedYear, $selectedMonth, $selectedWeek) {
+                      $sub->where('wt.year', $selectedYear)
+                          ->where('wt.month', $selectedMonth)
+                          ->where('wt.week_number', $selectedWeek);
+                  });
+            })
+            ->select('rc.name as category_name', DB::raw('COUNT(wtr.id) as count'))
+            ->groupBy('rc.id', 'rc.name')
+            ->orderByDesc('count')
+            ->get();
 
         $pendingMonthlyDelays = MonthlySubmission::where('year', $selectedYear)
             ->where('month', $selectedMonth)
@@ -344,6 +425,11 @@ class DashboardController extends Controller
             'totalStrategies',
             'activeStrategiesCount',
             'totalMonthlyPlans',
+            'monthlySubmittedCount',
+            'monthlyOnTimeCount',
+            'monthlyLateCount',
+            'monthlyDelayApprovedCount',
+            'monthlyNotSubmittedCount',
             'totalTasks',
             'doneTasks',
             'notDoneTasks',

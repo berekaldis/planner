@@ -244,10 +244,16 @@ class WeeklyPlanController extends Controller
             ->where('week_number', $validated['week_number'])
             ->first();
 
+        // Calculate deadline compliance for weekly plan
+        $deadlineInfo = function_exists('get_weekly_cycle_deadline')
+            ? get_weekly_cycle_deadline($validated['year'], $validated['month'], max(1, (int)$validated['week_number'] - 1))
+            : ['compliance' => 'ON_TIME', 'deadline_carbon' => null];
+        $compliance = $deadlineInfo['compliance'] ?? 'ON_TIME';
+
         $planPayload = [
             'status' => 'SUBMITTED',
             'submitted_at' => now(),
-            'submission_status' => 'ON_TIME',
+            'submission_status' => $compliance,
             'created_by' => $user->id,
         ];
 
@@ -275,6 +281,27 @@ class WeeklyPlanController extends Controller
             'month' => $validated['month'],
             'week_number' => $validated['week_number'],
         ], $planPayload);
+
+        // Also record/sync to submissions table so GM executive oversight tracks the submission
+        $subStatus = ($planPayload['submission_status'] === 'DELAY_APPROVED') ? 'DELAY_APPROVED' : $compliance;
+        Submission::updateOrCreate(
+            [
+                'department_id' => $validated['department_id'],
+                'year' => $validated['year'],
+                'month' => $validated['month'],
+                'week_number' => $validated['week_number'],
+            ],
+            [
+                'deadline_at' => $deadlineInfo['deadline_carbon'] ?? null,
+                'submitted_at' => now(),
+                'status' => $subStatus,
+                'submission_channel' => 'WEB',
+                'submitted_by' => $user->id,
+                'remarks' => $validated['notes'] ?? "Submitted plan for Week {$validated['week_number']} ({$tasks->count()} tasks scheduled).",
+                'delay_reason' => $validated['delay_reason'] ?? null,
+                'delay_status' => !empty($validated['delay_reason']) ? ($planPayload['delay_status'] ?? 'PENDING') : null,
+            ]
+        );
 
         AuditLog::log(
             'SUBMIT_WEEKLY_PLAN',

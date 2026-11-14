@@ -98,8 +98,22 @@
             <div class="d-flex justify-content-between align-items-start">
                 <div>
                     <span class="text-muted small fw-semibold text-uppercase">Monthly Plans</span>
-                    <h3 class="fw-bold my-1 text-dark">{{ $totalMonthlyPlans }}</h3>
-                    <div class="small text-muted">Across {{ $totalDepartments }} Departments</div>
+                    <h3 class="fw-bold my-1 text-dark">
+                        {{ $monthlySubmittedCount ?? 0 }} <span class="text-muted fs-6 fw-normal">/ {{ $totalDepartments }} Submitted</span>
+                    </h3>
+                    <div class="small text-muted d-flex flex-wrap gap-1 align-items-center">
+                        <span class="text-success fw-semibold"><i class="fas fa-check-circle me-0.5"></i>{{ $monthlyOnTimeCount ?? 0 }} On Time</span>
+                        @if(($monthlyLateCount ?? 0) > 0)
+                            &bull; <span class="text-warning fw-semibold"><i class="fas fa-clock me-0.5"></i>{{ $monthlyLateCount }} Late</span>
+                        @endif
+                        @if(($monthlyDelayApprovedCount ?? 0) > 0)
+                            &bull; <span class="text-primary fw-semibold"><i class="fas fa-shield-alt me-0.5"></i>{{ $monthlyDelayApprovedCount }} Excused</span>
+                        @endif
+                        &bull; <span class="text-danger fw-semibold"><i class="fas fa-times-circle me-0.5"></i>{{ $monthlyNotSubmittedCount ?? 0 }} Not Submitted</span>
+                    </div>
+                    <div class="text-muted mt-1" style="font-size: 0.72rem;">
+                        {{ $totalMonthlyPlans }} total plans formulated
+                    </div>
                 </div>
                 <div class="p-2.5 bg-warning-subtle rounded-3 text-warning">
                     <i class="fas fa-calendar-alt fs-5"></i>
@@ -130,14 +144,17 @@
         <div class="card h-100 p-3">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
-                    <span class="text-muted small fw-semibold text-uppercase">Submissions</span>
-                    <h3 class="fw-bold my-1 text-dark">{{ $onTimeSubmissions + $lateSubmissions + ($delayApprovedSubmissions ?? 0) }} <span class="text-muted fs-6 fw-normal">/ {{ $totalDepartments }}</span></h3>
-                    <div class="small text-muted">
-                        <span class="text-success fw-semibold">{{ $onTimeSubmissions }} On Time</span> &bull; 
-                        @if(($delayApprovedSubmissions ?? 0) > 0)
-                            <span class="text-primary fw-semibold">{{ $delayApprovedSubmissions }} Excused</span> &bull; 
+                    <span class="text-muted small fw-semibold text-uppercase">Week {{ $selectedWeek }} Submissions</span>
+                    <h3 class="fw-bold my-1 text-dark">{{ $onTimeSubmissions + $lateSubmissions + ($delayApprovedSubmissions ?? 0) }} <span class="text-muted fs-6 fw-normal">/ {{ $totalDepartments }} Submitted</span></h3>
+                    <div class="small text-muted d-flex flex-wrap gap-1 align-items-center">
+                        <span class="text-success fw-semibold"><i class="fas fa-check-circle me-0.5"></i>{{ $onTimeSubmissions }} On Time</span>
+                        @if($lateSubmissions > 0)
+                            &bull; <span class="text-warning fw-semibold"><i class="fas fa-clock me-0.5"></i>{{ $lateSubmissions }} Late</span>
                         @endif
-                        <span class="text-warning fw-semibold">{{ $waitingSubmissions }} Pending</span>
+                        @if(($delayApprovedSubmissions ?? 0) > 0)
+                            &bull; <span class="text-primary fw-semibold"><i class="fas fa-shield-alt me-0.5"></i>{{ $delayApprovedSubmissions }} Excused</span>
+                        @endif
+                        &bull; <span class="text-danger fw-semibold"><i class="fas fa-times-circle me-0.5"></i>{{ $waitingSubmissions + $missingSubmissions }} Not Submitted</span>
                     </div>
                 </div>
                 <div class="p-2.5 bg-info-subtle rounded-3 text-info">
@@ -254,19 +271,36 @@
                                     $dept = $dp['department'];
                                     $wSub = $weeklySubmissions[$dept->id] ?? null;
                                     $wRep = $weeklyReports[$dept->id] ?? null;
+                                    $wPlan = $weeklyPlans[$dept->id] ?? null;
                                     
-                                    $isDelayApproved = ($wSub && $wSub->isDelayApproved()) || ($wRep && $wRep->isDelayApproved()) || ($wSub && $wSub->status === 'DELAY_APPROVED');
-                                    $isDelayPending = ($wSub && $wSub->isDelayPending()) || ($wRep && $wRep->isDelayPending());
-                                    $delayReason = $wSub->delay_reason ?? ($wRep->delay_reason ?? null);
-                                    $delayGmNotes = $wSub->delay_gm_notes ?? ($wRep->delay_gm_notes ?? null);
+                                    $isPlanSubmitted = $wPlan && ($wPlan->status === 'SUBMITTED' || !empty($wPlan->submitted_at));
+
+                                    $isDelayApproved = ($wSub && $wSub->isDelayApproved()) 
+                                        || ($wRep && $wRep->isDelayApproved()) 
+                                        || ($wPlan && ($wPlan->isDelayApproved() || $wPlan->submission_status === 'DELAY_APPROVED'))
+                                        || ($wSub && $wSub->status === 'DELAY_APPROVED');
+                                    $isDelayPending = ($wSub && $wSub->isDelayPending()) 
+                                        || ($wRep && $wRep->isDelayPending()) 
+                                        || ($wPlan && $wPlan->delay_status === 'PENDING');
+                                    $delayReason = $wSub->delay_reason ?? ($wRep->delay_reason ?? ($wPlan->delay_reason ?? null));
+                                    $delayGmNotes = $wSub->delay_gm_notes ?? ($wRep->delay_gm_notes ?? ($wPlan->delay_gm_notes ?? null));
 
                                     $status = 'NOT_SUBMITTED';
+                                    $submissionTime = null;
                                     if ($isDelayApproved) {
                                         $status = 'DELAY_APPROVED';
+                                        $submissionTime = $wSub->submitted_at ?? ($wPlan->submitted_at ?? ($wRep->submitted_at ?? null));
                                     } elseif ($wSub && $wSub->submitted_at) {
                                         $status = $wSub->status ?: 'ON_TIME';
+                                        $submissionTime = $wSub->submitted_at;
                                     } elseif ($wRep && $wRep->submitted_at) {
                                         $status = $wRep->submission_status ?: 'ON_TIME';
+                                        $submissionTime = $wRep->submitted_at;
+                                    } elseif ($isPlanSubmitted) {
+                                        $status = $wPlan->submission_status ?: 'ON_TIME';
+                                        $submissionTime = $wPlan->submitted_at ?? $wPlan->updated_at;
+                                    } elseif ($dp['total'] > 0) {
+                                        $status = 'ON_TIME';
                                     }
 
                                     $approval = $wRep->approval_status ?? ($wSub->approval_status ?? 'PENDING');
@@ -293,13 +327,13 @@
                                             <small class="d-block text-warning fw-semibold" style="font-size: 0.7rem;">Needs GM Review</small>
                                         @elseif($status === 'ON_TIME')
                                             <span class="badge bg-success px-2.5 py-1.5"><i class="fas fa-check-circle me-1"></i> ON-TIME</span>
-                                            @if($wSub && $wSub->submitted_at)
-                                                <small class="d-block text-muted" style="font-size: 0.7rem;">{{ $wSub->submitted_at->format('M d, H:i') }}</small>
+                                            @if($submissionTime)
+                                                <small class="d-block text-muted" style="font-size: 0.7rem;">{{ $submissionTime->format('M d, H:i') }}</small>
                                             @endif
                                         @elseif($status === 'LATE')
                                             <span class="badge bg-warning text-dark px-2.5 py-1.5"><i class="fas fa-clock me-1"></i> LATE</span>
-                                            @if($wSub && $wSub->submitted_at)
-                                                <small class="d-block text-muted" style="font-size: 0.7rem;">{{ $wSub->submitted_at->format('M d, H:i') }}</small>
+                                            @if($submissionTime)
+                                                <small class="d-block text-muted" style="font-size: 0.7rem;">{{ $submissionTime->format('M d, H:i') }}</small>
                                             @endif
                                         @else
                                             <span class="badge bg-danger px-2.5 py-1.5"><i class="fas fa-times-circle me-1"></i> NOT SUBMITTED</span>
@@ -545,12 +579,22 @@
                                     $mDelayGmNotes = $mSub->delay_gm_notes ?? null;
 
                                     $mStatus = 'NOT_SUBMITTED';
+                                    $mSubmissionTime = null;
                                     if ($isMDelayApproved) {
                                         $mStatus = 'DELAY_APPROVED';
+                                        $mSubmissionTime = $mSub->submitted_at ?? null;
                                     } elseif ($mSub && $mSub->submitted_at) {
                                         $mStatus = $mSub->status ?: 'ON_TIME';
+                                        $mSubmissionTime = $mSub->submitted_at;
+                                    } elseif ($mSub && in_array($mSub->status, ['ON_TIME', 'LATE', 'SUBMITTED', 'APPROVED'])) {
+                                        $mStatus = $mSub->status === 'SUBMITTED' ? 'ON_TIME' : $mSub->status;
+                                        $mSubmissionTime = $mSub->updated_at ?? null;
                                     } elseif ($deptPlans->count() > 0) {
-                                        $mStatus = 'ON_TIME';
+                                        $deadlineInfo = function_exists('get_monthly_plan_deadline_info')
+                                            ? get_monthly_plan_deadline_info($selectedMonth, $selectedYear)
+                                            : ['status' => 'ON_TIME'];
+                                        $mStatus = $deadlineInfo['status'] ?? 'ON_TIME';
+                                        $mSubmissionTime = $deptPlans->first()->created_at ?? null;
                                     }
 
                                     $mApproval = $mSub->approval_status ?? 'PENDING';
@@ -577,13 +621,13 @@
                                             <small class="d-block text-warning fw-semibold" style="font-size: 0.7rem;">Needs GM Review</small>
                                         @elseif($mStatus === 'ON_TIME')
                                             <span class="badge bg-success px-2.5 py-1.5"><i class="fas fa-check-circle me-1"></i> ON-TIME</span>
-                                            @if($mSub && $mSub->submitted_at)
-                                                <small class="d-block text-muted" style="font-size: 0.7rem;">{{ $mSub->submitted_at->format('M d, H:i') }}</small>
+                                            @if($mSubmissionTime)
+                                                <small class="d-block text-muted" style="font-size: 0.7rem;">{{ $mSubmissionTime->format('M d, H:i') }}</small>
                                             @endif
                                         @elseif($mStatus === 'LATE')
                                             <span class="badge bg-warning text-dark px-2.5 py-1.5"><i class="fas fa-clock me-1"></i> LATE</span>
-                                            @if($mSub && $mSub->submitted_at)
-                                                <small class="d-block text-muted" style="font-size: 0.7rem;">{{ $mSub->submitted_at->format('M d, H:i') }}</small>
+                                            @if($mSubmissionTime)
+                                                <small class="d-block text-muted" style="font-size: 0.7rem;">{{ $mSubmissionTime->format('M d, H:i') }}</small>
                                             @endif
                                         @else
                                             <span class="badge bg-danger px-2.5 py-1.5"><i class="fas fa-times-circle me-1"></i> NOT SUBMITTED</span>
