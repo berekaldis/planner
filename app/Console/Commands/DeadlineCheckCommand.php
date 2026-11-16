@@ -226,6 +226,13 @@ class DeadlineCheckCommand extends Command
                         }
                     }
 
+                    if (empty($chatId)) {
+                        $tu = DB::table('telegram_users')->where('department_id', $dept->id)->where('is_active', 1)->first();
+                        if ($tu && !empty($tu->telegram_user_id) && $tu->telegram_user_id !== '123456789') {
+                            $chatId = trim((string)$tu->telegram_user_id);
+                        }
+                    }
+
                     if ($telegram->isConfigured() && !empty($chatId)) {
                         $safeDeptName = htmlspecialchars($dept->department_name, ENT_QUOTES, 'UTF-8');
                         $safeHeadName = htmlspecialchars($head ? $head->full_name : 'Department Head', ENT_QUOTES, 'UTF-8');

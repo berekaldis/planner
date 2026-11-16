@@ -7,6 +7,8 @@
  * 2. HTTP: GET /Planner/api/cron.php?action=run&type=all[&key=kaldis_secret]
  */
 
+date_default_timezone_set('Africa/Addis_Ababa');
+
 // Allow CLI execution or HTTP execution with appropriate headers
 if (php_sapi_name() !== 'cli') {
     header('Content-Type: application/json; charset=utf-8');
@@ -66,102 +68,14 @@ $day = $et['day'] ?? (int)date('j');
 
 $results = [];
 
-// 3. Weekly Automation (Deadline: Monday 12:30 PM / 6:30 LT)
-if (($type === 'weekly' || $type === 'all') && (kaldis_setting('enable_weekly_reminders', 'true') === 'true' || $force)) {
-    $dayOfWeek = (int)date('N'); // 1 = Monday, 6 = Saturday, 7 = Sunday
-    $currentTime = date('H:i');
+// 3. Always run the intelligent catch-up dispatcher
+$dispatchParams = $force ? ['--force' => true] : [];
+\Illuminate\Support\Facades\Artisan::call('kaldis:dispatch-reminders', $dispatchParams);
+$results['dispatch_reminders'] = trim(\Illuminate\Support\Facades\Artisan::output());
 
-    // 1st Reminder: Saturday
-    if ($force || $dayOfWeek === 6) {
-        \Illuminate\Support\Facades\Artisan::call('kaldis:weekly-reminder', [
-            '--type' => 'all',
-            '--stage' => 'saturday',
-            '--year' => $year,
-            '--month' => $month,
-            '--week' => $week,
-        ]);
-        $results['weekly_reminder_saturday'] = trim(\Illuminate\Support\Facades\Artisan::output());
-    }
-
-    // 2nd Reminder: Sunday
-    if ($force || $dayOfWeek === 7) {
-        \Illuminate\Support\Facades\Artisan::call('kaldis:weekly-reminder', [
-            '--type' => 'all',
-            '--stage' => 'sunday',
-            '--year' => $year,
-            '--month' => $month,
-            '--week' => $week,
-        ]);
-        $results['weekly_reminder_sunday'] = trim(\Illuminate\Support\Facades\Artisan::output());
-    }
-
-    // 3rd Reminder: Monday Morning before 12:30 (6:30 LT)
-    if ($force || ($dayOfWeek === 1 && $currentTime < '12:30')) {
-        \Illuminate\Support\Facades\Artisan::call('kaldis:weekly-reminder', [
-            '--type' => 'all',
-            '--stage' => 'monday',
-            '--year' => $year,
-            '--month' => $month,
-            '--week' => $week,
-        ]);
-        $results['weekly_reminder_monday'] = trim(\Illuminate\Support\Facades\Artisan::output());
-    }
-
-    // Weekly deadline check if Monday after 12:30 (6:30 LT cutoff) or forced
-    // Evaluates On-Time, Late, and Missing reports; GM executive summary dispatches at or after 15:00 (9:00 LT)
-    if ($force || ($dayOfWeek === 1 && $currentTime >= '12:30')) {
-        $target = ($currentTime >= '15:00' || $force) ? 'all' : 'heads';
-        \Illuminate\Support\Facades\Artisan::call('kaldis:deadline-check', [
-            '--year' => $year,
-            '--month' => $month,
-            '--week' => $week,
-            '--target' => $target,
-            '--force' => $force,
-        ]);
-        $results['weekly_deadline_check'] = trim(\Illuminate\Support\Facades\Artisan::output());
-    }
-}
-
-// 4. Monthly Automation (Deadline: Day 26 at 17:00 / 11:00 LT)
-if (($type === 'monthly' || $type === 'all') && (kaldis_setting('enable_monthly_reminders', 'true') === 'true' || $force)) {
-    $rawDay = (int)kaldis_setting('monthly_plan_deadline_day', 26);
-    $deadlineDay = ($rawDay >= 20 && $rawDay <= 30) ? $rawDay : 26;
-    $currentTime = date('H:i');
-
-    // Day 25: 1st & 2nd Advance Reminders
-    if ($force || $day === ($deadlineDay - 1)) {
-        $stage = ($currentTime < '13:00' && !$force) ? 'day25_morning' : 'day25_afternoon';
-        \Illuminate\Support\Facades\Artisan::call('kaldis:monthly-reminder', [
-            '--type' => 'reminder',
-            '--stage' => $stage,
-            '--year' => $year,
-            '--month' => $month,
-        ]);
-        $results['monthly_reminder_day25'] = trim(\Illuminate\Support\Facades\Artisan::output());
-    }
-
-    // Day 26: 3rd Final Day Reminder (Morning & Afternoon 3-Hour Warning)
-    if ($force || ($day === $deadlineDay && $currentTime < '17:00')) {
-        $stage = ($currentTime < '12:00' && !$force) ? 'day26_morning' : 'day26_afternoon';
-        \Illuminate\Support\Facades\Artisan::call('kaldis:monthly-reminder', [
-            '--type' => 'reminder',
-            '--stage' => $stage,
-            '--year' => $year,
-            '--month' => $month,
-        ]);
-        $results['monthly_reminder_day26'] = trim(\Illuminate\Support\Facades\Artisan::output());
-    }
-
-    // Day 26 (after 17:00) or Day 27+: Cutoff check & GM Executive summary
-    if ($force || ($day === $deadlineDay && $currentTime >= '17:00') || $day > $deadlineDay) {
-        \Illuminate\Support\Facades\Artisan::call('kaldis:monthly-reminder', [
-            '--type' => 'cutoff',
-            '--year' => $year,
-            '--month' => $month,
-        ]);
-        $results['monthly_cutoff_check'] = trim(\Illuminate\Support\Facades\Artisan::output());
-    }
-}
+// 4. Run Laravel scheduler for any additional pending tasks
+\Illuminate\Support\Facades\Artisan::call('schedule:run');
+$results['schedule_run'] = trim(\Illuminate\Support\Facades\Artisan::output());
 
 $outputData = [
     'status' => 'success',

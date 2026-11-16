@@ -29,6 +29,7 @@ class AutoScheduleRunner
             // Run at most once every 60 seconds
             $lockKey = 'kaldis_auto_schedule_lock';
             if (Cache::add($lockKey, time(), 50)) {
+                Artisan::call('kaldis:dispatch-reminders');
                 Artisan::call('schedule:run');
             }
         } catch (\Throwable $e) {

@@ -24,12 +24,13 @@ class TelegramService
         if ($token !== null) {
             $this->botToken = trim($token);
         } else {
-            $envToken = trim((string)env('TELEGRAM_BOT_TOKEN', config('telegram.bot_token', '')));
             $dbToken = null;
             try {
                 $dbToken = SystemSetting::where('setting_key', 'telegram_bot_token')->value('setting_value');
                 $dbToken = !empty($dbToken) ? trim((string)$dbToken) : null;
             } catch (\Throwable $e) {}
+
+            $envToken = trim((string)env('TELEGRAM_BOT_TOKEN', config('telegram.bot_token', '')));
 
             $revokedTokens = [
                 '8370988256:AAE8aG5s2vzEy6PfSH2b-Fiufr_num0A_rY',
@@ -37,18 +38,15 @@ class TelegramService
                 'YOUR_TELEGRAM_BOT_TOKEN',
             ];
 
-            // If .env has a real configured token not in revoked list, prioritize it
-            if (!empty($envToken) && !in_array($envToken, $revokedTokens)) {
-                $this->botToken = $envToken;
-                if ($dbToken !== $envToken) {
-                    try {
-                        SystemSetting::set('telegram_bot_token', $envToken, 'TELEGRAM', 'Telegram Bot API Token (from @BotFather)');
-                    } catch (\Throwable $e) {}
-                }
-            } elseif (!empty($dbToken) && !in_array($dbToken, $revokedTokens)) {
+            // Priority 1: User-configured token in database settings
+            if (!empty($dbToken) && !in_array($dbToken, $revokedTokens)) {
                 $this->botToken = $dbToken;
+            }
+            // Priority 2: Token configured in .env / config
+            elseif (!empty($envToken) && !in_array($envToken, $revokedTokens)) {
+                $this->botToken = $envToken;
             } else {
-                $this->botToken = !empty($envToken) ? $envToken : ($dbToken ?? '');
+                $this->botToken = $dbToken ?: ($envToken ?: '');
             }
         }
 

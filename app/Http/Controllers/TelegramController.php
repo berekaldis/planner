@@ -335,19 +335,67 @@ class TelegramController extends Controller
 
         try {
             switch ($task) {
+                case 'dispatch':
+                    \Illuminate\Support\Facades\Artisan::call('kaldis:dispatch-reminders');
+                    $output['dispatch'] = trim(\Illuminate\Support\Facades\Artisan::output());
+                    break;
+
+                case 'dispatch_force':
+                    \Illuminate\Support\Facades\Artisan::call('kaldis:dispatch-reminders', ['--force' => true]);
+                    $output['dispatch_force'] = trim(\Illuminate\Support\Facades\Artisan::output());
+                    break;
+
                 case 'weekly_reminder':
-                    \Illuminate\Support\Facades\Artisan::call('kaldis:weekly-reminder');
+                case 'weekly_reminder_all':
+                    \Illuminate\Support\Facades\Artisan::call('kaldis:weekly-reminder', ['--type' => 'all']);
                     $output['weekly_reminder'] = trim(\Illuminate\Support\Facades\Artisan::output());
                     break;
 
+                case 'weekly_reminder_saturday':
+                    \Illuminate\Support\Facades\Artisan::call('kaldis:weekly-reminder', ['--type' => 'all', '--stage' => 'saturday']);
+                    $output['weekly_reminder_saturday'] = trim(\Illuminate\Support\Facades\Artisan::output());
+                    break;
+
+                case 'weekly_reminder_sunday':
+                    \Illuminate\Support\Facades\Artisan::call('kaldis:weekly-reminder', ['--type' => 'all', '--stage' => 'sunday']);
+                    $output['weekly_reminder_sunday'] = trim(\Illuminate\Support\Facades\Artisan::output());
+                    break;
+
+                case 'weekly_reminder_monday':
+                    \Illuminate\Support\Facades\Artisan::call('kaldis:weekly-reminder', ['--type' => 'all', '--stage' => 'monday']);
+                    $output['weekly_reminder_monday'] = trim(\Illuminate\Support\Facades\Artisan::output());
+                    break;
+
                 case 'deadline_check':
-                    \Illuminate\Support\Facades\Artisan::call('kaldis:deadline-check');
+                case 'deadline_check_heads':
+                    \Illuminate\Support\Facades\Artisan::call('kaldis:deadline-check', ['--target' => 'heads', '--force' => true]);
                     $output['deadline_check'] = trim(\Illuminate\Support\Facades\Artisan::output());
                     break;
 
+                case 'deadline_check_gm':
+                    \Illuminate\Support\Facades\Artisan::call('kaldis:deadline-check', ['--target' => 'gm', '--force' => true]);
+                    $output['deadline_check_gm'] = trim(\Illuminate\Support\Facades\Artisan::output());
+                    break;
+
                 case 'monthly_reminder':
-                    \Illuminate\Support\Facades\Artisan::call('kaldis:monthly-reminder', ['--type' => 'reminder']);
+                case 'monthly_reminder_day25_morning':
+                    \Illuminate\Support\Facades\Artisan::call('kaldis:monthly-reminder', ['--type' => 'reminder', '--stage' => 'day25_morning']);
                     $output['monthly_reminder'] = trim(\Illuminate\Support\Facades\Artisan::output());
+                    break;
+
+                case 'monthly_reminder_day25_afternoon':
+                    \Illuminate\Support\Facades\Artisan::call('kaldis:monthly-reminder', ['--type' => 'reminder', '--stage' => 'day25_afternoon']);
+                    $output['monthly_reminder_day25_afternoon'] = trim(\Illuminate\Support\Facades\Artisan::output());
+                    break;
+
+                case 'monthly_reminder_day26_morning':
+                    \Illuminate\Support\Facades\Artisan::call('kaldis:monthly-reminder', ['--type' => 'reminder', '--stage' => 'day26_morning']);
+                    $output['monthly_reminder_day26_morning'] = trim(\Illuminate\Support\Facades\Artisan::output());
+                    break;
+
+                case 'monthly_reminder_day26_afternoon':
+                    \Illuminate\Support\Facades\Artisan::call('kaldis:monthly-reminder', ['--type' => 'reminder', '--stage' => 'day26_afternoon']);
+                    $output['monthly_reminder_day26_afternoon'] = trim(\Illuminate\Support\Facades\Artisan::output());
                     break;
 
                 case 'monthly_cutoff':
@@ -360,6 +408,8 @@ class TelegramController extends Controller
 
                 case 'all':
                 default:
+                    \Illuminate\Support\Facades\Artisan::call('kaldis:dispatch-reminders');
+                    $output['dispatch'] = trim(\Illuminate\Support\Facades\Artisan::output());
                     \Illuminate\Support\Facades\Artisan::call('schedule:run');
                     $output['schedule_run'] = trim(\Illuminate\Support\Facades\Artisan::output());
                     break;

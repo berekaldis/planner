@@ -75,6 +75,13 @@ class WeeklyReminderCommand extends Command
                 }
             }
 
+            if (empty($chatId)) {
+                $tu = DB::table('telegram_users')->where('department_id', $dept->id)->where('is_active', 1)->first();
+                if ($tu && !empty($tu->telegram_user_id) && $tu->telegram_user_id !== '123456789') {
+                    $chatId = trim((string)$tu->telegram_user_id);
+                }
+            }
+
             $safeDeptName = htmlspecialchars($dept->department_name, ENT_QUOTES, 'UTF-8');
             $safeHeadName = htmlspecialchars($head ? $head->full_name : 'Department Head', ENT_QUOTES, 'UTF-8');
 
@@ -182,6 +189,8 @@ class WeeklyReminderCommand extends Command
                     $res = $telegram->sendMessage($chatId, $msg, $replyMarkup);
                     if (!empty($res['ok'])) {
                         $unifiedReminded++;
+                    } else {
+                        $this->warn("  [!] Telegram error to {$safeDeptName} ({$chatId}): " . ($res['description'] ?? 'Delivery failed'));
                     }
                 }
             } elseif ($type === 'performance') {
@@ -217,6 +226,8 @@ class WeeklyReminderCommand extends Command
                         $res = $telegram->sendMessage($chatId, $msg, $replyMarkup);
                         if (!empty($res['ok'])) {
                             $performanceReminded++;
+                        } else {
+                            $this->warn("  [!] Telegram error to {$safeDeptName} ({$chatId}): " . ($res['description'] ?? 'Delivery failed'));
                         }
                     }
                 }
@@ -254,6 +265,8 @@ class WeeklyReminderCommand extends Command
                         $res = $telegram->sendMessage($chatId, $msg, $replyMarkup);
                         if (!empty($res['ok'])) {
                             $planReminded++;
+                        } else {
+                            $this->warn("  [!] Telegram error to {$safeDeptName} ({$chatId}): " . ($res['description'] ?? 'Delivery failed'));
                         }
                     }
                 }

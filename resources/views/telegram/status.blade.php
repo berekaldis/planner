@@ -18,18 +18,18 @@
                     </span>
                 @else
                     <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
-                        <i class="fas fa-circle text-danger me-1" style="font-size: 0.55rem;"></i> Offline
+                        <i class="fas fa-circle text-danger me-1" style="font-size: 0.55rem;"></i> Offline / Unauthorized
                     </span>
                 @endif
             </div>
             <p class="text-muted small mb-0">
-                Manage bot connection token, test message delivery, and monitor user chat IDs.
+                Manage bot connection token, test message delivery, trigger automated reminder schedules, and monitor user chat IDs.
             </p>
         </div>
 
         <div class="d-flex align-items-center gap-2">
             <a href="{{ route('admin.settings') }}#reminders" class="btn btn-sm btn-outline-secondary">
-                <i class="fas fa-clock me-1"></i> Reminder Schedules
+                <i class="fas fa-clock me-1"></i> Edit Schedules
             </a>
             @if(!empty($botInfo['result']['username']))
                 <a href="https://t.me/{{ $botInfo['result']['username'] }}" target="_blank" class="btn btn-sm btn-warning text-dark fw-bold">
@@ -38,6 +38,21 @@
             @endif
         </div>
     </div>
+
+    @if(empty($botInfo['ok']))
+        <div class="alert alert-warning border border-warning-subtle shadow-sm rounded-3 mb-4 p-3 d-flex align-items-start gap-3">
+            <i class="fas fa-triangle-exclamation text-warning fs-4 mt-0.5"></i>
+            <div class="small">
+                <div class="fw-bold text-dark mb-1">Telegram Bot is Offline or Token is Unauthorized</div>
+                <div class="text-secondary mb-2">
+                    Automated reminders and notifications cannot be delivered to Telegram because the current API token is invalid, expired, or revoked by Telegram.
+                </div>
+                <div class="text-dark">
+                    <strong>To fix:</strong> Open Telegram, search for <code>@BotFather</code>, select your bot (or create one with <code>/newbot</code>), copy the HTTP API token, paste it in the <strong>Bot Connection &amp; Token</strong> card below, and click <strong>Save</strong>.
+                </div>
+            </div>
+        </div>
+    @endif
 
     <div class="row g-4 mb-4">
         <!-- ── Card 1: Bot Connection & Token ── -->
@@ -134,6 +149,113 @@
 
                     <div id="testMessageResult" class="alert d-none py-2 px-3 small rounded-3 mb-0"></div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Card 3: Automated Reminders Schedule & Execution Hub ── -->
+    <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; overflow: hidden;">
+        <div class="card-header bg-transparent border-0 pt-4 px-4 pb-3 d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
+            <div>
+                <h6 class="fw-bold text-dark mb-1">
+                    <i class="fas fa-calendar-check text-primary me-2"></i> Automated Reminders Schedule &amp; Execution Hub
+                </h6>
+                <p class="text-muted small mb-0">
+                    Catch-up resilient scheduler evaluates weekly &amp; monthly cycles and dispatches alerts strictly according to configured times.
+                </p>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-primary fw-bold" onclick="executeAutomation('dispatch', this)">
+                    <i class="fas fa-bolt me-1"></i> Run Due Reminders Now
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="executeAutomation('dispatch_force', this)" title="Bypasses time and cache debounce checks to force a test run">
+                    <i class="fas fa-rotate me-1"></i> Force Check
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-4 pt-1">
+            @php
+                $weeklyActive = kaldis_setting('enable_weekly_reminders', 'true') === 'true';
+                $monthlyActive = kaldis_setting('enable_monthly_reminders', 'true') === 'true';
+                $ethPeriod = get_ethiopian_period();
+            @endphp
+            <div class="row g-3 mb-3">
+                <!-- Weekly Schedule Summary -->
+                <div class="col-md-6">
+                    <div class="p-3 bg-light rounded-3 h-100 border">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold text-dark small text-uppercase">
+                                <i class="fas fa-clock text-primary me-1"></i> Weekly Deliverables Schedule
+                            </span>
+                            <span class="badge {{ $weeklyActive ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-secondary text-white' }} px-2 py-0.5">
+                                {{ $weeklyActive ? 'Active' : 'Disabled' }}
+                            </span>
+                        </div>
+                        <ul class="list-unstyled small mb-2 text-secondary" style="line-height: 1.7;">
+                            <li>• <strong>1st Weekend Reminder:</strong> Saturday at <code>{{ kaldis_setting('weekly_reminder_saturday_time', '10:00') }}</code></li>
+                            <li>• <strong>2nd Advance Reminder:</strong> Sunday at <code>{{ kaldis_setting('weekly_reminder_sunday_time', '16:30') }}</code></li>
+                            <li>• <strong>3rd Final Morning Reminder:</strong> Monday at <code>{{ kaldis_setting('weekly_reminder_monday_time', '08:30') }}</code></li>
+                            <li>• <strong>Weekly Submission Cutoff:</strong> {{ kaldis_setting('weekly_deadline_day', 'Monday') }} at <code>{{ kaldis_setting('weekly_deadline_time', '12:30') }}</code></li>
+                            <li>• <strong>Cutoff Delinquent Escalations:</strong> {{ kaldis_setting('weekly_deadline_day', 'Monday') }} at <code>12:35</code></li>
+                        </ul>
+                        <div class="d-flex flex-wrap gap-1.5 pt-2 border-top">
+                            <button type="button" class="btn btn-xs btn-outline-primary py-0.5 px-2" onclick="executeAutomation('weekly_reminder_saturday', this)">
+                                Test Saturday Alert
+                            </button>
+                            <button type="button" class="btn btn-xs btn-outline-primary py-0.5 px-2" onclick="executeAutomation('weekly_reminder_sunday', this)">
+                                Test Sunday Alert
+                            </button>
+                            <button type="button" class="btn btn-xs btn-outline-primary py-0.5 px-2" onclick="executeAutomation('weekly_reminder_monday', this)">
+                                Test Monday Alert
+                            </button>
+                            <button type="button" class="btn btn-xs btn-outline-danger py-0.5 px-2" onclick="executeAutomation('deadline_check_heads', this)">
+                                Test Cutoff Check
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Monthly Schedule Summary -->
+                <div class="col-md-6">
+                    <div class="p-3 bg-light rounded-3 h-100 border">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold text-dark small text-uppercase">
+                                <i class="far fa-calendar-check text-warning me-1"></i> Monthly Plan Deliverables
+                            </span>
+                            <span class="badge {{ $monthlyActive ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-secondary text-white' }} px-2 py-0.5">
+                                {{ $monthlyActive ? 'Active' : 'Disabled' }}
+                            </span>
+                        </div>
+                        <ul class="list-unstyled small mb-2 text-secondary" style="line-height: 1.7;">
+                            <li>• <strong>Start Day:</strong> Day <code>{{ kaldis_setting('monthly_reminder_start_day', 25) }}</code> of Month</li>
+                            <li>• <strong>Day 25 Morning (1st):</strong> <code>{{ kaldis_setting('monthly_reminder_day25_morning_time', '09:30') }}</code></li>
+                            <li>• <strong>Day 25 Afternoon (2nd):</strong> <code>{{ kaldis_setting('monthly_reminder_day25_afternoon_time', '16:00') }}</code></li>
+                            <li>• <strong>Day 26 Morning (3rd):</strong> <code>{{ kaldis_setting('monthly_reminder_day26_morning_time', '09:00') }}</code></li>
+                            <li>• <strong>Day 26 Afternoon (3-Hr):</strong> <code>{{ kaldis_setting('monthly_reminder_day26_afternoon_time', '14:00') }}</code></li>
+                            <li>• <strong>Official Cutoff:</strong> Day {{ kaldis_setting('monthly_plan_deadline_day', 26) }} at <code>{{ kaldis_setting('monthly_plan_deadline_time', '17:00') }}</code></li>
+                        </ul>
+                        <div class="d-flex flex-wrap gap-1.5 pt-2 border-top">
+                            <button type="button" class="btn btn-xs btn-outline-warning text-dark py-0.5 px-2" onclick="executeAutomation('monthly_reminder_day25_morning', this)">
+                                Test Day 25 Alert
+                            </button>
+                            <button type="button" class="btn btn-xs btn-outline-warning text-dark py-0.5 px-2" onclick="executeAutomation('monthly_reminder_day26_morning', this)">
+                                Test Day 26 Alert
+                            </button>
+                            <button type="button" class="btn btn-xs btn-outline-danger py-0.5 px-2" onclick="executeAutomation('monthly_cutoff', this)">
+                                Test Monthly Cutoff
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Automation Execution Live Output -->
+            <div id="automationExecutionAlert" class="alert d-none py-2 px-3 small rounded-3 mb-0">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <strong id="automationResultTitle"><i class="fas fa-terminal me-1"></i> Execution Output</strong>
+                    <span class="font-monospace text-muted small" id="automationResultTimestamp"></span>
+                </div>
+                <pre class="mb-0 bg-dark text-light p-2.5 rounded font-monospace small" style="max-height: 180px; overflow-y: auto;" id="automationResultPre"></pre>
             </div>
         </div>
     </div>
@@ -311,6 +433,49 @@
         document.getElementById('testChatIdSelect').value = '';
         document.getElementById('testMessageText').value = '☕ Greetings ' + userName + '! This is an automated connectivity test from the Kaldis Planning Portal.';
         document.getElementById('sendTestForm').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    async function executeAutomation(task, btn) {
+        const origHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Running...';
+        }
+
+        const alertBox = document.getElementById('automationExecutionAlert');
+        const pre = document.getElementById('automationResultPre');
+        const ts = document.getElementById('automationResultTimestamp');
+        const title = document.getElementById('automationResultTitle');
+
+        alertBox.className = 'alert alert-info py-2 px-3 small rounded-3 mt-3';
+        title.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Executing automation: ' + task + '...';
+        ts.textContent = new Date().toLocaleTimeString();
+        pre.textContent = 'Please wait, evaluating reminder cycle and dispatching...';
+        alertBox.classList.remove('d-none');
+
+        try {
+            const res = await fetch('{{ route("telegram.run_automation") }}?task=' + encodeURIComponent(task));
+            const data = await res.json();
+            if (data.ok) {
+                alertBox.className = 'alert alert-success py-2 px-3 small rounded-3 mt-3';
+                title.innerHTML = '<i class="fas fa-check-circle text-success me-1"></i> Automation Completed Successfully [' + data.task + ']';
+                ts.textContent = data.timestamp || new Date().toLocaleTimeString();
+                pre.textContent = typeof data.output === 'object' ? JSON.stringify(data.output, null, 2) : String(data.output || 'Execution complete.');
+            } else {
+                alertBox.className = 'alert alert-danger py-2 px-3 small rounded-3 mt-3';
+                title.innerHTML = '<i class="fas fa-times-circle text-danger me-1"></i> Automation Error';
+                pre.textContent = data.error || 'Unknown error occurred during automation execution.';
+            }
+        } catch (err) {
+            alertBox.className = 'alert alert-danger py-2 px-3 small rounded-3 mt-3';
+            title.innerHTML = '<i class="fas fa-times-circle text-danger me-1"></i> Request Error';
+            pre.textContent = 'Network or server error while running automation task: ' + err.message;
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = origHtml;
+            }
+        }
     }
 </script>
 @endsection
