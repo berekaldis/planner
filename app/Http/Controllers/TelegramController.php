@@ -47,15 +47,19 @@ class TelegramController extends Controller
             ];
         }
 
-        if (!is_array($webhookInfo) || empty($webhookInfo['result']) || !is_array($webhookInfo['result'])) {
-            $webhookInfo = [
-                'ok' => false,
-                'result' => [
-                    'url' => '',
-                    'pending_update_count' => 0,
-                    'has_custom_certificate' => false,
-                ],
-            ];
+        $webhookError = null;
+        if (!is_array($webhookInfo) || empty($webhookInfo['ok'])) {
+            $webhookError = $webhookInfo['description'] ?? null;
+            if (empty($webhookInfo['result']) || !is_array($webhookInfo['result'])) {
+                $webhookInfo = [
+                    'ok' => false,
+                    'result' => [
+                        'url' => SystemSetting::where('setting_key', 'telegram_webhook_url')->value('setting_value') ?? '',
+                        'pending_update_count' => 0,
+                        'has_custom_certificate' => false,
+                    ],
+                ];
+            }
         }
 
         $users = User::with(['department', 'role'])->orderBy('role_id')->orderBy('username')->get();
@@ -82,6 +86,7 @@ class TelegramController extends Controller
             'isConfigured',
             'botInfo',
             'webhookInfo',
+            'webhookError',
             'users',
             'recentMessages',
             'totalMessagesCount',
@@ -240,6 +245,13 @@ class TelegramController extends Controller
      */
     public function setWebhook(Request $request)
     {
+        $url = trim($request->input('url', ''));
+        // Automatically enforce https for non-local domains as required by Telegram Bot API
+        if (str_starts_with($url, 'http://') && !str_contains($url, 'localhost') && !str_contains($url, '127.0.0.1')) {
+            $url = 'https://' . substr($url, 7);
+            $request->merge(['url' => $url]);
+        }
+
         $validated = $request->validate([
             'url' => 'required|url',
             'secret_token' => 'nullable|string|max:256',
@@ -257,7 +269,7 @@ class TelegramController extends Controller
         AuditLog::log('TELEGRAM_SET_WEBHOOK', 'telegram', "Updated webhook URL to {$validated['url']}", null, null, $res);
 
         if ($request->ajax() || $request->wantsJson()) {
-            return response()->json($res);
+            return response()->json($res, !empty($res['ok']) ? 200 : 422);
         }
 
         return back()->with(
@@ -434,13 +446,35 @@ class TelegramController extends Controller
      */
     public function webhook(Request $request)
     {
+        if ($request->isMethod('get')) {
+            return response()->json([
+                'ok' => true,
+                'message' => 'Kaldis Coffee Telegram Webhook endpoint is active and listening.',
+                'timestamp' => now()->toIso8601String(),
+            ]);
+        }
+
         $update = $request->all();
+
+        if (empty($update) || !is_array($update)) {
+            $content = $request->getContent();
+            if (!empty($content)) {
+                $update = json_decode($content, true);
+            }
+        }
 
         if (empty($update) || !is_array($update)) {
             return response()->json(['ok' => false, 'error' => 'Invalid or empty payload'], 400);
         }
 
-        $this->telegram->handleUpdate($update);
+        try {
+            $this->telegram->handleUpdate($update);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Telegram webhook handle error: ' . $e->getMessage(), [
+                'exception' => $e,
+                'update' => $update,
+            ]);
+        }
 
         return response()->json(['ok' => true]);
     }

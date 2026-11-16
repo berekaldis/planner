@@ -317,9 +317,10 @@ class TelegramService
             );
         } catch (\Throwable $e) {}
 
-        // Parse command & arguments
+        // Parse command & arguments (cleanly strip @BotUsername suffix e.g. /start@KaldisPlannerbot -> /start)
         $parts = explode(' ', $text, 2);
-        $command = strtolower($parts[0] ?? '');
+        $rawCmd = strtolower(trim($parts[0] ?? ''));
+        $command = strtolower(explode('@', $rawCmd)[0]);
         $argument = trim($parts[1] ?? '');
 
         switch ($command) {
@@ -392,13 +393,18 @@ class TelegramService
      */
     private function cmdStart(int|string $chatId, string $firstName, ?User $user): void
     {
+        $safeFirstName = htmlspecialchars($firstName, ENT_QUOTES, 'UTF-8');
+        $portalUrl = rtrim(config('app.url', url('')), '/');
+
         if ($user) {
-            $deptName = $user->department ? $user->department->department_name : 'Corporate Management';
-            $roleName = $user->role ? ($user->role->display_name ?? $user->role->name) : 'User';
+            $deptName = htmlspecialchars($user->department ? $user->department->department_name : 'Corporate Management', ENT_QUOTES, 'UTF-8');
+            $roleName = htmlspecialchars($user->role ? ($user->role->display_name ?? $user->role->name) : 'User', ENT_QUOTES, 'UTF-8');
+            $fullName = htmlspecialchars($user->full_name ?? $user->username, ENT_QUOTES, 'UTF-8');
+            $userName = htmlspecialchars($user->username, ENT_QUOTES, 'UTF-8');
 
             $msg = "☕ <b>Welcome to Kaldis Coffee Planning Portal</b>\n\n";
-            $msg .= "Hello <b>{$firstName}</b>!\n";
-            $msg .= "👤 Account: <b>{$user->full_name}</b> (@{$user->username})\n";
+            $msg .= "Hello <b>{$safeFirstName}</b>!\n";
+            $msg .= "👤 Account: <b>{$fullName}</b> (@{$userName})\n";
             $msg .= "🏢 Department: <b>{$deptName}</b>\n";
             $msg .= "🛡️ Role: <b>{$roleName}</b>\n\n";
             $msg .= "✅ <i>Your Telegram account is successfully linked to Kaldis Planner.</i>\n\n";
@@ -407,20 +413,25 @@ class TelegramService
             $msg .= "📑 /report — Check weekly report submission status\n";
             $msg .= "🏆 /achievement &lt;text&gt; — Log a weekly achievement\n";
             $msg .= "⚠️ /challenge &lt;text&gt; — Log a weekly blocker or issue\n";
-            $msg .= "❓ /help — How to use this bot";
+            $msg .= "❓ /help — How to use this bot\n\n";
+            $msg .= "🌐 <b>Web Portal:</b> <a href=\"{$portalUrl}\">{$portalUrl}</a>";
         } else {
             $msg = "☕ <b>Kaldis Coffee PLC — Planning & Reporting Bot</b>\n\n";
-            $msg .= "Hello <b>{$firstName}</b>!\n";
+            $msg .= "Hello <b>{$safeFirstName}</b>!\n";
             $msg .= "Your Telegram Chat ID is: <code>{$chatId}</code>\n\n";
             $msg .= "⚠️ <i>Your Telegram account is not yet bound to a portal user.</i>\n\n";
             $msg .= "<b>How to Link Your Account:</b>\n";
             $msg .= "1. Log in to the Kaldis Planning Portal.\n";
             $msg .= "2. Go to <b>User Accounts</b> or ask your IT Administrator.\n";
             $msg .= "3. Enter your Chat ID <code>{$chatId}</code> into your user profile.\n\n";
-            $msg .= "Once linked, you will receive weekly deadline reminders and can submit achievements directly here!";
+            $msg .= "Once linked, you will receive weekly deadline reminders and can submit achievements directly here!\n\n";
+            $msg .= "🌐 <b>Web Portal:</b> <a href=\"{$portalUrl}\">{$portalUrl}</a>";
         }
 
-        $this->sendMessage($chatId, $msg);
+        $res = $this->sendMessage($chatId, $msg);
+        if (empty($res['ok'])) {
+            Log::error("Failed to send /start response to {$chatId}: " . json_encode($res));
+        }
     }
 
     /**
@@ -595,6 +606,7 @@ class TelegramService
      */
     private function cmdHelp(int|string $chatId, ?User $user): void
     {
+        $portalUrl = rtrim(config('app.url', url('')), '/');
         $msg = "📖 <b>Kaldis Coffee Planning Bot Guide</b>\n\n";
         $msg .= "<b>Available Commands:</b>\n";
         $msg .= "• /start — Welcome message & account binding status\n";
@@ -604,7 +616,7 @@ class TelegramService
         $msg .= "• /challenge &lt;text&gt; — Submit an organizational challenge or blocker\n";
         $msg .= "• /help — Show this help message\n\n";
         $msg .= "For full planning, GM activations, and evaluations, visit the web portal at:\n";
-        $msg .= "<code>http://localhost/Planner</code>";
+        $msg .= "<code>{$portalUrl}</code>";
 
         $this->sendMessage($chatId, $msg);
     }
@@ -623,13 +635,14 @@ class TelegramService
         $month = kaldis_setting('current_planning_month', config('kaldis.current_planning_month', 'Meskerem'));
         $deadlineDay = kaldis_setting('weekly_deadline_day', 'Monday');
         $deadlineTime = kaldis_setting('weekly_deadline_time', '12:30');
+        $perfUrl = rtrim(config('app.url', url('')), '/') . '/weekly/performance';
 
         $text = "☕ <b>Kaldis Coffee PLC — Weekly Report Reminder</b>\n\n";
         $text .= "Dear <b>{$head->full_name}</b> ({$department->department_name}),\n\n";
         $text .= "This is a reminder to finalize and submit your department's <b>Week {$weekNumber}</b> Performance Report for <b>{$month} {$year}</b>.\n\n";
         $text .= "⏰ <b>Submission Deadline:</b> {$deadlineDay} at 6:30 LT ({$deadlineTime})\n";
         $text .= "🌐 Please evaluate all tasks as <b>DONE</b> or <b>NOT DONE</b> in the portal:\n";
-        $text .= "<code>http://localhost/Planner/weekly/performance</code>";
+        $text .= "<code>{$perfUrl}</code>";
 
         $res = $this->sendMessage($head->telegram_chat_id, $text);
         return !empty($res['ok']);
@@ -661,6 +674,7 @@ class TelegramService
 
         $year = kaldis_setting('current_planning_year', config('kaldis.current_planning_year', '2019 E.C.'));
         $month = kaldis_setting('current_planning_month', config('kaldis.current_planning_month', 'Meskerem'));
+        $portalUrl = rtrim(config('app.url', url('')), '/');
 
         $text = "🚨 <b>Kaldis Coffee PLC — Report Escalation Alert</b>\n\n";
         $text .= "⚠️ <b>Department:</b> {$department->department_name} ({$department->department_code})\n";
@@ -668,7 +682,7 @@ class TelegramService
         $text .= "📉 <b>Missed Submission Weeks:</b> {$missedWeeks} week(s)\n";
         $text .= "📅 <b>Planning Period:</b> {$month} {$year}\n\n";
         $text .= "Immediate submission or formal explanation is required.\n";
-        $text .= "Access Portal: <code>http://localhost/Planner</code>";
+        $text .= "Access Portal: <code>{$portalUrl}</code>";
 
         $success = false;
         foreach ($chatIds as $cid) {

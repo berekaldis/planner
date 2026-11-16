@@ -23,11 +23,14 @@
                 @endif
             </div>
             <p class="text-muted small mb-0">
-                Manage bot connection token, test message delivery, trigger automated reminder schedules, and monitor user chat IDs.
+                Manage bot connection token, register webhook or enable polling, test message delivery, trigger automated reminder schedules, and monitor user chat IDs.
             </p>
         </div>
 
         <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="syncUpdates(this)" title="Fetch and process any pending messages from Telegram immediately">
+                <i class="fas fa-arrows-rotate me-1"></i> Sync Updates
+            </button>
             <a href="{{ route('admin.settings') }}#reminders" class="btn btn-sm btn-outline-secondary">
                 <i class="fas fa-clock me-1"></i> Edit Schedules
             </a>
@@ -48,7 +51,7 @@
                     Automated reminders and notifications cannot be delivered to Telegram because the current API token is invalid, expired, or revoked by Telegram.
                 </div>
                 <div class="text-dark">
-                    <strong>To fix:</strong> Open Telegram, search for <code>@BotFather</code>, select your bot (or create one with <code>/newbot</code>), copy the HTTP API token, paste it in the <strong>Bot Connection &amp; Token</strong> card below, and click <strong>Save</strong>.
+                    <strong>To fix:</strong> Open Telegram, search for <code>@BotFather</code>, copy the HTTP API token for your bot (or create a new bot with <code>/newbot</code>), paste it in the <strong>Bot Connection &amp; Token</strong> card below, and click <strong>Save</strong>.
                 </div>
             </div>
         </div>
@@ -58,11 +61,13 @@
         <!-- ── Card 1: Bot Connection & Token ── -->
         <div class="col-lg-6">
             <div class="card h-100 border-0 shadow-sm" style="border-radius: 12px;">
-                <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
-                    <h6 class="fw-bold text-dark mb-1">
-                        <i class="fas fa-robot text-primary me-2"></i> Bot Connection &amp; Token
-                    </h6>
-                    <p class="text-muted small mb-0">Telegram Bot authentication credentials.</p>
+                <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="fw-bold text-dark mb-1">
+                            <i class="fas fa-robot text-primary me-2"></i> Bot Connection &amp; Token
+                        </h6>
+                        <p class="text-muted small mb-0">Telegram Bot authentication credentials.</p>
+                    </div>
                 </div>
                 <div class="card-body p-4 d-flex flex-column gap-3">
                     
@@ -72,7 +77,7 @@
                         </div>
                         <div class="min-w-0 flex-grow-1">
                             <div class="fw-bold text-dark fs-6">{{ $botInfo['result']['first_name'] ?? 'Kaldis Planning Bot' }}</div>
-                            <div class="text-muted small">
+                            <div class="text-muted small font-monospace">
                                 @if(!empty($botInfo['result']['username']))
                                     @<span>{{ $botInfo['result']['username'] }}</span>
                                 @else
@@ -106,54 +111,148 @@
             </div>
         </div>
 
-        <!-- ── Card 2: Send Test Message ── -->
+        <!-- ── Card 2: Webhook & Delivery Mode ── -->
         <div class="col-lg-6">
             <div class="card h-100 border-0 shadow-sm" style="border-radius: 12px;">
-                <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
-                    <h6 class="fw-bold text-dark mb-1">
-                        <i class="fas fa-paper-plane text-success me-2"></i> Send Test Message
-                    </h6>
-                    <p class="text-muted small mb-0">Verify instant message delivery to any Telegram chat ID.</p>
+                <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="fw-bold text-dark mb-1">
+                            <i class="fas fa-network-wired text-info me-2"></i> Telegram Webhook &amp; Delivery
+                        </h6>
+                        <p class="text-muted small mb-0">Configure real-time push deliveries from Telegram to your server.</p>
+                    </div>
+                    <div>
+                        @if(!empty($webhookInfo['result']['url']))
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" id="webhookBadge">
+                                <i class="fas fa-bolt text-success me-1" style="font-size: 0.55rem;"></i> Webhook Active
+                            </span>
+                        @else
+                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1" id="webhookBadge">
+                                <i class="fas fa-satellite-dish text-warning me-1" style="font-size: 0.55rem;"></i> Polling Mode
+                            </span>
+                        @endif
+                    </div>
                 </div>
                 <div class="card-body p-4 d-flex flex-column gap-3">
-                    <form method="POST" action="{{ route('telegram.send_test') }}" id="sendTestForm">
+                    
+                    <!-- Webhook Live Status Panel -->
+                    <div class="p-3 bg-light rounded-3 d-flex flex-column gap-1.5 border">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem;">ACTIVE WEBHOOK ENDPOINT</span>
+                            <button type="button" class="btn btn-xs btn-outline-primary py-0.5 px-2" id="btnRefreshWebhook" onclick="refreshWebhookDiagnostics()">
+                                <i class="fas fa-rotate me-1"></i> Check Status
+                            </button>
+                        </div>
+                        <div class="font-monospace small text-dark text-break fw-semibold py-1" id="webhookDisplayUrl">
+                            {{ !empty($webhookInfo['result']['url']) ? $webhookInfo['result']['url'] : 'No active webhook registered (Operating in Long-Polling mode)' }}
+                        </div>
+                        <div class="d-flex flex-wrap align-items-center gap-3 small text-muted pt-1 border-top" id="webhookMetrics">
+                            <span>Pending Updates: <strong class="text-dark" id="webhookPendingCount">{{ $webhookInfo['result']['pending_update_count'] ?? 0 }}</strong></span>
+                            <span>&bull; Max Conns: <strong class="text-dark" id="webhookMaxConns">{{ $webhookInfo['result']['max_connections'] ?? 40 }}</strong></span>
+                            <span>&bull; Custom Cert: <strong class="text-dark" id="webhookCustomCert">{{ !empty($webhookInfo['result']['has_custom_certificate']) ? 'Yes' : 'No' }}</strong></span>
+                        </div>
+                        @if(!empty($webhookInfo['result']['last_error_message']))
+                            <div class="alert alert-danger py-1.5 px-2.5 small rounded-2 mb-0 mt-1" id="webhookLastErrorBox">
+                                <i class="fas fa-triangle-exclamation me-1"></i> <strong>Telegram Error:</strong> {{ $webhookInfo['result']['last_error_message'] }}
+                                @if(!empty($webhookInfo['result']['last_error_date']))
+                                    <span class="text-muted small">({{ \Carbon\Carbon::createFromTimestamp($webhookInfo['result']['last_error_date'])->diffForHumans() }})</span>
+                                @endif
+                            </div>
+                        @elseif(!empty($webhookError))
+                            <div class="alert alert-warning py-1.5 px-2.5 small rounded-2 mb-0 mt-1" id="webhookLastErrorBox">
+                                <i class="fas fa-triangle-exclamation me-1"></i> <strong>Telegram Notice:</strong> {{ $webhookError }}
+                            </div>
+                        @endif
+                    </div>
+
+                    <!-- Register Webhook Form -->
+                    <form method="POST" action="{{ route('telegram.webhook.set') }}" id="setWebhookForm">
                         @csrf
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold text-secondary text-uppercase mb-1">Recipient</label>
-                            <select name="chat_id" id="testChatIdSelect" class="form-select form-select-sm" required>
-                                <option value="">-- Choose User or Enter Custom ID --</option>
-                                @foreach($users as $u)
-                                    @if(!empty($u->telegram_chat_id))
-                                        <option value="{{ $u->telegram_chat_id }}">
-                                            {{ $u->full_name ?? $u->username }} ({{ $u->department->department_name ?? 'Admin' }}) - ID: {{ $u->telegram_chat_id }}
-                                        </option>
-                                    @endif
-                                @endforeach
-                            </select>
+                        <label class="form-label small fw-bold text-secondary text-uppercase mb-1">REGISTER WEBHOOK URL (HTTPS REQUIRED)</label>
+                        <div class="input-group">
+                            <input type="url" name="url" id="webhookUrlInput" class="form-control font-monospace form-control-sm"
+                                   value="{{ !empty($webhookInfo['result']['url']) ? $webhookInfo['result']['url'] : (request()->isSecure() || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ? secure_url('/telegram/webhook') : url('/telegram/webhook')) }}" 
+                                   placeholder="https://your-domain.com/telegram/webhook" required>
+                            <button class="btn btn-info btn-sm fw-bold px-3 text-white" type="submit" id="btnSubmitWebhook">
+                                <i class="fas fa-link me-1"></i> Set Webhook
+                            </button>
                         </div>
-
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold text-secondary text-uppercase mb-1">Or Enter Custom Chat ID</label>
-                            <input type="text" id="customChatIdInput" class="form-control form-control-sm font-monospace" placeholder="e.g. 123456789">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2">
+                            <div class="d-flex gap-1.5">
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-2" onclick="fillDefaultServerUrl()">
+                                    <i class="fas fa-server me-1"></i> Use Default Server URL
+                                </button>
+                            </div>
+                            <div class="form-check form-check-inline m-0 small">
+                                <input class="form-check-input" type="checkbox" name="drop_pending_updates" id="dropPendingUpdates" value="1">
+                                <label class="form-check-label text-muted small" for="dropPendingUpdates">Drop pending backlog</label>
+                            </div>
                         </div>
-
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold text-secondary text-uppercase mb-1">Test Message</label>
-                            <textarea name="message" id="testMessageText" class="form-control form-control-sm" rows="2" required>☕ Kaldis Planning Portal: Telegram test connection verified successfully!</textarea>
-                        </div>
-
-                        <button type="submit" class="btn btn-success btn-sm w-100 fw-bold py-2 shadow-sm" id="btnSendTest">
-                            <i class="fas fa-paper-plane me-1"></i> Send Test Message
-                        </button>
                     </form>
 
-                    <div id="testMessageResult" class="alert d-none py-2 px-3 small rounded-3 mb-0"></div>
+                    <!-- Remove Webhook Button -->
+                    @if(!empty($webhookInfo['result']['url']))
+                        <form method="POST" action="{{ route('telegram.webhook.delete') }}" id="deleteWebhookForm">
+                            @csrf
+                            <button type="submit" class="btn btn-outline-danger btn-sm w-100 py-1.5" 
+                                    onclick="return confirm('Remove active webhook and switch back to long-polling mode? Telegram will stop sending real-time HTTP push deliveries.');">
+                                <i class="fas fa-trash-can me-1"></i> Remove Webhook (Switch to Polling)
+                            </button>
+                        </form>
+                    @endif
+
+                    <div id="webhookResultAlert" class="alert d-none py-2 px-3 small rounded-3 mb-0"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ── Card 3: Automated Reminders Schedule & Execution Hub ── -->
+    <!-- ── Card 3: Send Test Message ── -->
+    <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+        <div class="card-header bg-transparent border-0 pt-4 px-4 pb-2">
+            <h6 class="fw-bold text-dark mb-1">
+                <i class="fas fa-paper-plane text-success me-2"></i> Send Test Message
+            </h6>
+            <p class="text-muted small mb-0">Verify instant message delivery to any Telegram chat ID.</p>
+        </div>
+        <div class="card-body p-4 pt-2">
+            <form method="POST" action="{{ route('telegram.send_test') }}" id="sendTestForm">
+                @csrf
+                <div class="row g-3">
+                    <div class="col-md-5">
+                        <label class="form-label small fw-bold text-secondary text-uppercase mb-1">Recipient</label>
+                        <select name="chat_id" id="testChatIdSelect" class="form-select form-select-sm mb-2" required>
+                            <option value="">-- Choose User or Enter Custom ID --</option>
+                            @foreach($users as $u)
+                                @if(!empty($u->telegram_chat_id))
+                                    <option value="{{ $u->telegram_chat_id }}">
+                                        {{ $u->full_name ?? $u->username }} ({{ $u->department->department_name ?? 'Admin' }}) - ID: {{ $u->telegram_chat_id }}
+                                    </option>
+                                @endif
+                            @endforeach
+                        </select>
+                        <label class="form-label small fw-bold text-secondary text-uppercase mb-1">Or Enter Custom Chat ID</label>
+                        <input type="text" id="customChatIdInput" class="form-control form-control-sm font-monospace" placeholder="e.g. 123456789">
+                    </div>
+
+                    <div class="col-md-5">
+                        <label class="form-label small fw-bold text-secondary text-uppercase mb-1">Test Message</label>
+                        <textarea name="message" id="testMessageText" class="form-control form-control-sm" rows="3" required>☕ Kaldis Planning Portal: Telegram test connection verified successfully!</textarea>
+                    </div>
+
+                    <div class="col-md-2 d-flex flex-column justify-content-end">
+                        <button type="submit" class="btn btn-success btn-sm w-100 fw-bold py-2 shadow-sm" id="btnSendTest">
+                            <i class="fas fa-paper-plane me-1"></i> Send Test
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <div id="testMessageResult" class="alert d-none py-2 px-3 small rounded-3 mt-3 mb-0"></div>
+        </div>
+    </div>
+
+    <!-- ── Card 4: Automated Reminders Schedule & Execution Hub ── -->
     <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; overflow: hidden;">
         <div class="card-header bg-transparent border-0 pt-4 px-4 pb-3 d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
             <div>
@@ -260,7 +359,7 @@
         </div>
     </div>
 
-    <!-- ── Card 3: Department Heads & Linked Telegram Accounts ── -->
+    <!-- ── Card 5: Department Heads & Linked Telegram Accounts ── -->
     <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
         <div class="card-header bg-transparent border-0 pt-4 px-4 pb-3 d-flex justify-content-between align-items-center">
             <div>
@@ -372,6 +471,151 @@
             alertBox.innerHTML = '<i class="fas fa-times-circle me-1"></i> Network error testing bot.';
         }
     }
+
+    function fillDefaultServerUrl() {
+        const input = document.getElementById('webhookUrlInput');
+        const isHttps = window.location.protocol === 'https:';
+        let defaultUrl = '{{ url('/telegram/webhook') }}';
+        if (isHttps && defaultUrl.startsWith('http://')) {
+            defaultUrl = defaultUrl.replace('http://', 'https://');
+        }
+        input.value = defaultUrl;
+    }
+
+    async function refreshWebhookDiagnostics() {
+        const btn = document.getElementById('btnRefreshWebhook');
+        const orig = btn ? btn.innerHTML : '';
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Checking...'; }
+        const alertBox = document.getElementById('webhookResultAlert');
+
+        try {
+            const res = await fetch('{{ route("telegram.webhook.info") }}', {
+                headers: { 'Accept': 'application/json' }
+            });
+            const data = await res.json();
+            if (data.ok && data.result) {
+                const r = data.result;
+                const urlEl = document.getElementById('webhookDisplayUrl');
+                const metricsEl = document.getElementById('webhookMetrics');
+                const badge = document.getElementById('webhookBadge');
+
+                if (urlEl) {
+                    urlEl.textContent = r.url || 'No active webhook registered (Operating in Long-Polling mode)';
+                }
+                if (badge) {
+                    if (r.url) {
+                        badge.className = 'badge bg-success-subtle text-success border border-success-subtle px-2 py-1';
+                        badge.innerHTML = '<i class="fas fa-bolt text-success me-1" style="font-size: 0.55rem;"></i> Webhook Active';
+                    } else {
+                        badge.className = 'badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1';
+                        badge.innerHTML = '<i class="fas fa-satellite-dish text-warning me-1" style="font-size: 0.55rem;"></i> Polling Mode';
+                    }
+                }
+                if (metricsEl) {
+                    metricsEl.innerHTML = `
+                        <span>Pending Updates: <strong class="text-dark">${r.pending_update_count || 0}</strong></span>
+                        <span>&bull; Max Conns: <strong class="text-dark">${r.max_connections || 40}</strong></span>
+                        <span>&bull; Custom Cert: <strong class="text-dark">${r.has_custom_certificate ? 'Yes' : 'No'}</strong></span>
+                    `;
+                }
+                if (alertBox) {
+                    alertBox.className = 'alert alert-success py-2 px-3 small rounded-3 mt-2';
+                    alertBox.innerHTML = '<i class="fas fa-check-circle me-1"></i> Webhook status: ' + (r.url ? 'Live & registered (' + r.url + ')' : 'Operating in Long Polling mode.');
+                    alertBox.classList.remove('d-none');
+                }
+            } else {
+                if (alertBox) {
+                    alertBox.className = 'alert alert-danger py-2 px-3 small rounded-3 mt-2';
+                    alertBox.innerHTML = '<i class="fas fa-times-circle me-1"></i> Webhook check failed: ' + (data.description || 'Unknown error');
+                    alertBox.classList.remove('d-none');
+                }
+            }
+        } catch (e) {
+            if (alertBox) {
+                alertBox.className = 'alert alert-danger py-2 px-3 small rounded-3 mt-2';
+                alertBox.innerHTML = '<i class="fas fa-times-circle me-1"></i> Network error checking webhook status.';
+                alertBox.classList.remove('d-none');
+            }
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+        }
+    }
+
+    async function syncUpdates(btn) {
+        const orig = btn ? btn.innerHTML : '';
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Syncing...'; }
+        const alertBox = document.getElementById('webhookResultAlert');
+
+        try {
+            const res = await fetch('{{ route("telegram.poll") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                }
+            });
+            const data = await res.json();
+            if (alertBox) {
+                alertBox.className = data.ok ? 'alert alert-success py-2 px-3 small rounded-3 mt-2' : 'alert alert-danger py-2 px-3 small rounded-3 mt-2';
+                alertBox.innerHTML = data.ok 
+                    ? '<i class="fas fa-check-circle me-1"></i> ' + (data.message || 'Synced updates successfully.') 
+                    : '<i class="fas fa-times-circle me-1"></i> ' + (data.description || 'Failed to sync updates.');
+                alertBox.classList.remove('d-none');
+            }
+        } catch(err) {
+            if (alertBox) {
+                alertBox.className = 'alert alert-danger py-2 px-3 small rounded-3 mt-2';
+                alertBox.innerHTML = '<i class="fas fa-times-circle me-1"></i> Error syncing updates: ' + err.message;
+                alertBox.classList.remove('d-none');
+            }
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+        }
+    }
+
+    document.getElementById('setWebhookForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btnSubmitWebhook');
+        const orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Setting...';
+
+        const alertBox = document.getElementById('webhookResultAlert');
+        alertBox.classList.add('d-none');
+
+        const url = document.getElementById('webhookUrlInput').value.trim();
+        const dropPending = document.getElementById('dropPendingUpdates').checked;
+
+        try {
+            const res = await fetch('{{ route("telegram.webhook.set") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ url: url, drop_pending_updates: dropPending })
+            });
+            const data = await res.json();
+            if (data.ok) {
+                alertBox.className = 'alert alert-success py-2 px-3 small rounded-3 mt-2';
+                alertBox.innerHTML = '<i class="fas fa-check-circle me-1"></i> Webhook registered successfully! Telegram will push real-time events to: ' + url;
+                alertBox.classList.remove('d-none');
+                refreshWebhookDiagnostics();
+            } else {
+                alertBox.className = 'alert alert-danger py-2 px-3 small rounded-3 mt-2';
+                alertBox.innerHTML = '<i class="fas fa-circle-exclamation me-1"></i> Webhook registration failed: ' + (data.description || 'Telegram rejected the URL');
+                alertBox.classList.remove('d-none');
+            }
+        } catch(err) {
+            alertBox.className = 'alert alert-danger py-2 px-3 small rounded-3 mt-2';
+            alertBox.innerHTML = '<i class="fas fa-triangle-exclamation me-1"></i> Server error registering webhook: ' + err.message;
+            alertBox.classList.remove('d-none');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = orig;
+        }
+    });
 
     document.getElementById('customChatIdInput').addEventListener('input', function() {
         if (this.value.trim() !== '') {

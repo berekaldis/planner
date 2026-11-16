@@ -12,8 +12,9 @@ use App\Http\Controllers\VoucherController;
 use App\Http\Controllers\WeeklyPlanController;
 use Illuminate\Support\Facades\Route;
 
-// Public Telegram Webhook Endpoint
-Route::post('/telegram/webhook', [TelegramController::class, 'webhook'])->name('telegram.webhook');
+// Public Telegram Webhook Endpoints
+Route::match(['GET', 'POST'], '/telegram/webhook', [TelegramController::class, 'webhook'])->name('telegram.webhook');
+Route::match(['GET', 'POST'], '/telegram/webhook.php', [TelegramController::class, 'webhook']);
 Route::any('/api/cron/run', [TelegramController::class, 'runAutomation'])->name('cron.run');
 
 // Direct Favicon & Icon Serving Routes
