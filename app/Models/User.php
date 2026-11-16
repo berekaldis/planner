@@ -103,6 +103,11 @@ class User extends Authenticatable
         return $this->role && in_array(strtolower($this->role->name), ['super_admin', 'it_admin']);
     }
 
+    public function isAdmin(): bool
+    {
+        return $this->isSuperAdmin();
+    }
+
     public function isGM(): bool
     {
         return $this->role && in_array(strtolower($this->role->name), ['gm_management', 'gm', 'general_manager']);

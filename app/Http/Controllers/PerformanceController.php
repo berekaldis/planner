@@ -196,6 +196,114 @@ class PerformanceController extends Controller
         return back()->with('success', "Task evaluated as " . ($status === 'NOT_DONE' ? 'NOT DONE' : 'DONE') . ".");
     }
 
+    public function updateResult(Request $request, $id)
+    {
+        $user = Auth::user();
+        if (!$user->isSuperAdmin()) {
+            abort(403, 'Permission denied. Only Administrators can edit performance evaluations.');
+        }
+
+        // $id could be either weekly_task_id or weekly_task_result id
+        $taskResult = WeeklyTaskResult::find($id);
+        if (!$taskResult) {
+            $taskResult = WeeklyTaskResult::where('weekly_task_id', $id)->first();
+        }
+
+        $validated = $request->validate([
+            'weekly_task_id' => 'nullable|exists:weekly_tasks,id',
+            'result' => 'required|in:DONE,NOT_DONE',
+            'comment' => 'nullable|string',
+            'not_done_reason_id' => 'nullable|exists:reason_categories,id',
+            'reason_category_id' => 'nullable|exists:reason_categories,id',
+            'not_done_explanation' => 'nullable|string',
+            'reason_explanation' => 'nullable|string',
+            'next_action' => 'nullable|string',
+            'expected_completion_date' => 'nullable|date',
+            'next_action_deadline' => 'nullable|date',
+        ]);
+
+        $status = $validated['result'];
+        $reasonId = $validated['not_done_reason_id'] ?? ($validated['reason_category_id'] ?? null);
+        $explanation = $validated['not_done_explanation'] ?? ($validated['reason_explanation'] ?? null);
+        $deadline = $validated['expected_completion_date'] ?? ($validated['next_action_deadline'] ?? null);
+        $comment = $validated['comment'] ?? null;
+
+        if (!$taskResult) {
+            $taskId = $validated['weekly_task_id'] ?? $id;
+            $task = WeeklyTask::findOrFail($taskId);
+            $taskResult = new WeeklyTaskResult();
+            $taskResult->weekly_task_id = $task->id;
+            $taskResult->department_id = $task->department_id;
+            $taskResult->year = $task->year;
+            $taskResult->month = $task->month;
+            $taskResult->week_number = $task->week_number;
+            $taskResult->completed_by = $user->id;
+        }
+
+        $taskResult->result = $status;
+        $taskResult->completed_at = now();
+        $taskResult->comment = ($status === 'DONE') ? $comment : null;
+        $taskResult->not_done_reason_id = ($status === 'NOT_DONE') ? $reasonId : null;
+        $taskResult->not_done_explanation = ($status === 'NOT_DONE') ? $explanation : null;
+        $taskResult->next_action = ($status === 'NOT_DONE') ? ($validated['next_action'] ?? null) : null;
+        $taskResult->expected_completion_date = ($status === 'NOT_DONE') ? $deadline : null;
+        $taskResult->save();
+
+        // Recompute WeeklyReport if existing for this department/week
+        $report = WeeklyReport::where('department_id', $taskResult->department_id)
+            ->where('year', $taskResult->year)
+            ->where('month', $taskResult->month)
+            ->where('week_number', $taskResult->week_number)
+            ->first();
+
+        if ($report) {
+            $tot = WeeklyTask::where('department_id', $taskResult->department_id)
+                ->where('year', $taskResult->year)
+                ->where('month', $taskResult->month)
+                ->where('week_number', $taskResult->week_number)
+                ->count();
+            $done = DB::table('weekly_tasks as wt')
+                ->join('weekly_task_results as wtr', 'wt.id', '=', 'wtr.weekly_task_id')
+                ->where('wt.department_id', $taskResult->department_id)
+                ->where('wt.year', $taskResult->year)
+                ->where('wt.month', $taskResult->month)
+                ->where('wt.week_number', $taskResult->week_number)
+                ->where('wtr.result', 'DONE')
+                ->count();
+            $notDone = DB::table('weekly_tasks as wt')
+                ->join('weekly_task_results as wtr', 'wt.id', '=', 'wtr.weekly_task_id')
+                ->where('wt.department_id', $taskResult->department_id)
+                ->where('wt.year', $taskResult->year)
+                ->where('wt.month', $taskResult->month)
+                ->where('wt.week_number', $taskResult->week_number)
+                ->where('wtr.result', 'NOT_DONE')
+                ->count();
+            $rate = $tot > 0 ? round(($done / $tot) * 100) : 0;
+            $report->total_tasks = $tot;
+            $report->done_tasks = $done;
+            $report->not_done_tasks = $notDone;
+            $report->completion_percentage = $rate;
+            $report->save();
+        }
+
+        AuditLog::log(
+            'ADMIN_UPDATE_PERFORMANCE_RESULT',
+            'performance',
+            "Admin {$user->name} updated performance evaluation for task #{$taskResult->weekly_task_id} to {$status}",
+            $taskResult->id
+        );
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'status' => $status,
+                'message' => "Performance evaluation for task #{$taskResult->weekly_task_id} updated by Admin.",
+            ]);
+        }
+
+        return back()->with('success', "Performance evaluation for task #{$taskResult->weekly_task_id} successfully updated by Administrator.");
+    }
+
     public function saveAchievement(Request $request)
     {
         $validated = $request->validate([

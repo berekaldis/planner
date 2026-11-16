@@ -273,6 +273,23 @@
                         </td>
                         <td class="text-end">
                             <div class="d-inline-flex align-items-center gap-1">
+                                @if(auth()->user()->isSuperAdmin())
+                                    <button type="button" class="btn btn-xs btn-outline-primary py-0.5 px-1.5" 
+                                            onclick="openEditMonthlyPlanModal({{ json_encode([
+                                                'id' => $plan->id,
+                                                'title' => $plan->title,
+                                                'plan_type' => $plan->plan_type,
+                                                'annual_goal_id' => $plan->annual_goal_id,
+                                                'monthly_target' => $plan->monthly_target,
+                                                'definition_of_done' => $plan->definition_of_done,
+                                                'priority' => $plan->priority,
+                                                'responsible_person' => $plan->responsible_person,
+                                                'description' => $plan->description,
+                                            ]) }})" 
+                                            title="Admin: Edit Monthly Plan">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                @endif
                                 @if(auth()->user()->isGM() || auth()->user()->isSuperAdmin())
                                     <button type="button" class="btn btn-xs btn-outline-warning py-0.5 px-1.5" 
                                             onclick="openGmCommentModal({{ $plan->id }}, '{{ addslashes($plan->title) }}', '{{ addslashes($plan->gm_comment ?? '') }}')" 
@@ -687,6 +704,88 @@
         </div>
     </div>
 </div>
+
+@if(auth()->user()->isSuperAdmin())
+<!-- Modal: Admin Edit Monthly Plan -->
+<div class="modal fade" id="editMonthlyPlanModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow">
+            <form id="editMonthlyPlanForm" method="POST" action="">
+                @csrf
+                @method('PUT')
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold fs-6">
+                        <i class="fas fa-edit me-2"></i> Edit Monthly Plan (Admin Control)
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-info py-2 px-3 small mb-3 border-0">
+                        <i class="fas fa-shield-halved me-1"></i>
+                        <strong>Administrator Permission:</strong> As an Administrator, you can modify monthly plan titles, targets, strategic linkages, and definitions of done.
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary text-uppercase">Plan Title <span class="text-danger">*</span></label>
+                        <input type="text" name="title" id="editPlanTitle" class="form-control" required>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-secondary text-uppercase">Plan Type <span class="text-danger">*</span></label>
+                            <select name="plan_type" id="editPlanType" class="form-select" onchange="toggleEditPlanType(this.value)">
+                                <option value="OPERATIONAL">OPERATIONAL</option>
+                                <option value="STRATEGY">STRATEGY</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-secondary text-uppercase">Priority</label>
+                            <select name="priority" id="editPlanPriority" class="form-select">
+                                <option value="HIGH">HIGH</option>
+                                <option value="MEDIUM">MEDIUM</option>
+                                <option value="LOW">LOW</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3" id="editPlanGoalWrapper">
+                        <label class="form-label small fw-bold text-secondary text-uppercase">Linked Annual Strategy Goal</label>
+                        <select name="annual_goal_id" id="editPlanAnnualGoalId" class="form-select">
+                            <option value="">-- No Strategy Link / Operational --</option>
+                            @foreach($activatedGoals ?? [] as $ag)
+                                <option value="{{ $ag->id }}">
+                                    [{{ $ag->goal_code }}] {{ $ag->goal_title }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary text-uppercase">Monthly Target / Quantitative Metric <span class="text-danger">*</span></label>
+                        <textarea name="monthly_target" id="editPlanTarget" class="form-control" rows="2" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary text-uppercase">Definition of Done (DOD) <span class="text-danger">*</span></label>
+                        <textarea name="definition_of_done" id="editPlanDod" class="form-control" rows="2" required></textarea>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-secondary text-uppercase">Responsible Person</label>
+                            <input type="text" name="responsible_person" id="editPlanResponsible" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-secondary text-uppercase">Description / Notes</label>
+                            <input type="text" name="description" id="editPlanDescription" class="form-control">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-primary fw-semibold">
+                        <i class="fas fa-save me-1"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
 @endsection
 
 @section('scripts')
@@ -748,6 +847,30 @@
         document.getElementById('gmCommentPlanTitle').innerText = title;
         document.getElementById('gmCommentInput').value = comment || '';
         const modal = new bootstrap.Modal(document.getElementById('gmCommentMonthlyModal'));
+        modal.show();
+    }
+
+    function toggleEditPlanType(val) {
+        const wrapper = document.getElementById('editPlanGoalWrapper');
+        if (wrapper) {
+            wrapper.style.display = (val === 'STRATEGY') ? 'block' : 'none';
+        }
+    }
+
+    function openEditMonthlyPlanModal(data) {
+        const form = document.getElementById('editMonthlyPlanForm');
+        if (!form) return;
+        form.action = "{{ url('/monthly/plans') }}/" + data.id;
+        document.getElementById('editPlanTitle').value = data.title || '';
+        document.getElementById('editPlanType').value = data.plan_type || 'OPERATIONAL';
+        document.getElementById('editPlanPriority').value = data.priority || 'MEDIUM';
+        document.getElementById('editPlanAnnualGoalId').value = data.annual_goal_id || '';
+        document.getElementById('editPlanTarget').value = data.monthly_target || '';
+        document.getElementById('editPlanDod').value = data.definition_of_done || '';
+        document.getElementById('editPlanResponsible').value = data.responsible_person || '';
+        document.getElementById('editPlanDescription').value = data.description || '';
+        toggleEditPlanType(data.plan_type || 'OPERATIONAL');
+        const modal = new bootstrap.Modal(document.getElementById('editMonthlyPlanModal'));
         modal.show();
     }
 

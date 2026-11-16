@@ -305,6 +305,24 @@
                                     </button>
                                 @endif
 
+                                @if(auth()->user()->isSuperAdmin())
+                                    <button type="button" class="btn btn-xs btn-outline-primary py-1 px-1.5" 
+                                            onclick="openAdminEditPerfModal({{ json_encode([
+                                                'id' => $task->result ? $task->result->id : $task->id,
+                                                'task_id' => $task->id,
+                                                'title' => $task->task_title,
+                                                'result' => $task->result ? $task->result->result : 'DONE',
+                                                'comment' => $task->result ? ($task->result->comment ?? '') : '',
+                                                'reason_id' => $task->result ? ($task->result->not_done_reason_id ?? '') : '',
+                                                'explanation' => $task->result ? ($task->result->not_done_explanation ?? '') : '',
+                                                'next_action' => $task->result ? ($task->result->next_action ?? '') : '',
+                                                'deadline' => $task->result && $task->result->expected_completion_date ? (\Carbon\Carbon::parse($task->result->expected_completion_date)->format('Y-m-d')) : '',
+                                            ]) }})" 
+                                            title="Admin: Edit Performance Evaluation">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </button>
+                                @endif
+
                                 @if($task->result && in_array($task->result->result, ['DONE', 'NOT_DONE']))
                                     <span class="badge bg-light text-secondary border py-1.5 px-2" title="Finalized (Permanent)">
                                         <i class="fas fa-lock text-muted me-1"></i> {{ $task->result->result === 'DONE' ? 'DONE' : 'NOT DONE' }}
@@ -410,92 +428,28 @@
     </div>
 </div>
 
-<!-- Submit to General Manager -->
-<div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
-        <h6 class="fw-bold mb-0 text-dark">
-            <i class="fas fa-paper-plane text-primary me-2"></i>Submit Weekly Cycle to GM
-        </h6>
-        <span class="badge bg-light text-secondary border">
-            <i class="fas fa-clock text-warning me-1"></i> Monday 12:30 PM (6:30 LT) Cutoff
-        </span>
-    </div>
-    <div class="card-body p-4">
-        <form method="POST" action="{{ route('weekly.report.submit') }}">
-            @csrf
-            <input type="hidden" name="department_id" value="{{ $department->id }}">
-            <input type="hidden" name="year" value="{{ $selectedYear }}">
-            <input type="hidden" name="month" value="{{ $selectedMonth }}">
-            <input type="hidden" name="week_number" value="{{ $selectedWeek }}">
-
-            <!-- Evaluation Readiness Indicator -->
-            @if($totalTasks === 0)
-                <div class="alert alert-warning py-2.5 px-3 small mb-3 border-0">
-                    <i class="fas fa-exclamation-triangle me-1 text-warning"></i>
-                    <strong>No tasks scheduled:</strong> Please add weekly tasks before submitting to the General Manager.
-                </div>
-            @elseif($unratedTasks > 0)
-                <div class="alert alert-warning py-2.5 px-3 small mb-3 border-0 d-flex justify-content-between align-items-center">
-                    <div>
-                        <i class="fas fa-clock me-1 text-warning"></i>
-                        <strong>Evaluation in progress:</strong> {{ $unratedTasks }} task(s) awaiting evaluation before report can be submitted.
-                    </div>
-                    <span class="badge bg-warning text-dark">{{ $doneTasks + $notDoneTasks }} / {{ $totalTasks }} Evaluated</span>
-                </div>
-            @else
-                <div class="alert alert-success py-2.5 px-3 small mb-3 border-0 d-flex justify-content-between align-items-center">
-                    <div>
-                        <i class="fas fa-check-circle me-1 text-success"></i>
-                        <strong>All tasks evaluated!</strong> Ready to submit Week {{ $selectedWeek }} performance report ({{ $doneTasks }} Done, {{ $notDoneTasks }} Not Done &bull; <strong>{{ $completionRate }}%</strong> completion rate).
-                    </div>
-                    <span class="badge bg-success">Ready</span>
-                </div>
+<!-- Unified Submission Workflow Note (Replacing standalone performance submit button) -->
+<div class="card border-0 shadow-sm mb-4 bg-light">
+    <div class="card-body p-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-3">
+            <div class="p-2 bg-primary bg-opacity-10 text-primary rounded-circle">
+                <i class="fas fa-check-double fa-lg"></i>
+            </div>
+            <div>
+                <strong class="text-dark">Unified Cycle Submission Workflow</strong>
+                <p class="small text-muted mb-0">Performance evaluations are officially submitted to General Management automatically when the <strong>Weekly Task Schedule</strong> is submitted.</p>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ route('weekly.plans', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $selectedWeek]) }}" class="btn btn-sm btn-kaldis">
+                <i class="fas fa-tasks me-1"></i> Week {{ $selectedWeek }} Plan
+            </a>
+            @if($nextWeek <= 5)
+                <a href="{{ route('weekly.plans', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $nextWeek]) }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-arrow-right me-1"></i> Week {{ $nextWeek }} Plan
+                </a>
             @endif
-
-            <!-- Upcoming Week Plan Link Strip -->
-            <div class="d-flex align-items-center justify-content-between bg-light p-2.5 rounded border small mb-3">
-                <div>
-                    <i class="fas fa-calendar-alt text-primary me-2"></i>
-                    <strong>Week {{ $nextWeek }} Plan:</strong>
-                    @if(($nextWeekTasksCount ?? 0) > 0)
-                        <span>{{ $nextWeekTasksCount }} task(s) scheduled. <span class="text-muted">(Will be bundled with this submission)</span></span>
-                    @else
-                        <span class="text-muted">No tasks scheduled yet for Week {{ $nextWeek }}.</span>
-                    @endif
-                </div>
-                <div class="d-flex gap-2">
-                    <a href="{{ route('weekly.plans', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $nextWeek]) }}" class="btn btn-xs btn-outline-primary py-0.5 px-2" style="font-size: 0.75rem;">
-                        <i class="fas fa-tasks me-1"></i> Manage Week {{ $nextWeek }}
-                    </a>
-                    @if(($nextWeekTasksCount ?? 0) > 0 && kaldis_setting('voucher_enabled', 'true') === 'true')
-                        <a href="{{ route('weekly.voucher', ['department_id' => $department->id, 'year' => $selectedYear, 'month' => $selectedMonth, 'week' => $nextWeek, 'type' => 'plan']) }}" target="_blank" class="btn btn-xs btn-outline-secondary py-0.5 px-2" style="font-size: 0.75rem;">
-                            <i class="fas fa-file-invoice me-1"></i> Preview Plan Voucher
-                        </a>
-                    @endif
-                </div>
-            </div>
-
-            <!-- Department Remarks / Executive Summary -->
-            <div class="mb-3">
-                <label class="form-label small fw-semibold text-secondary">Department Remarks for GM (Optional)</label>
-                <textarea name="report_summary" class="form-control" rows="2" placeholder="Overall execution summary, operational highlights, or notes for General Management..."></textarea>
-            </div>
-
-            <!-- Delay Justification (if late or requesting extension) -->
-            <div class="mb-3">
-                <label class="form-label small fw-semibold text-secondary">
-                    <i class="fas fa-clock text-warning me-1"></i> Delay Reason / Justification (If submitting past Monday 12:30 PM cutoff)
-                </label>
-                <textarea name="delay_reason" class="form-control" rows="2" placeholder="State operational reason for delay. If approved by GM, this report will NOT be marked as Not Submitted.">{{ $submission->delay_reason ?? ($report->delay_reason ?? '') }}</textarea>
-            </div>
-
-            <!-- Submit Action -->
-            <div class="d-flex justify-content-end align-items-center pt-2">
-                <button type="submit" class="btn btn-kaldis px-4" {{ ($totalTasks === 0 || $unratedTasks > 0) ? 'disabled' : '' }}>
-                    <i class="fas fa-paper-plane me-1"></i> Submit Report to GM
-                </button>
-            </div>
-        </form>
+        </div>
     </div>
 </div>
 
@@ -741,6 +695,102 @@
         </div>
     </div>
 </div>
+
+@if(auth()->user()->isSuperAdmin())
+<!-- Modal: Admin Edit Performance Evaluation -->
+<div class="modal fade" id="adminEditPerfModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow">
+            <form id="adminEditPerfForm" method="POST" action="">
+                @csrf
+                @method('PUT')
+                <input type="hidden" name="weekly_task_id" id="adminEditTaskId">
+
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold fs-6">
+                        <i class="fas fa-edit me-2"></i> Edit Performance Evaluation (Admin Control)
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    <div class="alert alert-info py-2 px-3 small mb-3 border-0">
+                        <i class="fas fa-shield-halved me-1"></i>
+                        <strong>Administrator Override:</strong> Standard department users cannot modify finalized evaluations. As an Administrator, you can adjust binary completion status, reason explanations, or next actions.
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small text-muted mb-1">Weekly Task</label>
+                        <div id="adminEditTaskTitle" class="fw-bold text-dark fs-6"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary text-uppercase">Evaluation Status <span class="text-danger">*</span></label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="result" id="adminResultDone" value="DONE" onchange="toggleAdminPerfFields(this.value)">
+                                <label class="form-check-label fw-bold text-success" for="adminResultDone">
+                                    <i class="fas fa-check-circle me-1"></i> DONE
+                                </label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="result" id="adminResultNotDone" value="NOT_DONE" onchange="toggleAdminPerfFields(this.value)">
+                                <label class="form-check-label fw-bold text-danger" for="adminResultNotDone">
+                                    <i class="fas fa-times-circle me-1"></i> NOT DONE
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fields for DONE -->
+                    <div id="adminDoneSection" class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label small fw-bold text-secondary text-uppercase mb-0">Comment / Output Note</label>
+                            <span class="badge bg-secondary-subtle text-secondary fw-normal">Optional</span>
+                        </div>
+                        <textarea name="comment" id="adminEditComment" class="form-control" rows="3" placeholder="Add optional comments, outputs achieved, or execution remarks..."></textarea>
+                    </div>
+
+                    <!-- Fields for NOT_DONE -->
+                    <div id="adminNotDoneSection" class="mb-3" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-secondary text-uppercase">Root Cause / Reason Category</label>
+                            <select name="not_done_reason_id" id="adminEditReasonId" class="form-select">
+                                <option value="">-- Select Reason Category --</option>
+                                @foreach($reasonCategories ?? [] as $rc)
+                                    <option value="{{ $rc->id }}">{{ $rc->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-secondary text-uppercase">Detailed Explanation</label>
+                            <textarea name="not_done_explanation" id="adminEditExplanation" class="form-control" rows="2" placeholder="Specific explanation of why the target was not reached..."></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-secondary text-uppercase">Corrective Next Action</label>
+                            <textarea name="next_action" id="adminEditNextAction" class="form-control" rows="2" placeholder="What specific action will be taken to resolve this?"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-secondary text-uppercase">Target Completion Date</label>
+                            <input type="date" name="expected_completion_date" id="adminEditDeadline" class="form-control">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-primary fw-semibold">
+                        <i class="fas fa-save me-1"></i> Update Evaluation
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
 @endsection
 
 @section('scripts')
@@ -779,6 +829,43 @@
         document.getElementById('gmCommentPerfTaskTitle').innerText = title;
         document.getElementById('gmCommentPerfInput').value = comment || '';
         const modal = new bootstrap.Modal(document.getElementById('gmCommentPerformanceModal'));
+        modal.show();
+    }
+
+    function toggleAdminPerfFields(status) {
+        const doneSec = document.getElementById('adminDoneSection');
+        const notDoneSec = document.getElementById('adminNotDoneSection');
+        if (status === 'DONE') {
+            if (doneSec) doneSec.style.display = 'block';
+            if (notDoneSec) notDoneSec.style.display = 'none';
+        } else {
+            if (doneSec) doneSec.style.display = 'none';
+            if (notDoneSec) notDoneSec.style.display = 'block';
+        }
+    }
+
+    function openAdminEditPerfModal(data) {
+        const form = document.getElementById('adminEditPerfForm');
+        if (!form) return;
+        form.action = "{{ url('/weekly/performance') }}/" + data.id + "/update";
+        document.getElementById('adminEditTaskId').value = data.task_id;
+        document.getElementById('adminEditTaskTitle').textContent = data.title;
+        
+        if (data.result === 'NOT_DONE') {
+            document.getElementById('adminResultNotDone').checked = true;
+            toggleAdminPerfFields('NOT_DONE');
+        } else {
+            document.getElementById('adminResultDone').checked = true;
+            toggleAdminPerfFields('DONE');
+        }
+
+        document.getElementById('adminEditComment').value = data.comment || '';
+        document.getElementById('adminEditReasonId').value = data.reason_id || '';
+        document.getElementById('adminEditExplanation').value = data.explanation || '';
+        document.getElementById('adminEditNextAction').value = data.next_action || '';
+        document.getElementById('adminEditDeadline').value = data.deadline || '';
+
+        const modal = new bootstrap.Modal(document.getElementById('adminEditPerfModal'));
         modal.show();
     }
 </script>

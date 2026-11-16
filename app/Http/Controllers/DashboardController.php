@@ -173,6 +173,7 @@ class DashboardController extends Controller
 
         $totalDepartments = Department::where('active', 1)->count();
         $totalStrategies = AnnualGoal::where('year', $selectedYear)->where('status', 'ACTIVE')->count();
+        $activatedGoals = AnnualGoal::where('year', $selectedYear)->where('status', 'ACTIVE')->orderBy('goal_code')->get();
 
         // Count distinct active goals for this month
         $activeStrategiesCount = MonthlyStrategyActivation::where('year', $selectedYear)
@@ -209,7 +210,15 @@ class DashboardController extends Controller
 
         $selectedWeek = (int)$request->query('week', (function_exists('get_current_planning_week') ? get_current_planning_week() : 1) ?: 1);
 
-        $departments = Department::where('active', 1)->orderBy('department_name')->get();
+        $selectedDeptId = $request->query('department_id', null);
+        if ($selectedDeptId !== null && $selectedDeptId !== '') {
+            $selectedDeptId = (int)$selectedDeptId;
+        } else {
+            $selectedDeptId = null;
+        }
+
+        $allDepartmentsList = Department::where('active', 1)->orderBy('department_name')->get();
+        $departments = $selectedDeptId ? $allDepartmentsList->where('id', $selectedDeptId) : $allDepartmentsList;
 
         // Monthly submissions & formulated plans by department
         $monthlySubmissions = \App\Models\MonthlySubmission::where('year', $selectedYear)
@@ -220,6 +229,7 @@ class DashboardController extends Controller
         $allMonthlyPlans = MonthlyPlan::with(['department', 'annualGoal'])
             ->where('year', $selectedYear)
             ->where('month', $selectedMonth)
+            ->when($selectedDeptId, fn($q) => $q->where('department_id', $selectedDeptId))
             ->orderBy('department_id')
             ->orderBy('plan_type', 'desc')
             ->get();
@@ -451,7 +461,10 @@ class DashboardController extends Controller
             'pendingWeeklyPlanDelays',
             'pendingWeeklyReportDelays',
             'totalPendingDelays',
-            'currentPhase'
+            'currentPhase',
+            'allDepartmentsList',
+            'selectedDeptId',
+            'activatedGoals'
         ));
     }
 

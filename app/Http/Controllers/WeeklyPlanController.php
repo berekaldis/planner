@@ -318,6 +318,126 @@ class WeeklyPlanController extends Controller
             (int)$validated['week_number']
         );
 
+        // AUTOMATIC UNIFIED PERFORMANCE SUBMISSION:
+        // When the weekly plan is submitted to GM, also officially submit the performance evaluation at the same time.
+        if (!empty($lastWeekPerf['prev_week']) && empty($lastWeekPerf['is_first_week_of_year'])) {
+            $pWeek = (int)$lastWeekPerf['prev_week'];
+            $pYear = $lastWeekPerf['prev_year'] ?? $validated['year'];
+            $pMonth = $lastWeekPerf['prev_month'] ?? $validated['month'];
+            $pTotal = (int)($lastWeekPerf['total_tasks'] ?? 0);
+            $pDone = (int)($lastWeekPerf['done_tasks'] ?? 0);
+            $pNotDone = (int)($lastWeekPerf['not_done_tasks'] ?? 0);
+            $pRate = (float)($lastWeekPerf['completion_rate'] ?? 0);
+
+            $pDeadlineInfo = function_exists('get_weekly_cycle_deadline')
+                ? get_weekly_cycle_deadline($pYear, $pMonth, $pWeek)
+                : ['compliance' => 'ON_TIME', 'deadline_carbon' => null];
+            $pCompliance = $pDeadlineInfo['compliance'] ?? 'ON_TIME';
+
+            $existingPrevReport = WeeklyReport::where('department_id', $validated['department_id'])
+                ->where('year', $pYear)
+                ->where('month', $pMonth)
+                ->where('week_number', $pWeek)
+                ->first();
+
+            if ($existingPrevReport && ($existingPrevReport->delay_status === 'APPROVED' || $existingPrevReport->submission_status === 'DELAY_APPROVED')) {
+                $pCompliance = 'DELAY_APPROVED';
+            }
+
+            WeeklyReport::updateOrCreate(
+                [
+                    'department_id' => $validated['department_id'],
+                    'year' => $pYear,
+                    'month' => $pMonth,
+                    'week_number' => $pWeek,
+                ],
+                [
+                    'status' => 'SUBMITTED',
+                    'total_tasks' => $pTotal,
+                    'done_tasks' => $pDone,
+                    'not_done_tasks' => $pNotDone,
+                    'completion_percentage' => $pRate,
+                    'submitted_by' => $user->id,
+                    'submitted_at' => now(),
+                    'submission_status' => $pCompliance,
+                    'notes' => "Submitted automatically with Week {$validated['week_number']} task schedule.",
+                ]
+            );
+
+            Submission::updateOrCreate(
+                [
+                    'department_id' => $validated['department_id'],
+                    'year' => $pYear,
+                    'month' => $pMonth,
+                    'week_number' => $pWeek,
+                ],
+                [
+                    'deadline_at' => $pDeadlineInfo['deadline_carbon'] ?? null,
+                    'submitted_at' => now(),
+                    'status' => $pCompliance,
+                    'submission_channel' => 'WEB',
+                    'submitted_by' => $user->id,
+                    'remarks' => "Submitted performance automatically with Week {$validated['week_number']} plan.",
+                ]
+            );
+
+            AuditLog::log(
+                'SUBMIT_WEEKLY_REPORT',
+                'performance',
+                "Automatically submitted performance report for Week {$pWeek} ({$pCompliance}, {$pRate}%) alongside Week {$validated['week_number']} plan"
+            );
+        }
+
+        // Also check if current week tasks have evaluations
+        $curEvaluatedCount = DB::table('weekly_tasks as wt')
+            ->join('weekly_task_results as wtr', 'wt.id', '=', 'wtr.weekly_task_id')
+            ->where('wt.department_id', $validated['department_id'])
+            ->where('wt.year', $validated['year'])
+            ->where('wt.month', $validated['month'])
+            ->where('wt.week_number', $validated['week_number'])
+            ->count();
+
+        if ($curEvaluatedCount > 0) {
+            $curDone = DB::table('weekly_tasks as wt')
+                ->join('weekly_task_results as wtr', 'wt.id', '=', 'wtr.weekly_task_id')
+                ->where('wt.department_id', $validated['department_id'])
+                ->where('wt.year', $validated['year'])
+                ->where('wt.month', $validated['month'])
+                ->where('wt.week_number', $validated['week_number'])
+                ->where('wtr.result', 'DONE')
+                ->count();
+            $curNotDone = DB::table('weekly_tasks as wt')
+                ->join('weekly_task_results as wtr', 'wt.id', '=', 'wtr.weekly_task_id')
+                ->where('wt.department_id', $validated['department_id'])
+                ->where('wt.year', $validated['year'])
+                ->where('wt.month', $validated['month'])
+                ->where('wt.week_number', $validated['week_number'])
+                ->where('wtr.result', 'NOT_DONE')
+                ->count();
+            $curTotal = $tasks->count();
+            $curRate = $curTotal > 0 ? round(($curDone / $curTotal) * 100) : 0;
+
+            WeeklyReport::updateOrCreate(
+                [
+                    'department_id' => $validated['department_id'],
+                    'year' => $validated['year'],
+                    'month' => $validated['month'],
+                    'week_number' => $validated['week_number'],
+                ],
+                [
+                    'status' => 'SUBMITTED',
+                    'total_tasks' => $curTotal,
+                    'done_tasks' => $curDone,
+                    'not_done_tasks' => $curNotDone,
+                    'completion_percentage' => $curRate,
+                    'submitted_by' => $user->id,
+                    'submitted_at' => now(),
+                    'submission_status' => $subStatus,
+                    'notes' => "Submitted automatically with Week {$validated['week_number']} task schedule.",
+                ]
+            );
+        }
+
         // Build Consolidated Notification: Weekly Task Scheduled with Last Week Performance Report
         $notification = build_weekly_task_scheduled_notification(
             $department,
@@ -390,6 +510,68 @@ class WeeklyPlanController extends Controller
         notify_both_gm_and_head($deptId, $notifTitle, $notifMessage, $gmUrl);
 
         return back()->with('success', 'Delay reason for weekly task schedule submitted successfully to General Management.');
+    }
+
+    public function updateTask(Request $request, $id)
+    {
+        $user = Auth::user();
+        if (!$user->isSuperAdmin()) {
+            abort(403, 'Permission denied. Only Administrators can edit plans.');
+        }
+
+        $task = WeeklyTask::findOrFail($id);
+
+        $validated = $request->validate([
+            'task_title' => 'required|string|max:255',
+            'expected_result' => 'nullable|string',
+            'definition_of_done' => 'nullable|string',
+            'plan_type' => 'nullable|in:STRATEGY,OPERATIONAL',
+            'priority' => 'nullable|in:HIGH,MEDIUM,LOW',
+            'responsible_person' => 'nullable|string|max:150',
+            'due_date' => 'nullable|date',
+            'monthly_plan_id' => 'nullable|exists:monthly_plans,id',
+            'task_description' => 'nullable|string',
+        ]);
+
+        $task->task_title = $validated['task_title'];
+        $task->expected_result = $validated['definition_of_done'] ?? ($validated['expected_result'] ?? $task->expected_result);
+        
+        if (!empty($validated['monthly_plan_id'])) {
+            $task->monthly_plan_id = $validated['monthly_plan_id'];
+            $parentPlan = MonthlyPlan::find($validated['monthly_plan_id']);
+            if ($parentPlan) {
+                $task->plan_type = $parentPlan->plan_type;
+                if ($parentPlan->annual_goal_id) {
+                    $task->annual_goal_id = $parentPlan->annual_goal_id;
+                }
+            }
+        } elseif (!empty($validated['plan_type'])) {
+            $task->plan_type = $validated['plan_type'];
+        }
+
+        if (!empty($validated['priority'])) {
+            $task->priority = $validated['priority'];
+        }
+        if (isset($validated['responsible_person'])) {
+            $task->responsible_person = $validated['responsible_person'];
+        }
+        if (array_key_exists('due_date', $validated)) {
+            $task->due_date = $validated['due_date'];
+        }
+        if (array_key_exists('task_description', $validated)) {
+            $task->task_description = $validated['task_description'];
+        }
+
+        $task->save();
+
+        AuditLog::log(
+            'ADMIN_UPDATE_WEEKLY_TASK',
+            'weekly_plans',
+            "Admin {$user->name} updated weekly task #{$task->id} '{$task->task_title}' (Dept: {$task->department_id})",
+            $task->id
+        );
+
+        return back()->with('success', "Weekly task #{$task->id} updated successfully by Administrator.");
     }
 
     public function destroyTask($id)

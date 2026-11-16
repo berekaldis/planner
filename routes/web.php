@@ -113,12 +113,14 @@ Route::middleware('auth')->group(function () {
     Route::post('/monthly/submit-package', [MonthlyPlanController::class, 'submitPackage'])->name('monthly.plans.submit_package');
     Route::post('/monthly/delay-reason', [MonthlyPlanController::class, 'submitDelayReason'])->name('monthly.delay_reason');
     Route::post('/monthly/feedback', [MonthlyPlanController::class, 'saveFeedback'])->name('monthly.feedback');
+    Route::put('/monthly/plans/{id}', [MonthlyPlanController::class, 'update'])->name('monthly.plans.update');
     Route::delete('/monthly/plans/{id}', [MonthlyPlanController::class, 'destroy'])->name('monthly.plans.destroy');
 
     // Weekly Planning
     Route::get('/weekly/plans', [WeeklyPlanController::class, 'index'])->name('weekly.plans');
     Route::get('/weekly/tasks', [WeeklyPlanController::class, 'index'])->name('weekly.tasks');
     Route::post('/weekly/tasks', [WeeklyPlanController::class, 'storeTask'])->name('weekly.tasks.store');
+    Route::put('/weekly/tasks/{id}', [WeeklyPlanController::class, 'updateTask'])->name('weekly.tasks.update');
     Route::post('/weekly/tasks/bulk-approve', [WeeklyPlanController::class, 'bulkApproveTasks'])->name('weekly.tasks.bulk_approve');
     Route::post('/weekly/tasks/{id}/approve', [WeeklyPlanController::class, 'approveTask'])->name('weekly.tasks.approve');
     Route::post('/weekly/tasks/{id}/decline', [WeeklyPlanController::class, 'declineTask'])->name('weekly.tasks.decline');
@@ -130,6 +132,8 @@ Route::middleware('auth')->group(function () {
     // Weekly Performance Execution
     Route::get('/weekly/performance', [PerformanceController::class, 'execution'])->name('weekly.performance');
     Route::post('/weekly/performance/evaluate', [PerformanceController::class, 'saveEvaluation'])->name('weekly.performance.evaluate');
+    Route::match(['PUT', 'POST'], '/weekly/performance/{id}/update', [PerformanceController::class, 'updateResult'])->name('weekly.performance.update');
+    Route::match(['PUT', 'POST'], '/weekly/performance/results/{id}', [PerformanceController::class, 'updateResult'])->name('weekly.performance.update_result');
     Route::post('/weekly/performance/{id}/gm-comment', [WeeklyPlanController::class, 'saveResultGmComment'])->name('weekly.performance.gm_comment');
     Route::post('/weekly/results/{id}/gm-comment', [WeeklyPlanController::class, 'saveResultGmComment'])->name('weekly.results.gm_comment');
     Route::get('/weekly/achievements', fn() => redirect()->route('performance.achievements'));

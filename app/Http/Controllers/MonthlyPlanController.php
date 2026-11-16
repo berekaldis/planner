@@ -388,6 +388,58 @@ class MonthlyPlanController extends Controller
         return back()->with('success', 'Monthly plan created successfully. Remember to click "Submit to GM" once your plan package is ready.');
     }
 
+    public function update(Request $request, $id)
+    {
+        $user = Auth::user();
+        if (!$user->isSuperAdmin()) {
+            abort(403, 'Permission denied. Only Administrators can edit plans.');
+        }
+
+        $plan = MonthlyPlan::findOrFail($id);
+
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'plan_title' => 'nullable|string|max:255',
+            'monthly_target' => 'nullable|string',
+            'target_description' => 'nullable|string',
+            'definition_of_done' => 'required|string',
+            'plan_type' => 'required|in:STRATEGY,OPERATIONAL',
+            'annual_goal_id' => 'nullable|exists:annual_goals,id',
+            'priority' => 'nullable|in:HIGH,MEDIUM,LOW',
+            'responsible_person' => 'nullable|string|max:100',
+            'description' => 'nullable|string',
+        ]);
+
+        $title = $validated['title'] ?? ($validated['plan_title'] ?? $plan->title);
+        $target = $validated['monthly_target'] ?? ($validated['target_description'] ?? $plan->monthly_target);
+
+        $plan->title = $title;
+        $plan->monthly_target = $target;
+        $plan->definition_of_done = $validated['definition_of_done'];
+        $plan->plan_type = $validated['plan_type'];
+        $plan->annual_goal_id = ($validated['plan_type'] === 'STRATEGY') ? ($validated['annual_goal_id'] ?? $plan->annual_goal_id) : null;
+        if (!empty($validated['priority'])) {
+            $plan->priority = $validated['priority'];
+        }
+        if (isset($validated['responsible_person'])) {
+            $plan->responsible_person = $validated['responsible_person'];
+        }
+        if (array_key_exists('description', $validated)) {
+            $plan->description = $validated['description'];
+        }
+
+        $plan->save();
+
+        AuditLog::log(
+            'ADMIN_UPDATE_MONTHLY_PLAN',
+            'monthly_plans',
+            "Admin {$user->name} updated monthly plan #{$plan->id} '{$plan->title}' (Dept: {$plan->department_id})",
+            $plan->id
+        );
+
+        return back()->with('success', "Monthly plan #{$plan->id} updated successfully by Administrator.");
+    }
+
     public function destroy($id)
     {
         $user = Auth::user();

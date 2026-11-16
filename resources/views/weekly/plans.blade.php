@@ -317,6 +317,23 @@
                         </td>
                         <td class="text-end">
                             <div class="d-inline-flex align-items-center gap-1">
+                                @if(auth()->user()->isSuperAdmin())
+                                    <button type="button" class="btn btn-xs btn-outline-primary py-0.5 px-1.5" 
+                                            onclick="openEditWeeklyTaskModal({{ json_encode([
+                                                'id' => $task->id,
+                                                'title' => $task->task_title,
+                                                'plan_type' => $task->plan_type,
+                                                'monthly_plan_id' => $task->monthly_plan_id,
+                                                'expected_result' => $task->expected_result ?: $task->task_target,
+                                                'priority' => $task->priority,
+                                                'responsible_person' => $task->responsible_person,
+                                                'due_date' => $task->due_date ? (\Carbon\Carbon::parse($task->due_date)->format('Y-m-d')) : '',
+                                                'description' => $task->task_description,
+                                            ]) }})" 
+                                            title="Admin: Edit Task Plan">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                @endif
                                 @if(auth()->user()->isGM() || auth()->user()->isSuperAdmin())
                                     <button type="button" class="btn btn-xs btn-outline-warning py-0.5 px-1.5" 
                                             onclick="openGmCommentModal({{ $task->id }}, '{{ addslashes($task->task_title) }}', '{{ addslashes($task->gm_comment ?? '') }}')" 
@@ -734,6 +751,88 @@
         </div>
     </div>
 </div>
+
+@if(auth()->user()->isSuperAdmin())
+<!-- Modal: Admin Edit Weekly Task -->
+<div class="modal fade" id="editWeeklyTaskModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow">
+            <form id="editWeeklyTaskForm" method="POST" action="">
+                @csrf
+                @method('PUT')
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold fs-6">
+                        <i class="fas fa-edit me-2"></i> Edit Weekly Task (Admin Control)
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-info py-2 px-3 small mb-3 border-0">
+                        <i class="fas fa-shield-halved me-1"></i>
+                        <strong>Administrator Permission:</strong> As an Administrator, you can modify weekly task details, re-link to parent monthly plans, or update targets and responsible owners.
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary text-uppercase">Task Title <span class="text-danger">*</span></label>
+                        <input type="text" name="task_title" id="editTaskTitle" class="form-control" required>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-secondary text-uppercase">Plan Type</label>
+                            <select name="plan_type" id="editTaskPlanType" class="form-select">
+                                <option value="OPERATIONAL">OPERATIONAL</option>
+                                <option value="STRATEGY">STRATEGY</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-secondary text-uppercase">Priority</label>
+                            <select name="priority" id="editTaskPriority" class="form-select">
+                                <option value="HIGH">HIGH</option>
+                                <option value="MEDIUM">MEDIUM</option>
+                                <option value="LOW">LOW</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary text-uppercase">Parent Monthly Plan (Optional)</label>
+                        <select name="monthly_plan_id" id="editTaskMonthlyPlanId" class="form-select">
+                            <option value="">-- Standalone / Operational --</option>
+                            @foreach($monthlyPlans as $mp)
+                                <option value="{{ $mp->id }}">
+                                    [{{ $mp->plan_type }}] {{ $mp->title }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary text-uppercase">Definition of Done (DOD) / Target <span class="text-danger">*</span></label>
+                        <textarea name="definition_of_done" id="editTaskDod" class="form-control" rows="2" required></textarea>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-secondary text-uppercase">Responsible Person</label>
+                            <input type="text" name="responsible_person" id="editTaskResponsible" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-secondary text-uppercase">Due Date</label>
+                            <input type="date" name="due_date" id="editTaskDueDate" class="form-control">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary text-uppercase">Task Description (Optional)</label>
+                        <textarea name="task_description" id="editTaskDescription" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-primary fw-semibold">
+                        <i class="fas fa-save me-1"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
 @endsection
 
 @section('scripts')
@@ -775,6 +874,22 @@
         document.getElementById('gmCommentTaskTitle').innerText = title;
         document.getElementById('gmCommentTaskInput').value = comment || '';
         const modal = new bootstrap.Modal(document.getElementById('gmCommentWeeklyTaskModal'));
+        modal.show();
+    }
+
+    function openEditWeeklyTaskModal(data) {
+        const form = document.getElementById('editWeeklyTaskForm');
+        if (!form) return;
+        form.action = "{{ url('/weekly/tasks') }}/" + data.id;
+        document.getElementById('editTaskTitle').value = data.title || '';
+        document.getElementById('editTaskPlanType').value = data.plan_type || 'OPERATIONAL';
+        document.getElementById('editTaskPriority').value = data.priority || 'MEDIUM';
+        document.getElementById('editTaskMonthlyPlanId').value = data.monthly_plan_id || '';
+        document.getElementById('editTaskDod').value = data.expected_result || '';
+        document.getElementById('editTaskResponsible').value = data.responsible_person || '';
+        document.getElementById('editTaskDueDate').value = data.due_date || '';
+        document.getElementById('editTaskDescription').value = data.description || '';
+        const modal = new bootstrap.Modal(document.getElementById('editWeeklyTaskModal'));
         modal.show();
     }
 
