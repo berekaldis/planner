@@ -737,6 +737,7 @@ class PerformanceController extends Controller
             'wt.task_title',
             'wt.week_number',
             'wt.plan_type',
+            'wt.responsible_person',
             'd.department_name',
             'd.department_code',
             'rc.name as category_name',

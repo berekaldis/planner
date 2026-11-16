@@ -90,7 +90,7 @@
                         </td>
                         <td>
                             <div class="small text-dark">{{ $row->next_action_deadline ?: 'N/A' }}</div>
-                            <small class="text-muted">{{ $row->responsible_person ?: 'Unassigned' }}</small>
+                            <small class="text-muted">{{ (!empty($row->responsible_person)) ? $row->responsible_person : 'Unassigned' }}</small>
                         </td>
                     </tr>
                 @empty
