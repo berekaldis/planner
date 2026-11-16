@@ -7,9 +7,12 @@ use App\Models\Department;
 use App\Models\MonthlyPlan;
 use App\Models\Submission;
 use App\Models\WeeklyPlan;
+use App\Models\WeeklyReport;
 use App\Models\WeeklyTask;
+use App\Models\WeeklyTaskResult;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class WeeklyPlanController extends Controller
 {

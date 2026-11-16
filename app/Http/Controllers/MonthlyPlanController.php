@@ -7,6 +7,8 @@ use App\Models\AuditLog;
 use App\Models\Department;
 use App\Models\MonthlyPlan;
 use App\Models\MonthlyStrategyActivation;
+use App\Models\MonthlySubmission;
+use App\Models\Submission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
