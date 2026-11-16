@@ -847,7 +847,7 @@
     function openAdminEditPerfModal(data) {
         const form = document.getElementById('adminEditPerfForm');
         if (!form) return;
-        form.action = "{{ url('/weekly/performance') }}/" + data.id + "/update";
+        form.action = "/weekly/performance/" + data.id + "/update";
         document.getElementById('adminEditTaskId').value = data.task_id;
         document.getElementById('adminEditTaskTitle').textContent = data.title;
         

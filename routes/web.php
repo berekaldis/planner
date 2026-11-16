@@ -114,6 +114,17 @@ Route::middleware('auth')->group(function () {
     Route::post('/monthly/delay-reason', [MonthlyPlanController::class, 'submitDelayReason'])->name('monthly.delay_reason');
     Route::post('/monthly/feedback', [MonthlyPlanController::class, 'saveFeedback'])->name('monthly.feedback');
     Route::put('/monthly/plans/{id}', [MonthlyPlanController::class, 'update'])->name('monthly.plans.update');
+    Route::get('/monthly/plans/{id}', function ($id) {
+        $plan = \App\Models\MonthlyPlan::find($id);
+        if ($plan) {
+            return redirect()->route('monthly.plans', [
+                'department_id' => $plan->department_id,
+                'year' => $plan->year,
+                'month' => $plan->month,
+            ]);
+        }
+        return redirect()->route('monthly.plans');
+    });
     Route::delete('/monthly/plans/{id}', [MonthlyPlanController::class, 'destroy'])->name('monthly.plans.destroy');
 
     // Weekly Planning
@@ -121,6 +132,18 @@ Route::middleware('auth')->group(function () {
     Route::get('/weekly/tasks', [WeeklyPlanController::class, 'index'])->name('weekly.tasks');
     Route::post('/weekly/tasks', [WeeklyPlanController::class, 'storeTask'])->name('weekly.tasks.store');
     Route::put('/weekly/tasks/{id}', [WeeklyPlanController::class, 'updateTask'])->name('weekly.tasks.update');
+    Route::get('/weekly/tasks/{id}', function ($id) {
+        $task = \App\Models\WeeklyTask::find($id);
+        if ($task) {
+            return redirect()->route('weekly.plans', [
+                'department_id' => $task->department_id,
+                'year' => $task->year,
+                'month' => $task->month,
+                'week' => $task->week_number,
+            ]);
+        }
+        return redirect()->route('weekly.plans');
+    });
     Route::post('/weekly/tasks/bulk-approve', [WeeklyPlanController::class, 'bulkApproveTasks'])->name('weekly.tasks.bulk_approve');
     Route::post('/weekly/tasks/{id}/approve', [WeeklyPlanController::class, 'approveTask'])->name('weekly.tasks.approve');
     Route::post('/weekly/tasks/{id}/decline', [WeeklyPlanController::class, 'declineTask'])->name('weekly.tasks.decline');
@@ -134,6 +157,25 @@ Route::middleware('auth')->group(function () {
     Route::post('/weekly/performance/evaluate', [PerformanceController::class, 'saveEvaluation'])->name('weekly.performance.evaluate');
     Route::match(['PUT', 'POST'], '/weekly/performance/{id}/update', [PerformanceController::class, 'updateResult'])->name('weekly.performance.update');
     Route::match(['PUT', 'POST'], '/weekly/performance/results/{id}', [PerformanceController::class, 'updateResult'])->name('weekly.performance.update_result');
+    Route::get('/weekly/performance/{id}/update', function ($id) {
+        $task = \App\Models\WeeklyTask::find($id);
+        if (!$task) {
+            $result = \App\Models\WeeklyTaskResult::find($id);
+            if ($result) {
+                $task = $result->weeklyTask;
+            }
+        }
+        if ($task) {
+            return redirect()->route('weekly.performance', [
+                'department_id' => $task->department_id,
+                'year' => $task->year,
+                'month' => $task->month,
+                'week' => $task->week_number,
+            ]);
+        }
+        return redirect()->route('weekly.performance');
+    });
+    Route::get('/weekly/performance/results/{id}', fn($id) => redirect()->route('weekly.performance'));
     Route::post('/weekly/performance/{id}/gm-comment', [WeeklyPlanController::class, 'saveResultGmComment'])->name('weekly.performance.gm_comment');
     Route::post('/weekly/results/{id}/gm-comment', [WeeklyPlanController::class, 'saveResultGmComment'])->name('weekly.results.gm_comment');
     Route::get('/weekly/achievements', fn() => redirect()->route('performance.achievements'));

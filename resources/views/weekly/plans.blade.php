@@ -880,7 +880,7 @@
     function openEditWeeklyTaskModal(data) {
         const form = document.getElementById('editWeeklyTaskForm');
         if (!form) return;
-        form.action = "{{ url('/weekly/tasks') }}/" + data.id;
+        form.action = "/weekly/tasks/" + data.id;
         document.getElementById('editTaskTitle').value = data.title || '';
         document.getElementById('editTaskPlanType').value = data.plan_type || 'OPERATIONAL';
         document.getElementById('editTaskPriority').value = data.priority || 'MEDIUM';

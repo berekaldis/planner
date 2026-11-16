@@ -25,6 +25,12 @@ class AppServiceProvider extends ServiceProvider
     {
         Paginator::useBootstrapFive();
 
+        if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+        } elseif (app()->environment('production') || str_contains(config('app.url', ''), 'https://')) {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+        }
+
         // Auto-heal: Invalidate stale route cache if routes/web.php was updated
         try {
             $routeCache = base_path('bootstrap/cache/routes-v7.php');

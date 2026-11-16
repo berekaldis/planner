@@ -987,7 +987,7 @@ function toggleEditPlanType(val) {
 function openEditMonthlyPlanModal(data) {
     const form = document.getElementById('editMonthlyPlanForm');
     if (!form) return;
-    form.action = "{{ url('/monthly/plans') }}/" + data.id;
+    form.action = "/monthly/plans/" + data.id;
     document.getElementById('editPlanTitle').value = data.title || '';
     document.getElementById('editPlanType').value = data.plan_type || 'OPERATIONAL';
     document.getElementById('editPlanPriority').value = data.priority || 'MEDIUM';
