@@ -67,8 +67,13 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
     <!-- FontAwesome 6 -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
     <!-- Favicon -->
-    <link rel="icon" type="image/png" href="<?= url('/assets/images/logo.png') ?>">
-    <link rel="shortcut icon" type="image/png" href="<?= url('/assets/images/logo.png') ?>">
+    <link rel="icon" type="image/x-icon" href="<?= url('/favicon.ico') ?>?v=5">
+    <link rel="shortcut icon" type="image/x-icon" href="<?= url('/favicon.ico') ?>?v=5">
+    <link rel="icon" type="image/png" sizes="32x32" href="<?= url('/favicon-32x32.png') ?>?v=5">
+    <link rel="icon" type="image/png" sizes="16x16" href="<?= url('/favicon-16x16.png') ?>?v=5">
+    <link rel="icon" type="image/png" sizes="48x48" href="<?= url('/favicon-48x48.png') ?>?v=5">
+    <link rel="apple-touch-icon" sizes="180x180" href="<?= url('/apple-touch-icon.png') ?>?v=5">
+    <link rel="manifest" href="<?= url('/site.webmanifest') ?>?v=5">
     <!-- TomSelect 2.4 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
     <!-- Kaldis Custom Stylesheet with Cache Busting -->

@@ -16,6 +16,61 @@ use Illuminate\Support\Facades\Route;
 Route::post('/telegram/webhook', [TelegramController::class, 'webhook'])->name('telegram.webhook');
 Route::any('/api/cron/run', [TelegramController::class, 'runAutomation'])->name('cron.run');
 
+// Direct Favicon & Icon Serving Routes
+Route::get('/favicon.ico', function () {
+    $path = public_path('favicon.ico');
+    if (!file_exists($path)) {
+        $path = base_path('favicon.ico');
+    }
+    return response()->file($path, [
+        'Content-Type' => 'image/x-icon',
+        'Cache-Control' => 'public, max-age=604800, immutable',
+    ]);
+});
+
+Route::get('/favicon{size}.png', function ($size = '') {
+    $filename = 'favicon' . $size . '.png';
+    $path = public_path($filename);
+    if (!file_exists($path)) {
+        $path = base_path($filename);
+    }
+    if (file_exists($path)) {
+        return response()->file($path, [
+            'Content-Type' => 'image/png',
+            'Cache-Control' => 'public, max-age=604800, immutable',
+        ]);
+    }
+    abort(404);
+})->where('size', '(-16x16|-32x32|-48x48)?');
+
+Route::get('/apple-touch-icon{suffix}.png', function ($suffix = '') {
+    $path = public_path('apple-touch-icon.png');
+    if (!file_exists($path)) {
+        $path = base_path('apple-touch-icon.png');
+    }
+    if (file_exists($path)) {
+        return response()->file($path, [
+            'Content-Type' => 'image/png',
+            'Cache-Control' => 'public, max-age=604800, immutable',
+        ]);
+    }
+    abort(404);
+})->where('suffix', '.*');
+
+Route::get('/site.webmanifest', function () {
+    $path = public_path('site.webmanifest');
+    if (!file_exists($path)) {
+        $path = base_path('site.webmanifest');
+    }
+    if (file_exists($path)) {
+        return response()->file($path, [
+            'Content-Type' => 'application/manifest+json',
+            'Cache-Control' => 'public, max-age=604800',
+        ]);
+    }
+    abort(404);
+});
+
 // Guest Authentication Routes
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
