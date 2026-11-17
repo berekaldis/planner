@@ -231,11 +231,11 @@ class MonthlyPlanReminderCommand extends Command
         if ($telegram->isConfigured()) {
             $gmChatIds = [];
 
-            // Query GM users
+            // Query General Management (GM) users ONLY
             $gmUsers = User::where(function ($query) {
                 $query->whereHas('role', function ($q) {
-                    $q->whereIn('name', ['gm_management', 'super_admin', 'gm', 'general_manager']);
-                })->orWhereIn('role_id', [1, 2]);
+                    $q->whereIn('name', ['gm_management', 'gm', 'general_manager']);
+                })->orWhere('role_id', 2);
             })->where('is_active', 1)->get();
 
             foreach ($gmUsers as $gm) {
@@ -276,6 +276,9 @@ class MonthlyPlanReminderCommand extends Command
             }
 
             $gmChatIds = array_unique(array_filter($gmChatIds));
+            // Ensure IT Department chat ID is excluded from company-wide GM monthly progress summaries
+            $adminChatId = User::where('username', 'admin')->value('telegram_chat_id') ?: '814523272';
+            $gmChatIds = array_values(array_diff($gmChatIds, [(string)$adminChatId, '814523272']));
 
             if (!empty($gmChatIds)) {
                 $headerTitle = $type === 'cutoff' 

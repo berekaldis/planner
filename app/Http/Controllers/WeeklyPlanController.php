@@ -236,8 +236,9 @@ class WeeklyPlanController extends Controller
 
         if ($isLastWeekMandatory && !empty($lastWeekPerf['is_mandatory_missing'])) {
             $prevWeekLabel = "Week {$lastWeekPerf['prev_week']}" . (!empty($lastWeekPerf['prev_month']) ? " ({$lastWeekPerf['prev_month']} {$lastWeekPerf['prev_year']})" : "");
+            $unrated = (int)($lastWeekPerf['unrated_tasks'] ?? 0);
             return back()->withErrors([
-                'submission' => "Cannot submit Week {$validated['week_number']} plan: Last week's performance report ({$prevWeekLabel}) is mandatory and must be evaluated and submitted to General Management first."
+                'submission' => "Cannot submit Week {$validated['week_number']} plan: Last week's performance report ({$prevWeekLabel}) has {$unrated} unevaluated task(s). Please evaluate all tasks on the Performance page first."
             ])->withInput();
         }
 

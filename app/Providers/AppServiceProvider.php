@@ -233,6 +233,27 @@ class AppServiceProvider extends ServiceProvider
 
                 Cache::forever('auto_heal_telegram_gm_v2', true);
             }
+
+            // Ensure IT Department Head is properly linked so IT receives its own department notifications
+            if (!Cache::has('auto_heal_it_dept_head_v1')) {
+                if (Schema::hasTable('departments') && Schema::hasTable('users')) {
+                    $itDept = \App\Models\Department::where(function ($q) {
+                        $q->where('department_code', 'IT')
+                          ->orWhere('department_name', 'LIKE', '%Information Technology%')
+                          ->orWhere('department_name', 'LIKE', '%IT%');
+                    })->first();
+                    $admin = \App\Models\User::where('username', 'admin')->first();
+                    if ($itDept && $admin) {
+                        if (empty($admin->department_id)) {
+                            $admin->update(['department_id' => $itDept->id]);
+                        }
+                        if (empty($itDept->head_user_id)) {
+                            $itDept->update(['head_user_id' => $admin->id]);
+                        }
+                    }
+                }
+                Cache::forever('auto_heal_it_dept_head_v1', true);
+            }
             // Auto-heal schema for company user link columns
             if (!Cache::has('schema_company_system_links_v1')) {
                 if (Schema::hasTable('users')) {

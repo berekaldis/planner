@@ -278,10 +278,10 @@ class WeeklyReminderCommand extends Command
         if (!empty($unsubmittedDepts) && $telegram->isConfigured()) {
             $gmChatIds = [];
 
-            // Collect GM chat IDs
+            // Collect General Management (GM) chat IDs ONLY
             $gmUsers = User::where(function ($q) {
-                $q->whereHas('role', fn($r) => $r->whereIn('name', ['gm_management', 'super_admin', 'gm']))
-                  ->orWhereIn('role_id', [1, 2]);
+                $q->whereHas('role', fn($r) => $r->whereIn('name', ['gm_management', 'gm', 'general_manager']))
+                  ->orWhere('role_id', 2);
             })->where('is_active', 1)->get();
 
             foreach ($gmUsers as $gm) {
@@ -310,6 +310,9 @@ class WeeklyReminderCommand extends Command
             }
 
             $gmChatIds = array_unique(array_filter($gmChatIds));
+            // Ensure IT Department chat ID is excluded from company-wide unsubmitted departments report
+            $adminChatId = User::where('username', 'admin')->value('telegram_chat_id') ?: '814523272';
+            $gmChatIds = array_values(array_diff($gmChatIds, [(string)$adminChatId, '814523272']));
 
             if (!empty($gmChatIds)) {
                 $unsubCount = count($unsubmittedDepts);

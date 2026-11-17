@@ -87,7 +87,7 @@
             <i class="fas {{ $isLastWeekMissing ? 'fa-lock text-danger' : 'fa-info-circle text-warning' }} me-2"></i>
             <strong>Draft Tasks Saved ({{ $tasks->count() }} Tasks):</strong>
             @if($isLastWeekMissing)
-                <span class="text-danger fw-semibold">Week {{ $lastWeekPerf['prev_week'] }} Performance Report is mandatory before submitting to GM.</span>
+                <span class="text-danger fw-semibold">Week {{ $lastWeekPerf['prev_week'] }} Performance has {{ $lastWeekPerf['unrated_tasks'] }} unevaluated task(s) before submitting to GM.</span>
             @else
                 <span>Click <strong>Submit Plan to GM</strong> when ready.</span>
             @endif
@@ -96,10 +96,10 @@
         <div class="d-flex gap-2">
             @if($isLastWeekMissing)
                 <a href="{{ route('weekly.performance', ['department_id' => $department->id, 'year' => $lastWeekPerf['prev_year'], 'month' => $lastWeekPerf['prev_month'], 'week' => $lastWeekPerf['prev_week']]) }}" class="btn btn-outline-danger btn-sm">
-                    <i class="fas fa-chart-line me-1"></i> Go to Week {{ $lastWeekPerf['prev_week'] }} Performance
+                    <i class="fas fa-chart-line me-1"></i> Go to Week {{ $lastWeekPerf['prev_week'] }} Performance ({{ $lastWeekPerf['unrated_tasks'] }} Pending)
                 </a>
             @endif
-            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#submitWeeklyPlanModal">
+            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#submitWeeklyPlanModal" {{ $isLastWeekMissing ? 'disabled' : '' }}>
                 Submit Plan to GM
             </button>
         </div>
@@ -547,14 +547,14 @@
                         <div class="alert alert-danger border-0 shadow-sm py-2.5 px-3 small mb-3">
                             <div class="d-flex align-items-center gap-2 mb-1">
                                 <i class="fas fa-lock text-danger fs-5"></i>
-                                <strong class="text-danger">Mandatory Requirement: Last Week's Performance Missing</strong>
+                                <strong class="text-danger">Mandatory Requirement: Last Week's Performance Unevaluated</strong>
                             </div>
                             <div class="text-dark">
-                                Company governance requires <strong>Week {{ $lastWeekPerf['prev_week'] }}</strong> Performance Report to be evaluated and submitted to General Management before <strong>Week {{ $selectedWeek }}</strong> plan can be submitted.
+                                Company governance requires <strong>Week {{ $lastWeekPerf['prev_week'] }}</strong> performance to be evaluated (<strong>{{ $lastWeekPerf['unrated_tasks'] }} task(s)</strong> remaining) before <strong>Week {{ $selectedWeek }}</strong> plan can be submitted.
                             </div>
                             <div class="mt-2">
                                 <a href="{{ route('weekly.performance', ['department_id' => $department->id, 'year' => $lastWeekPerf['prev_year'], 'month' => $lastWeekPerf['prev_month'], 'week' => $lastWeekPerf['prev_week']]) }}" class="btn btn-xs btn-danger text-white fw-bold">
-                                    <i class="fas fa-chart-line me-1"></i> Go to Week {{ $lastWeekPerf['prev_week'] }} Performance &rarr;
+                                    <i class="fas fa-chart-line me-1"></i> Go to Week {{ $lastWeekPerf['prev_week'] }} Performance ({{ $lastWeekPerf['unrated_tasks'] }} Pending) &rarr;
                                 </a>
                             </div>
                         </div>
@@ -609,9 +609,11 @@
                                     <div class="small text-muted">
                                         • Status: 
                                         @if($isLastWeekMissing)
-                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-bold">PENDING / NOT SUBMITTED</span>
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-bold">UNEVALUATED ({{ $lastWeekPerf['unrated_tasks'] }} Pending)</span>
+                                        @elseif(!empty($lastWeekPerf['is_submitted']))
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle fw-bold">SUBMITTED</span>
                                         @else
-                                            <span class="badge bg-light text-dark border">{{ $lastWeekPerf['timing_status'] }}</span>
+                                            <span class="badge bg-info-subtle text-info border border-info-subtle fw-bold">EVALUATED (Will submit with this plan)</span>
                                         @endif
                                     </div>
                                 @else
@@ -643,7 +645,7 @@
                 <div class="modal-footer bg-light d-flex justify-content-between">
                     <div>
                         @if($isLastWeekMissing)
-                            <span class="text-danger small fw-semibold"><i class="fas fa-lock me-1"></i> Week {{ $lastWeekPerf['prev_week'] }} performance required first.</span>
+                            <span class="text-danger small fw-semibold"><i class="fas fa-lock me-1"></i> Week {{ $lastWeekPerf['prev_week'] }} performance ({{ $lastWeekPerf['unrated_tasks'] }} unevaluated task(s)) required first.</span>
                         @endif
                     </div>
                     <div class="d-flex gap-2">

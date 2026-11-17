@@ -603,11 +603,11 @@ if (!function_exists('notify_gm_submission')) {
     {
         $deliveredChatIds = [];
         try {
-            // 1. Fetch GM & Super Admin users
+            // 1. Fetch General Management (GM) users ONLY (strictly GM roles, excluding IT / Super Admin so IT only receives its own department notifications)
             $gmUsers = \App\Models\User::where(function ($query) {
                 $query->whereHas('role', function ($q) {
-                    $q->whereIn('name', ['gm_management', 'super_admin', 'gm', 'general_manager', 'it_admin']);
-                })->orWhereIn('role_id', [1, 2]);
+                    $q->whereIn('name', ['gm_management', 'gm', 'general_manager']);
+                })->orWhere('role_id', 2);
             })->where('is_active', 1)->get();
 
             // 2. In-app notifications (isolated so DB errors never stop Telegram delivery)
@@ -649,20 +649,10 @@ if (!function_exists('notify_gm_submission')) {
                     $chatIds[] = '6492922880'; // Guaranteed GM Chat ID
                 }
 
-                // Check admin explicitly (Super Admin)
-                $admin = \App\Models\User::where('username', 'admin')->first();
-                if ($admin && !empty($admin->telegram_chat_id) && $admin->telegram_chat_id !== '123456789') {
-                    $chatIds[] = trim((string)$admin->telegram_chat_id);
-                }
-
-                // Also check telegram_users table for bound GM / Admin accounts
+                // Also check telegram_users table for bound GM accounts
                 try {
                     $linkedGmIds = \Illuminate\Support\Facades\DB::table('telegram_users')
-                        ->where(function ($q) use ($gmUsers) {
-                            $q->whereIn('user_id', $gmUsers->pluck('id'))
-                              ->orWhere('user_id', 1)
-                              ->orWhere('user_id', 2);
-                        })
+                        ->whereIn('user_id', $gmUsers->pluck('id'))
                         ->where('is_active', 1)
                         ->pluck('telegram_user_id')
                         ->toArray();
@@ -673,9 +663,6 @@ if (!function_exists('notify_gm_submission')) {
                         }
                     }
                 } catch (\Throwable $e) {}
-
-                // Always include IT Admin / Developer tester Bere's Telegram (814523272)
-                $chatIds[] = '814523272';
 
                 // Check escalation / GM recipients setting
                 $escalationRecipients = kaldis_setting('escalation_recipients_gm', '');
@@ -692,6 +679,22 @@ if (!function_exists('notify_gm_submission')) {
                 $groupChatId = kaldis_setting('telegram_chat_id', env('TELEGRAM_CHAT_ID', ''));
                 if (!empty($groupChatId) && (is_numeric($groupChatId) || str_starts_with($groupChatId, '-'))) {
                     $chatIds[] = trim((string)$groupChatId);
+                }
+
+                // Ensure IT Department Telegram (814523272 / admin) ONLY receives notifications for IT Department submissions.
+                // For all other departments, IT Department is strictly excluded from GM alerts.
+                if ($deptId !== null) {
+                    $itDept = \App\Models\Department::where(function ($q) {
+                        $q->where('department_code', 'IT')
+                          ->orWhere('department_name', 'LIKE', '%Information Technology%')
+                          ->orWhere('department_name', 'LIKE', '%IT%');
+                    })->first();
+                    $itDeptId = $itDept ? $itDept->id : 63;
+
+                    if ($deptId != $itDeptId) {
+                        $adminChatId = \App\Models\User::where('username', 'admin')->value('telegram_chat_id') ?: '814523272';
+                        $chatIds = array_diff($chatIds, [(string)$adminChatId, '814523272']);
+                    }
                 }
 
                 $chatIds = array_unique(array_filter($chatIds));
@@ -740,8 +743,16 @@ if (!function_exists('notify_department_head')) {
             }
             if (!$head) {
                 $head = \App\Models\User::where('department_id', $deptId)
-                    ->whereHas('role', fn($q) => $q->whereIn('name', ['dept_head', 'department_head']))
+                    ->whereHas('role', fn($q) => $q->whereIn('name', ['dept_head', 'department_head', 'super_admin', 'it_admin']))
                     ->first();
+            }
+            if (!$head) {
+                $head = \App\Models\User::where('department_id', $deptId)
+                    ->where('is_active', 1)
+                    ->first();
+            }
+            if (!$head && ($deptId == 63 || ($dept->department_code ?? '') === 'IT')) {
+                $head = \App\Models\User::where('username', 'admin')->first();
             }
 
             if (!$head) {
@@ -923,14 +934,17 @@ if (!function_exists('get_last_week_performance_data')) {
         $isSubmitted = ($submission && in_array($submission->status, ['ON_TIME', 'LATE', 'SUBMITTED', 'DELAY_APPROVED']))
             || ($report && in_array($report->status, ['SUBMITTED', 'APPROVED']));
 
-        // Is last week performance completed?
-        // Satisfied if: delay is approved, OR (submitted AND all tasks evaluated AND at least one task recorded)
-        $isComplete = $isDelayApproved || ($isSubmitted && $unratedTasks === 0 && $totalCount > 0);
+        // Evaluation is completed if all scheduled tasks have been evaluated (DONE or NOT_DONE)
+        $isEvaluated = ($totalTasks > 0) ? ($unratedTasks === 0) : true;
+
+        // Is last week performance completed / satisfied?
+        // Satisfied if: delay is approved, OR already submitted, OR all scheduled tasks evaluated, OR no tasks were scheduled
+        $isComplete = $isDelayApproved || $isSubmitted || ($totalTasks > 0 && $unratedTasks === 0) || ($totalTasks === 0);
 
         // Mandatory check:
-        // For Week > 1: prior week is always mandatory
-        // For Week 1: mandatory if preceding month had tasks or reports
-        $isMandatoryMissing = ($weekNumber > 1) ? !$isComplete : ($hasData && !$isComplete);
+        // Last week's performance is ONLY missing if:
+        // Prior week had tasks scheduled ($totalTasks > 0) AND has unevaluated tasks ($unratedTasks > 0) AND delay is not approved AND not already submitted.
+        $isMandatoryMissing = ($totalTasks > 0 && $unratedTasks > 0 && !$isDelayApproved && !$isSubmitted);
 
         return [
             'has_data' => $hasData,
