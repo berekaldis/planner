@@ -449,7 +449,7 @@
 
                     <div class="mb-3">
                         <label class="form-label small fw-semibold text-secondary">Monthly Target <span class="text-danger">*</span></label>
-                        <input type="text" name="monthly_target" id="monthlyTargetInput" class="form-control" placeholder="e.g. Deploy to 5 Branches" required>
+                        <textarea name="monthly_target" id="monthlyTargetInput" class="form-control" rows="2" placeholder="e.g. Deploy to 5 Branches..." required></textarea>
                     </div>
 
                     <div class="mb-3">

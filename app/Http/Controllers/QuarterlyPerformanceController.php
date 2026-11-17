@@ -157,7 +157,7 @@ class QuarterlyPerformanceController extends Controller
             'plan_type' => 'required|in:STRATEGY,OPERATIONAL',
             'annual_goal_id' => 'nullable|exists:annual_goals,id',
             'title' => 'required|string|max:255',
-            'monthly_target' => 'required|string|max:255',
+            'monthly_target' => 'required|string',
             'definition_of_done' => 'nullable|string',
             'responsible_person' => 'nullable|string|max:100',
             'priority' => 'nullable|in:HIGH,MEDIUM,LOW',

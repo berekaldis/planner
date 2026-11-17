@@ -282,6 +282,43 @@ class AppServiceProvider extends ServiceProvider
                 }
                 Cache::forever('schema_gm_comments_v1', true);
             }
+
+            // Auto-heal schema: widen plan targets, definitions of done, and descriptions to TEXT
+            // Prevents SQLSTATE[22001] "Data too long for column 'monthly_target'" and similar truncation errors
+            if (!Cache::has('schema_plan_text_columns_v1')) {
+                if (Schema::hasTable('monthly_plans')) {
+                    try { DB::statement("ALTER TABLE `monthly_plans` MODIFY COLUMN `monthly_target` TEXT NULL"); } catch (\Throwable $e) {}
+                    try { DB::statement("ALTER TABLE `monthly_plans` MODIFY COLUMN `definition_of_done` TEXT NULL"); } catch (\Throwable $e) {}
+                    try { DB::statement("ALTER TABLE `monthly_plans` MODIFY COLUMN `description` TEXT NULL"); } catch (\Throwable $e) {}
+                    try { DB::statement("ALTER TABLE `monthly_plans` MODIFY COLUMN `notes` TEXT NULL"); } catch (\Throwable $e) {}
+                    try { DB::statement("ALTER TABLE `monthly_plans` MODIFY COLUMN `dependency` TEXT NULL"); } catch (\Throwable $e) {}
+                    try { DB::statement("ALTER TABLE `monthly_plans` MODIFY COLUMN `decline_reason` TEXT NULL"); } catch (\Throwable $e) {}
+                }
+                if (Schema::hasTable('weekly_tasks')) {
+                    try { DB::statement("ALTER TABLE `weekly_tasks` MODIFY COLUMN `expected_result` TEXT NULL"); } catch (\Throwable $e) {}
+                    try { DB::statement("ALTER TABLE `weekly_tasks` MODIFY COLUMN `task_description` TEXT NULL"); } catch (\Throwable $e) {}
+                    try { DB::statement("ALTER TABLE `weekly_tasks` MODIFY COLUMN `notes` TEXT NULL"); } catch (\Throwable $e) {}
+                    try { DB::statement("ALTER TABLE `weekly_tasks` MODIFY COLUMN `dependency` TEXT NULL"); } catch (\Throwable $e) {}
+                    try { DB::statement("ALTER TABLE `weekly_tasks` MODIFY COLUMN `decline_reason` TEXT NULL"); } catch (\Throwable $e) {}
+                }
+                if (Schema::hasTable('weekly_task_results')) {
+                    try { DB::statement("ALTER TABLE `weekly_task_results` MODIFY COLUMN `not_done_explanation` TEXT NULL"); } catch (\Throwable $e) {}
+                    try { DB::statement("ALTER TABLE `weekly_task_results` MODIFY COLUMN `next_action` TEXT NULL"); } catch (\Throwable $e) {}
+                    try { DB::statement("ALTER TABLE `weekly_task_results` MODIFY COLUMN `comment` TEXT NULL"); } catch (\Throwable $e) {}
+                }
+                if (Schema::hasTable('annual_goals')) {
+                    try { DB::statement("ALTER TABLE `annual_goals` MODIFY COLUMN `annual_target` TEXT NULL"); } catch (\Throwable $e) {}
+                    try { DB::statement("ALTER TABLE `annual_goals` MODIFY COLUMN `definition_of_done` TEXT NULL"); } catch (\Throwable $e) {}
+                    try { DB::statement("ALTER TABLE `annual_goals` MODIFY COLUMN `notes` TEXT NULL"); } catch (\Throwable $e) {}
+                }
+                if (Schema::hasTable('weekly_achievements')) {
+                    try { DB::statement("ALTER TABLE `weekly_achievements` MODIFY COLUMN `achievement_text` TEXT NULL"); } catch (\Throwable $e) {}
+                }
+                if (Schema::hasTable('weekly_challenges')) {
+                    try { DB::statement("ALTER TABLE `weekly_challenges` MODIFY COLUMN `challenge_text` TEXT NULL"); } catch (\Throwable $e) {}
+                }
+                Cache::forever('schema_plan_text_columns_v1', true);
+            }
         } catch (\Throwable $e) {
             // Graceful fallback if database connection or migration is not yet initialized
         }
