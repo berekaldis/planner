@@ -19,6 +19,20 @@ foreach ($storageDirs as $sDir) {
     }
 }
 
+// Auto-heal: Invalidate stale config cache if database config or .env were updated
+try {
+    $configCache = dirname(__DIR__) . '/bootstrap/cache/config.php';
+    $envFile = dirname(__DIR__) . '/.env';
+    $dbConfigFile = dirname(__DIR__) . '/config/database.php';
+    if (file_exists($configCache)) {
+        $cTime = filemtime($configCache);
+        if ((file_exists($envFile) && filemtime($envFile) > $cTime) ||
+            (file_exists($dbConfigFile) && filemtime($dbConfigFile) > $cTime)) {
+            @unlink($configCache);
+        }
+    }
+} catch (\Throwable $e) {}
+
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',

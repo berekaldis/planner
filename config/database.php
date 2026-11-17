@@ -98,7 +98,7 @@ return [
         'mysql' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),
-            'host' => env('DB_HOST', '127.0.0.1'),
+            'host' => (strtolower(trim((string)env('DB_HOST', '127.0.0.1'))) === 'localhost' && empty(env('DB_SOCKET'))) ? '127.0.0.1' : env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '3306'),
             'database' => env('DB_DATABASE', 'laravel'),
             'username' => env('DB_USERNAME', 'root'),
@@ -118,7 +118,7 @@ return [
                 'company_system' => [
             'driver' => 'mysql',
             'url' => env('COMPANY_DB_URL'),
-            'host' => env('COMPANY_DB_HOST', env('DB_HOST', '127.0.0.1')),
+            'host' => (strtolower(trim((string)env('COMPANY_DB_HOST', env('DB_HOST', '127.0.0.1')))) === 'localhost' && empty(env('COMPANY_DB_SOCKET', env('DB_SOCKET')))) ? '127.0.0.1' : env('COMPANY_DB_HOST', env('DB_HOST', '127.0.0.1')),
             'port' => env('COMPANY_DB_PORT', '3306'),
             'database' => env('COMPANY_DB_DATABASE', 'kaldisbp_company_system'),
             'username' => env('COMPANY_DB_USERNAME', env('DB_USERNAME', 'root')),
@@ -137,7 +137,7 @@ return [
         'mariadb' => [
             'driver' => 'mariadb',
             'url' => env('DB_URL'),
-            'host' => env('DB_HOST', '127.0.0.1'),
+            'host' => (strtolower(trim((string)env('DB_HOST', '127.0.0.1'))) === 'localhost' && empty(env('DB_SOCKET'))) ? '127.0.0.1' : env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '3306'),
             'database' => env('DB_DATABASE', 'laravel'),
             'username' => env('DB_USERNAME', 'root'),
@@ -157,7 +157,7 @@ return [
         'pgsql' => [
             'driver' => 'pgsql',
             'url' => env('DB_URL'),
-            'host' => env('DB_HOST', '127.0.0.1'),
+            'host' => (strtolower(trim((string)env('DB_HOST', '127.0.0.1'))) === 'localhost' && empty(env('DB_SOCKET'))) ? '127.0.0.1' : env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '5432'),
             'database' => env('DB_DATABASE', 'laravel'),
             'username' => env('DB_USERNAME', 'root'),

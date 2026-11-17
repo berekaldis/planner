@@ -15,7 +15,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Bind resilient MySQL connector with automatic fallback (TCP 127.0.0.1, alternate ports, socket autodetection)
+        $this->app->bind('db.connector.mysql', function () {
+            return new \App\Database\Connectors\ResilientMySqlConnector;
+        });
     }
 
     /**
