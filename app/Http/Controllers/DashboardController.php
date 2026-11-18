@@ -260,12 +260,6 @@ class DashboardController extends Controller
             } elseif ($mSub && in_array($mSub->status, ['ON_TIME', 'LATE', 'SUBMITTED', 'APPROVED'])) {
                 $mStatus = $mSub->status === 'SUBMITTED' ? 'ON_TIME' : $mSub->status;
                 $isSubmitted = true;
-            } elseif ($deptPlans->count() > 0) {
-                $deadlineInfo = function_exists('get_monthly_plan_deadline_info')
-                    ? get_monthly_plan_deadline_info($selectedMonth, $selectedYear)
-                    : ['status' => 'ON_TIME'];
-                $mStatus = $deadlineInfo['status'] ?? 'ON_TIME';
-                $isSubmitted = true;
             }
 
             if ($isSubmitted) {
@@ -373,8 +367,6 @@ class DashboardController extends Controller
                 }
             } elseif ($wSub && $wSub->status === 'MISSING') {
                 $missingSubmissions++;
-            } elseif ($dTotal > 0) {
-                $onTimeSubmissions++;
             } else {
                 $waitingSubmissions++;
             }

@@ -397,15 +397,41 @@ if (!function_exists('format_et_calendar')) {
     }
 }
 
+if (!function_exists('format_time_with_ethiopian_lt')) {
+    /**
+     * Format a 24-hour Western time string (e.g. '12:30' or '17:00') with Ethiopian Local Time indicator.
+     * Example: '12:30' => '6:30 LT (12:30 PM)'
+     *          '17:00' => '11:00 LT (5:00 PM)'
+     */
+    function format_time_with_ethiopian_lt(string $timeStr): string
+    {
+        $parts = explode(':', $timeStr);
+        $h = (int)($parts[0] ?? 12);
+        $m = (int)($parts[1] ?? 0);
+        $ethHour = ($h >= 6) ? ($h - 6) : ($h + 6);
+        if ($ethHour === 0) {
+            $ethHour = 12;
+        }
+        $minStr = sprintf('%02d', $m);
+        $western12 = date('g:i A', strtotime("2026-01-01 {$timeStr}"));
+        return "{$ethHour}:{$minStr} LT ({$western12})";
+    }
+}
+
 if (!function_exists('get_monthly_plan_deadline_info')) {
     /**
      * Compute the official Monthly Plan submission deadline.
      * Business Governance Rule: The monthly plan is due in the PRECEDING Ethiopian month.
-     * Example: Hidar plan package is due on Tikimt 26 at 17:00.
+     * Example: Hidar plan package is due on Tikimt 26 at 17:00 (11:00 Ethiopian Local Time).
      *          Tikimt plan package is due on Meskerem 26 at 17:00.
      *          Meskerem plan package is due on Nehase 26 (previous year) at 17:00.
+     *
+     * @param string $plannedMonth Target planned month (e.g. 'Hidar')
+     * @param string $plannedYear Target planned year (e.g. '2019 E.C.')
+     * @param mixed $submittedAt Optional datetime/timestamp to evaluate timing status against
+     * @return array
      */
-    function get_monthly_plan_deadline_info(string $plannedMonth, string $plannedYear): array
+    function get_monthly_plan_deadline_info(string $plannedMonth, string $plannedYear, $submittedAt = null): array
     {
         $months = [
             1 => 'Meskerem', 2 => 'Tikimt', 3 => 'Hidar', 4 => 'Tahsas',
@@ -433,7 +459,7 @@ if (!function_exists('get_monthly_plan_deadline_info')) {
         $deadlineYearStr = "{$deadlineYearNum} E.C.";
 
         $rawDay = (int)kaldis_setting('monthly_plan_deadline_day', kaldis_setting('monthly_deadline_day', 26));
-        // Strict Governance Rule: Monthly plan deadline is always Day 26 in the Ethiopian calendar.
+        // Strict Governance Rule: Monthly plan deadline is Day 26 of the preceding Ethiopian month.
         // Guard against any misconfigured/corrupted values (< 20) in system_settings.
         $deadlineDay = ($rawDay >= 20 && $rawDay <= 30) ? $rawDay : 26;
         $deadlineTime = kaldis_setting('monthly_plan_deadline_time', '17:00');
@@ -444,8 +470,11 @@ if (!function_exists('get_monthly_plan_deadline_info')) {
 
         [$gy, $gm, $gd] = ethiopian_to_gregorian_date($deadlineYearNum, $deadlineMonthNum, $deadlineDay);
         $deadlineCarbon = \Carbon\Carbon::create($gy, $gm, $gd, $hour, $min, 0, 'Africa/Addis_Ababa');
-        $now = \Carbon\Carbon::now('Africa/Addis_Ababa');
-        $isLate = $now->gt($deadlineCarbon);
+        
+        $evalTime = $submittedAt ? \Carbon\Carbon::parse($submittedAt, 'Africa/Addis_Ababa') : \Carbon\Carbon::now('Africa/Addis_Ababa');
+        $isLate = $evalTime->gt($deadlineCarbon);
+
+        $ethTimeStr = format_time_with_ethiopian_lt($deadlineTime);
 
         return [
             'planned_month' => $plannedMonth,
@@ -455,9 +484,10 @@ if (!function_exists('get_monthly_plan_deadline_info')) {
             'deadline_day' => $deadlineDay,
             'deadline_time' => $deadlineTime,
             'deadline_carbon' => $deadlineCarbon,
-            'deadline_formatted' => "{$deadlineMonthName} {$deadlineDay}, {$deadlineYearStr} at {$deadlineTime}",
+            'deadline_formatted' => "{$deadlineMonthName} {$deadlineDay}, {$deadlineYearStr} at {$ethTimeStr}",
             'is_late' => $isLate,
             'status' => $isLate ? 'LATE' : 'ON_TIME',
+            'compliance' => $isLate ? 'LATE' : 'ON_TIME',
         ];
     }
 }
@@ -470,6 +500,7 @@ if (!function_exists('get_weekly_cycle_deadline')) {
      *
      * Example: Week 1 performance and Week 2 plan are due on Week 2 Monday at 6:30 LT (12:30 PM).
      *          Week 2 performance and Week 3 plan are due on Week 3 Monday at 6:30 LT (12:30 PM).
+     *          For Hidar 2019 E.C., Cycle 1 deadline falls on Hidar 7 (Nov 16, 2026 at 12:30 PM).
      *
      * @param string $year Planning Year (e.g. '2019 E.C.')
      * @param string $month Ethiopian Month (e.g. 'Tikimt')
@@ -495,49 +526,65 @@ if (!function_exists('get_weekly_cycle_deadline')) {
         $normalizedMonth = normalize_ethiopian_month($month);
         $mNum = array_search($normalizedMonth, $months) ?: 1;
 
-        // In the Ethiopian calendar, Week W+1 begins on Day (W * 7) + 1
-        $startDay = ($perfWeek * 7) + 1;
-        $endDay = min(30, $startDay + 6);
-
-        $deadlineCarbon = null;
-        $ethDayFound = null;
-        $ethMonthFound = $mNum;
-        $ethYearFound = $yNum;
-
-        // Search for Monday within target week days
-        for ($d = $startDay; $d <= $endDay; $d++) {
+        // Collect all deadline days (e.g. Mondays) in this Ethiopian month (days 1 to 30)
+        $targetDays = [];
+        $maxDays = ($mNum === 13) ? 6 : 30;
+        for ($d = 1; $d <= $maxDays; $d++) {
             [$gy, $gm, $gd] = ethiopian_to_gregorian_date($yNum, $mNum, $d);
-            $dateStr = sprintf('%04d-%02d-%02d', $gy, $gm, $gd);
-            if (date('N', strtotime($dateStr)) == 1) { // 1 = Monday
-                $deadlineCarbon = \Carbon\Carbon::create($gy, $gm, $gd, $hour, $min, 0, 'Africa/Addis_Ababa');
-                $ethDayFound = $d;
-                break;
+            $dt = sprintf('%04d-%02d-%02d', $gy, $gm, $gd);
+            if (date('l', strtotime($dt)) === $deadlineDayName) {
+                $targetDays[] = [
+                    'day' => $d,
+                    'month_num' => $mNum,
+                    'year_num' => $yNum,
+                    'carbon' => \Carbon\Carbon::create($gy, $gm, $gd, $hour, $min, 0, 'Africa/Addis_Ababa'),
+                ];
             }
         }
 
-        // If not found in current month (e.g. crossing month boundary at week 5)
-        if (!$deadlineCarbon) {
-            $nextM = $mNum + 1;
-            $nextY = $yNum;
-            if ($nextM > 13) {
-                $nextM = 1;
-                $nextY++;
-            }
-            for ($d = 1; $d <= 7; $d++) {
-                [$gy, $gm, $gd] = ethiopian_to_gregorian_date($nextY, $nextM, $d);
-                $dateStr = sprintf('%04d-%02d-%02d', $gy, $gm, $gd);
-                if (date('N', strtotime($dateStr)) == 1) {
-                    $deadlineCarbon = \Carbon\Carbon::create($gy, $gm, $gd, $hour, $min, 0, 'Africa/Addis_Ababa');
-                    $ethDayFound = $d;
-                    $ethMonthFound = $nextM;
-                    $ethYearFound = $nextY;
+        // If the first Monday is Day 1, 2, or 3, that Monday occurred before Week 1 tasks were worked on.
+        // In that calendar case, Week 1 execution finishes on the next Monday (e.g. Day 8, 9, or 10).
+        if (isset($targetDays[0]) && $targetDays[0]['day'] <= 3) {
+            array_shift($targetDays);
+        }
+
+        // Look into next month for additional Mondays to guarantee at least 5 weekly cycles
+        $nextM = $mNum + 1;
+        $nextY = $yNum;
+        if ($nextM > 13) {
+            $nextM = 1;
+            $nextY++;
+        }
+        $nextMaxDays = ($nextM === 13) ? 6 : 30;
+        for ($d = 1; $d <= $nextMaxDays; $d++) {
+            [$gy, $gm, $gd] = ethiopian_to_gregorian_date($nextY, $nextM, $d);
+            $dt = sprintf('%04d-%02d-%02d', $gy, $gm, $gd);
+            if (date('l', strtotime($dt)) === $deadlineDayName) {
+                $targetDays[] = [
+                    'day' => $d,
+                    'month_num' => $nextM,
+                    'year_num' => $nextY,
+                    'carbon' => \Carbon\Carbon::create($gy, $gm, $gd, $hour, $min, 0, 'Africa/Addis_Ababa'),
+                ];
+                if (count($targetDays) >= 6) {
                     break;
                 }
             }
         }
 
-        if (!$deadlineCarbon) {
+        $targetIndex = max(0, min(count($targetDays) - 1, $perfWeek - 1));
+        $selectedTarget = $targetDays[$targetIndex] ?? null;
+
+        if ($selectedTarget) {
+            $deadlineCarbon = $selectedTarget['carbon'];
+            $ethDayFound = $selectedTarget['day'];
+            $ethMonthFound = $selectedTarget['month_num'];
+            $ethYearFound = $selectedTarget['year_num'];
+        } else {
             $deadlineCarbon = \Carbon\Carbon::parse("this {$deadlineDayName} {$deadlineTime}", 'Africa/Addis_Ababa');
+            $ethDayFound = 7;
+            $ethMonthFound = $mNum;
+            $ethYearFound = $yNum;
         }
 
         $evalTime = $submittedAt ? \Carbon\Carbon::parse($submittedAt, 'Africa/Addis_Ababa') : \Carbon\Carbon::now('Africa/Addis_Ababa');
@@ -545,18 +592,18 @@ if (!function_exists('get_weekly_cycle_deadline')) {
         $compliance = $isLate ? 'LATE' : 'ON_TIME';
 
         $ethMonthName = $months[$ethMonthFound] ?? $month;
-        $ethTimeStr = "6:30 LT ({$deadlineTime})";
+        $ethTimeStr = format_time_with_ethiopian_lt($deadlineTime);
 
         return [
             'perf_week' => $perfWeek,
             'plan_week' => $planWeek,
             'deadline_carbon' => $deadlineCarbon,
             'deadline_formatted' => $deadlineCarbon->format('Y-m-d H:i:s'),
-            'deadline_display' => "Week {$planWeek} Monday at {$ethTimeStr}",
+            'deadline_display' => "Week {$planWeek} {$deadlineDayName} at {$ethTimeStr}",
             'eth_month' => $ethMonthName,
             'eth_day' => $ethDayFound,
             'eth_year' => "{$ethYearFound} E.C.",
-            'eth_full_str' => "{$ethMonthName} {$ethDayFound}, {$ethYearFound} E.C. Monday at {$ethTimeStr}",
+            'eth_full_str' => "{$ethMonthName} {$ethDayFound}, {$ethYearFound} E.C. {$deadlineDayName} at {$ethTimeStr}",
             'is_late' => $isLate,
             'compliance' => $compliance,
         ];

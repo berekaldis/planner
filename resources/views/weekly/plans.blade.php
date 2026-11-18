@@ -67,11 +67,14 @@
         </div>
     </div>
 @elseif($weeklyPlan && $weeklyPlan->status === 'SUBMITTED')
-    <div class="alert alert-success border-0 shadow-sm d-flex justify-content-between align-items-center mb-3">
+    <div class="alert alert-success border-0 shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
         <div>
             <i class="fas fa-check-circle me-2 text-success"></i>
             <strong>Weekly Tasks Submitted:</strong> Tasks for Week {{ $selectedWeek }} are submitted to GM.
-            <span class="badge bg-success ms-2">SUBMITTED</span>
+            {!! format_submission_status_badge($weeklyPlan->submission_status, $weeklyPlan->delay_status, $weeklyPlan->delay_reason) !!}
+            @if(!empty($cycleDeadline['eth_full_str']))
+                <small class="text-muted ms-2">(Deadline: {{ $cycleDeadline['eth_full_str'] }})</small>
+            @endif
         </div>
         <div class="small text-muted">
             Submitted: {{ $weeklyPlan->updated_at ? format_ethiopian_datetime($weeklyPlan->updated_at) : '' }}
@@ -92,6 +95,11 @@
                 <span>Click <strong>Submit Plan to GM</strong> when ready.</span>
             @endif
             <span class="badge bg-secondary ms-2">DRAFT</span>
+            @if(!empty($cycleDeadline['eth_full_str']))
+                <span class="badge {{ !empty($cycleDeadline['is_late']) ? 'bg-warning-subtle text-warning-emphasis border border-warning-subtle' : 'bg-success-subtle text-success border border-success-subtle' }} ms-1">
+                    <i class="far fa-clock me-1"></i> Due {{ $cycleDeadline['eth_full_str'] }} ({{ !empty($cycleDeadline['is_late']) ? 'Late' : 'On-Time' }})
+                </span>
+            @endif
         </div>
         <div class="d-flex gap-2">
             @if($isLastWeekMissing)

@@ -446,10 +446,11 @@ class PerformanceController extends Controller
         $completionRate = round(($doneTasks / $totalTasks) * 100, 2);
 
         // Determine ON_TIME or LATE compliance based on Monday 6:30 LT (12:30 PM) cutoff
+        $now = Carbon::now('Africa/Addis_Ababa');
         $deadlineInfo = function_exists('get_weekly_cycle_deadline')
-            ? get_weekly_cycle_deadline($validated['year'], $validated['month'], (int)$validated['week_number'])
+            ? get_weekly_cycle_deadline($validated['year'], $validated['month'], (int)$validated['week_number'], $now)
             : [
-                'deadline_carbon' => Carbon::now(),
+                'deadline_carbon' => $now,
                 'deadline_display' => 'Monday 6:30 LT (12:30 PM)',
                 'compliance' => 'ON_TIME'
             ];

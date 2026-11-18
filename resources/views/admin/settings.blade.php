@@ -12,7 +12,7 @@
                 <i class="fas fa-sliders text-warning me-2"></i> System Settings &amp; Governance
             </h4>
             <p class="text-muted small mb-0">
-                Configure corporate planning policies, Telegram reminder schedules, deadlines, and role permissions.
+                Configure corporate deadlines, planning cycles, Telegram reminder schedules, and role permissions.
             </p>
         </div>
         <div class="d-flex align-items-center gap-2">
@@ -29,7 +29,7 @@
     <ul class="nav nav-pills mb-4 gap-2 border-bottom pb-3" id="settingsTab" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active fw-semibold" id="tab-policies-btn" data-bs-toggle="pill" data-bs-target="#tab-policies" type="button" role="tab">
-                <i class="fas fa-shield-halved me-1.5 text-warning"></i> General &amp; Policies
+                <i class="fas fa-calendar-check me-1.5 text-warning"></i> Deadlines &amp; Planning Policies
             </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -52,30 +52,159 @@
     <div class="tab-content" id="settingsTabContent">
 
         <!-- ══════════════════════════════════════════════════════════════
-             TAB 1: GENERAL POLICIES & PLANNING CYCLES
+             TAB 1: DEADLINES & PLANNING POLICIES
         ══════════════════════════════════════════════════════════════ -->
         <div class="tab-pane fade show active" id="tab-policies" role="tabpanel">
             <form method="POST" action="{{ route('admin.settings.update') }}">
                 @csrf
                 
                 <div class="row g-4">
-                    <!-- Column 1: Core Governance Policies -->
+                    <!-- Column 1: Submission Deadlines & Planning Cycles -->
                     <div class="col-lg-6">
                         <div class="card h-100 border-0 shadow-sm" style="border-radius: 12px;">
                             <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
                                 <h6 class="fw-bold text-dark mb-1">
-                                    <i class="fas fa-toggle-on text-primary me-2"></i> Planning &amp; Voucher Policies
+                                    <i class="fas fa-clock text-warning me-2"></i> Ethiopian Submission Deadlines
                                 </h6>
-                                <p class="text-muted small mb-0">Control plan creation rules and voucher accessibility.</p>
+                                <p class="text-muted small mb-0">Define on-time cutoffs for Monthly Plans and Weekly Deliverables.</p>
                             </div>
-                            <div class="card-body p-4 d-flex flex-column gap-4">
+                            <div class="card-body p-4 d-flex flex-column gap-3.5">
 
-                                <!-- Policy 1: Strategy Goal Requirement (Mandatory vs Optional) -->
+                                <!-- Monthly Plan Deadline -->
+                                @php
+                                    $savedMonthlyDay = (int)($settings['monthly_plan_deadline_day']->setting_value ?? $settings['monthly_deadline_day']->setting_value ?? 26);
+                                    if ($savedMonthlyDay < 20 || $savedMonthlyDay > 30) { $savedMonthlyDay = 26; }
+                                    $savedMonthlyTime = $settings['monthly_plan_deadline_time']->setting_value ?? '17:00';
+                                @endphp
+                                <div class="p-3.5 rounded-3 border border-warning-subtle bg-warning bg-opacity-10">
+                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                        <label class="fw-bold text-dark small text-uppercase mb-0">
+                                            <i class="fas fa-calendar-alt text-warning me-1.5"></i>
+                                            Monthly Plan Submission Deadline
+                                        </label>
+                                        <span class="badge bg-warning text-dark fw-bold" id="monthlyTimeBadge">
+                                            {{ format_time_with_ethiopian_lt($savedMonthlyTime) }}
+                                        </span>
+                                    </div>
+                                    <p class="text-muted small mb-3">
+                                        <strong>Governance Rule:</strong> The monthly plan package is due on <strong>Day 26 of the preceding Ethiopian month</strong> (e.g. <em>Hidar plan must be submitted by Tikimt 26</em>).
+                                    </p>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <label class="form-label small fw-semibold text-secondary">Preceding Month Cutoff Day</label>
+                                            <select name="monthly_plan_deadline_day" class="form-select form-select-sm">
+                                                @for($d = 20; $d <= 30; $d++)
+                                                    <option value="{{ $d }}" {{ $savedMonthlyDay === $d ? 'selected' : '' }}>
+                                                        Day {{ $d }} of Month {{ $d === 26 ? '(Standard: Day 26)' : '' }}
+                                                    </option>
+                                                @endfor
+                                            </select>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label small fw-semibold text-secondary">Cutoff Time (EAT / Western)</label>
+                                            <input type="time" name="monthly_plan_deadline_time" id="monthlyTimeInput" class="form-control form-control-sm" 
+                                                   value="{{ $savedMonthlyTime }}" required onchange="updateTimeBadge('monthlyTimeInput', 'monthlyTimeBadge')">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Weekly Plan & Performance Deadline -->
+                                @php
+                                    $savedWeeklyDay = $settings['weekly_deadline_day']->setting_value ?? 'Monday';
+                                    $savedWeeklyTime = $settings['weekly_deadline_time']->setting_value ?? '12:30';
+                                @endphp
+                                <div class="p-3.5 rounded-3 border border-primary-subtle bg-primary bg-opacity-10">
+                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                        <label class="fw-bold text-dark small text-uppercase mb-0">
+                                            <i class="fas fa-tasks text-primary me-1.5"></i>
+                                            Weekly Plan &amp; Performance Deadline
+                                        </label>
+                                        <span class="badge bg-primary text-white fw-bold" id="weeklyTimeBadge">
+                                            {{ format_time_with_ethiopian_lt($savedWeeklyTime) }}
+                                        </span>
+                                    </div>
+                                    <p class="text-muted small mb-3">
+                                        <strong>Governance Rule:</strong> Weekly performance and next week's plan are always submitted together every <strong>{{ $savedWeeklyDay }} at 6:30 Ethiopian Local Time</strong> (12:30 PM Western / EAT) (e.g. <em>Week 1 Performance and Week 2 Plan submit on Week 2 Monday at 6:30 LT</em>).
+                                    </p>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <label class="form-label small fw-semibold text-secondary">Submission Day</label>
+                                            <select name="weekly_deadline_day" class="form-select form-select-sm">
+                                                @foreach(['Sunday', 'Monday', 'Tuesday'] as $day)
+                                                    <option value="{{ $day }}" {{ $savedWeeklyDay === $day ? 'selected' : '' }}>{{ $day }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label small fw-semibold text-secondary">Cutoff Time (EAT / Western)</label>
+                                            <input type="time" name="weekly_deadline_time" id="weeklyTimeInput" class="form-control form-control-sm" 
+                                                   value="{{ $savedWeeklyTime }}" required onchange="updateTimeBadge('weeklyTimeInput', 'weeklyTimeBadge')">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Active Ethiopian Planning Period -->
+                                @php
+                                    $savedYear = $settings['current_planning_year']->setting_value ?? 'AUTO';
+                                    $savedMonth = $settings['current_planning_month']->setting_value ?? 'AUTO';
+                                    $ethPeriod = get_ethiopian_period();
+                                    $years = get_planning_years();
+                                    $months = get_ethiopian_months();
+                                @endphp
+                                <div class="p-3.5 rounded-3 border border-secondary-subtle bg-light">
+                                    <label class="fw-bold text-dark small text-uppercase mb-2">
+                                        <i class="far fa-calendar text-secondary me-1.5"></i>
+                                        Active Planning Period (Auto or Manual Override)
+                                    </label>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <label class="form-label small fw-semibold text-secondary">Planning Year</label>
+                                            <select name="current_planning_year" class="form-select form-select-sm">
+                                                <option value="AUTO" {{ ($savedYear === 'AUTO' || empty($savedYear)) ? 'selected' : '' }}>
+                                                    Auto: Ethiopian Calendar ({{ $ethPeriod['year'] }})
+                                                </option>
+                                                @foreach($years as $y)
+                                                    <option value="{{ $y }}" {{ ($savedYear === $y) ? 'selected' : '' }}>{{ $y }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label small fw-semibold text-secondary">Planning Month</label>
+                                            <select name="current_planning_month" class="form-select form-select-sm">
+                                                <option value="AUTO" {{ ($savedMonth === 'AUTO' || empty($savedMonth)) ? 'selected' : '' }}>
+                                                    Auto: Ethiopian Calendar ({{ $ethPeriod['month'] }})
+                                                </option>
+                                                @foreach($months as $m)
+                                                    <option value="{{ $m }}" {{ ($savedMonth === $m) ? 'selected' : '' }}>
+                                                        {{ $m }}{{ $m === $ethPeriod['month'] ? ' (Active)' : '' }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Column 2: Governance & Operational Policies -->
+                    <div class="col-lg-6">
+                        <div class="card h-100 border-0 shadow-sm" style="border-radius: 12px;">
+                            <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
+                                <h6 class="fw-bold text-dark mb-1">
+                                    <i class="fas fa-shield-halved text-success me-2"></i> Planning &amp; Operational Policies
+                                </h6>
+                                <p class="text-muted small mb-0">Control plan creation rules, voucher accessibility, and password policies.</p>
+                            </div>
+                            <div class="card-body p-4 d-flex flex-column gap-3.5">
+
+                                <!-- Policy 1: Strategy Goal Requirement -->
                                 @php
                                     $isStrategyMandatory = kaldis_setting('strategy_field_mandatory', 'true') === 'true';
                                 @endphp
-                                <div class="p-3.5 rounded-3 border {{ $isStrategyMandatory ? 'border-primary bg-primary bg-opacity-10' : 'border-secondary bg-light' }}">
-                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                <div class="p-3 rounded-3 border {{ $isStrategyMandatory ? 'border-primary bg-primary bg-opacity-10' : 'border-secondary bg-light' }}">
+                                    <div class="d-flex align-items-center justify-content-between mb-1.5">
                                         <label class="fw-bold text-dark small text-uppercase mb-0">
                                             <i class="fas fa-bullseye me-1.5 {{ $isStrategyMandatory ? 'text-primary' : 'text-secondary' }}"></i>
                                             Strategy Goal Field
@@ -84,225 +213,123 @@
                                             {{ $isStrategyMandatory ? 'Mandatory (True)' : 'Optional (False)' }}
                                         </span>
                                     </div>
-                                    <p class="text-muted small mb-3">
+                                    <p class="text-muted small mb-2.5">
                                         Determines whether linking an Annual Strategic Goal is required when department heads add Monthly and Weekly plans.
                                     </p>
                                     <div class="d-flex gap-3">
                                         <div class="form-check">
                                             <input class="form-check-input" type="radio" name="strategy_field_mandatory" id="stratMandatoryTrue" value="true" {{ $isStrategyMandatory ? 'checked' : '' }}>
-                                            <label class="form-check-label small fw-semibold" for="stratMandatoryTrue">
-                                                <strong>Mandatory (True)</strong> &mdash; Strict alignment required
-                                            </label>
+                                            <label class="form-check-label small fw-semibold" for="stratMandatoryTrue">Mandatory</label>
                                         </div>
                                         <div class="form-check">
                                             <input class="form-check-input" type="radio" name="strategy_field_mandatory" id="stratMandatoryFalse" value="false" {{ !$isStrategyMandatory ? 'checked' : '' }}>
-                                            <label class="form-check-label small fw-semibold" for="stratMandatoryFalse">
-                                                <strong>Optional (False)</strong> &mdash; Free-form plans allowed
-                                            </label>
+                                            <label class="form-check-label small fw-semibold" for="stratMandatoryFalse">Optional</label>
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- Policy 2: Official Voucher Enabled/Disabled -->
-                                @php
-                                    $isVoucherEnabled = kaldis_setting('voucher_enabled', 'true') === 'true';
-                                @endphp
-                                <div class="p-3.5 rounded-3 border {{ $isVoucherEnabled ? 'border-success bg-success bg-opacity-10' : 'border-danger bg-danger bg-opacity-10' }}">
-                                    <div class="d-flex align-items-center justify-content-between mb-2">
-                                        <label class="fw-bold text-dark small text-uppercase mb-0">
-                                            <i class="fas fa-file-invoice me-1.5 {{ $isVoucherEnabled ? 'text-success' : 'text-danger' }}"></i>
-                                            Official Printable Vouchers
-                                        </label>
-                                        <span class="badge {{ $isVoucherEnabled ? 'bg-success text-white' : 'bg-danger text-white' }} fw-bold">
-                                            {{ $isVoucherEnabled ? 'Enabled (True)' : 'Disabled (False)' }}
-                                        </span>
-                                    </div>
-                                    <p class="text-muted small mb-3">
-                                        Controls whether official printable vouchers with security QR codes are visible and accessible to users.
-                                    </p>
-                                    <div class="d-flex gap-3">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="voucher_enabled" id="voucherEnabledTrue" value="true" {{ $isVoucherEnabled ? 'checked' : '' }}>
-                                            <label class="form-check-label small fw-semibold" for="voucherEnabledTrue">
-                                                <strong>Enabled (True)</strong> &mdash; Vouchers visible &amp; printable
-                                            </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="voucher_enabled" id="voucherEnabledFalse" value="false" {{ !$isVoucherEnabled ? 'checked' : '' }}>
-                                            <label class="form-check-label small fw-semibold" for="voucherEnabledFalse">
-                                                <strong>Disabled (False)</strong> &mdash; Hide voucher links &amp; buttons
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Policy 3: Force Password Change on First Login -->
-                                @php
-                                    $isForcePasswordChange = kaldis_setting('force_first_login_password_change', 'true') === 'true';
-                                @endphp
-                                <div class="p-3.5 rounded-3 border {{ $isForcePasswordChange ? 'border-warning bg-warning bg-opacity-10' : 'border-secondary bg-light' }}">
-                                    <div class="d-flex align-items-center justify-content-between mb-2">
-                                        <label class="fw-bold text-dark small text-uppercase mb-0">
-                                            <i class="fas fa-key me-1.5 {{ $isForcePasswordChange ? 'text-warning' : 'text-secondary' }}"></i>
-                                            First Login Password Change
-                                        </label>
-                                        <span class="badge {{ $isForcePasswordChange ? 'bg-warning text-dark' : 'bg-secondary text-white' }} fw-bold">
-                                            {{ $isForcePasswordChange ? 'Enabled (True)' : 'Disabled (False)' }}
-                                        </span>
-                                    </div>
-                                    <p class="text-muted small mb-3">
-                                        Forces users logging in for the first time or with temporary default passwords (<code class="fw-bold">kaldis123</code>) to set a new personal password before accessing the system.
-                                    </p>
-                                    <div class="d-flex gap-3">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="force_first_login_password_change" id="forcePwdTrue" value="true" {{ $isForcePasswordChange ? 'checked' : '' }}>
-                                            <label class="form-check-label small fw-semibold" for="forcePwdTrue">
-                                                <strong>Enabled (True)</strong> &mdash; Mandatory password change
-                                            </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="force_first_login_password_change" id="forcePwdFalse" value="false" {{ !$isForcePasswordChange ? 'checked' : '' }}>
-                                            <label class="form-check-label small fw-semibold" for="forcePwdFalse">
-                                                <strong>Disabled (False)</strong> &mdash; Allow direct dashboard access
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Policy 4: Last Week Performance Mandatory on Weekly Plan Submission -->
+                                <!-- Policy 2: Prior Week Performance Requirement -->
                                 @php
                                     $isLastWeekPerfMandatory = kaldis_setting('last_week_performance_mandatory', 'true') === 'true';
                                 @endphp
-                                <div class="p-3.5 rounded-3 border {{ $isLastWeekPerfMandatory ? 'border-primary bg-primary bg-opacity-10' : 'border-secondary bg-light' }}">
-                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                <div class="p-3 rounded-3 border {{ $isLastWeekPerfMandatory ? 'border-primary bg-primary bg-opacity-10' : 'border-secondary bg-light' }}">
+                                    <div class="d-flex align-items-center justify-content-between mb-1.5">
                                         <label class="fw-bold text-dark small text-uppercase mb-0">
                                             <i class="fas fa-chart-line me-1.5 {{ $isLastWeekPerfMandatory ? 'text-primary' : 'text-secondary' }}"></i>
-                                            Last Week Performance Requirement
+                                            Prior Week Performance Check
                                         </label>
                                         <span class="badge {{ $isLastWeekPerfMandatory ? 'bg-primary text-white' : 'bg-secondary text-white' }} fw-bold">
                                             {{ $isLastWeekPerfMandatory ? 'Mandatory (True)' : 'Optional (False)' }}
                                         </span>
                                     </div>
-                                    <p class="text-muted small mb-3">
-                                        When enabled (Mandatory), department heads must evaluate and submit the prior week's performance report to GM before submitting their new weekly task plan.
+                                    <p class="text-muted small mb-2.5">
+                                        When enabled, evaluating the prior week's tasks is required before submitting the new weekly task plan.
                                     </p>
                                     <div class="d-flex gap-3">
                                         <div class="form-check">
                                             <input class="form-check-input" type="radio" name="last_week_performance_mandatory" id="lastWeekMandatoryTrue" value="true" {{ $isLastWeekPerfMandatory ? 'checked' : '' }}>
-                                            <label class="form-check-label small fw-semibold" for="lastWeekMandatoryTrue">
-                                                <strong>Mandatory (True)</strong> &mdash; Prior performance required
-                                            </label>
+                                            <label class="form-check-label small fw-semibold" for="lastWeekMandatoryTrue">Mandatory</label>
                                         </div>
                                         <div class="form-check">
                                             <input class="form-check-input" type="radio" name="last_week_performance_mandatory" id="lastWeekMandatoryFalse" value="false" {{ !$isLastWeekPerfMandatory ? 'checked' : '' }}>
-                                            <label class="form-check-label small fw-semibold" for="lastWeekMandatoryFalse">
-                                                <strong>Optional (False)</strong> &mdash; Allow direct plan submission
-                                            </label>
+                                            <label class="form-check-label small fw-semibold" for="lastWeekMandatoryFalse">Optional</label>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div class="mt-auto">
-                                    <button type="submit" class="btn btn-kaldis w-100 fw-bold py-2 shadow-sm">
-                                        <i class="fas fa-save me-1"></i> Save Policies
-                                    </button>
+                                <!-- Policy 3: Official Printable Vouchers -->
+                                @php
+                                    $isVoucherEnabled = kaldis_setting('voucher_enabled', 'true') === 'true';
+                                @endphp
+                                <div class="p-3 rounded-3 border {{ $isVoucherEnabled ? 'border-success bg-success bg-opacity-10' : 'border-secondary bg-light' }}">
+                                    <div class="d-flex align-items-center justify-content-between mb-1.5">
+                                        <label class="fw-bold text-dark small text-uppercase mb-0">
+                                            <i class="fas fa-file-invoice me-1.5 {{ $isVoucherEnabled ? 'text-success' : 'text-secondary' }}"></i>
+                                            Official Printable Vouchers
+                                        </label>
+                                        <span class="badge {{ $isVoucherEnabled ? 'bg-success text-white' : 'bg-secondary text-white' }} fw-bold">
+                                            {{ $isVoucherEnabled ? 'Enabled' : 'Disabled' }}
+                                        </span>
+                                    </div>
+                                    <p class="text-muted small mb-2.5">
+                                        Controls whether official printable vouchers with security QR verification codes are accessible to users.
+                                    </p>
+                                    <div class="d-flex gap-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="voucher_enabled" id="voucherEnabledTrue" value="true" {{ $isVoucherEnabled ? 'checked' : '' }}>
+                                            <label class="form-check-label small fw-semibold" for="voucherEnabledTrue">Enabled</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="voucher_enabled" id="voucherEnabledFalse" value="false" {{ !$isVoucherEnabled ? 'checked' : '' }}>
+                                            <label class="form-check-label small fw-semibold" for="voucherEnabledFalse">Disabled</label>
+                                        </div>
+                                    </div>
                                 </div>
+
+                                <!-- Policy 4: Force Password Change on First Login -->
+                                @php
+                                    $isForcePasswordChange = kaldis_setting('force_first_login_password_change', 'true') === 'true';
+                                @endphp
+                                <div class="p-3 rounded-3 border {{ $isForcePasswordChange ? 'border-warning bg-warning bg-opacity-10' : 'border-secondary bg-light' }}">
+                                    <div class="d-flex align-items-center justify-content-between mb-1.5">
+                                        <label class="fw-bold text-dark small text-uppercase mb-0">
+                                            <i class="fas fa-key me-1.5 {{ $isForcePasswordChange ? 'text-warning' : 'text-secondary' }}"></i>
+                                            First Login Password Change
+                                        </label>
+                                        <span class="badge {{ $isForcePasswordChange ? 'bg-warning text-dark' : 'bg-secondary text-white' }} fw-bold">
+                                            {{ $isForcePasswordChange ? 'Enabled' : 'Disabled' }}
+                                        </span>
+                                    </div>
+                                    <p class="text-muted small mb-2.5">
+                                        Forces users logging in for the first time or with temporary default passwords to choose a personal password.
+                                    </p>
+                                    <div class="d-flex gap-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="force_first_login_password_change" id="forcePwdTrue" value="true" {{ $isForcePasswordChange ? 'checked' : '' }}>
+                                            <label class="form-check-label small fw-semibold" for="forcePwdTrue">Enabled</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="force_first_login_password_change" id="forcePwdFalse" value="false" {{ !$isForcePasswordChange ? 'checked' : '' }}>
+                                            <label class="form-check-label small fw-semibold" for="forcePwdFalse">Disabled</label>
+                                        </div>
+                                    </div>
+                                </div>
+
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Column 2: Planning Cycles & Submission Deadlines -->
-                    <div class="col-lg-6">
-                        <div class="card h-100 border-0 shadow-sm" style="border-radius: 12px;">
-                            <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
-                                <h6 class="fw-bold text-dark mb-1">
-                                    <i class="fas fa-calendar-alt text-warning me-2"></i> Ethiopian Planning Cycles &amp; Deadlines
-                                </h6>
-                                <p class="text-muted small mb-0">Active corporate operating period and cutoff times.</p>
-                            </div>
-                            <div class="card-body p-4 d-flex flex-column gap-3">
-                                @php
-                                    $savedYear = $settings['current_planning_year']->setting_value ?? 'AUTO';
-                                    $savedMonth = $settings['current_planning_month']->setting_value ?? 'AUTO';
-                                    $ethPeriod = get_ethiopian_period();
-                                    $years = get_planning_years();
-                                    $months = get_ethiopian_months();
-                                @endphp
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label small fw-bold text-secondary">ACTIVE PLANNING YEAR</label>
-                                        <select name="current_planning_year" class="form-select">
-                                            <option value="AUTO" {{ ($savedYear === 'AUTO' || empty($savedYear)) ? 'selected' : '' }}>
-                                                Auto: Ethiopian Calendar ({{ $ethPeriod['year'] }})
-                                            </option>
-                                            @foreach($years as $y)
-                                                <option value="{{ $y }}" {{ ($savedYear === $y) ? 'selected' : '' }}>{{ $y }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label small fw-bold text-secondary">ACTIVE PLANNING MONTH</label>
-                                        <select name="current_planning_month" class="form-select">
-                                            <option value="AUTO" {{ ($savedMonth === 'AUTO' || empty($savedMonth)) ? 'selected' : '' }}>
-                                                Auto: Ethiopian Calendar ({{ $ethPeriod['month'] }})
-                                            </option>
-                                            @foreach($months as $m)
-                                                <option value="{{ $m }}" {{ ($savedMonth === $m) ? 'selected' : '' }}>
-                                                    {{ $m }}{{ $m === $ethPeriod['month'] ? ' (Active)' : '' }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <hr class="my-2 border-light-subtle">
-
-                                <!-- Monthly Plan Deadline -->
-                                <div>
-                                    <label class="form-label small fw-bold text-secondary text-uppercase">Monthly Plan Submission Deadline</label>
-                                    @php
-                                        $savedMonthlyDay = (int)($settings['monthly_plan_deadline_day']->setting_value ?? $settings['monthly_deadline_day']->setting_value ?? 26);
-                                        if ($savedMonthlyDay < 20 || $savedMonthlyDay > 30) { $savedMonthlyDay = 26; }
-                                    @endphp
-                                    <div class="row g-2">
-                                        <div class="col-6">
-                                            <select name="monthly_plan_deadline_day" class="form-select form-select-sm">
-                                                @for($d = 20; $d <= 30; $d++)
-                                                    <option value="{{ $d }}" {{ $savedMonthlyDay === $d ? 'selected' : '' }}>
-                                                        Day {{ $d }} of Month {{ $d === 26 ? '(Standard)' : '' }}
-                                                    </option>
-                                                @endfor
-                                            </select>
-                                        </div>
-                                        <div class="col-6">
-                                            <input type="time" name="monthly_plan_deadline_time" class="form-control form-control-sm" 
-                                                   value="{{ $settings['monthly_plan_deadline_time']->setting_value ?? '17:00' }}" required>
-                                        </div>
-                                    </div>
-                                    <div class="small text-muted mt-1">Default: Day 26 at 17:00 (11:00 Ethiopian Local Time).</div>
-                                </div>
-
-                                <!-- Weekly Report Deadline -->
-                                <div>
-                                    <label class="form-label small fw-bold text-secondary text-uppercase">Weekly Performance Report Deadline</label>
-                                    <div class="row g-2">
-                                        <div class="col-6">
-                                            <select name="weekly_deadline_day" class="form-select form-select-sm">
-                                                @foreach(['Sunday', 'Monday', 'Tuesday'] as $day)
-                                                    <option value="{{ $day }}" {{ ($settings['weekly_deadline_day']->setting_value ?? 'Monday') === $day ? 'selected' : '' }}>{{ $day }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div class="col-6">
-                                            <input type="time" name="weekly_deadline_time" class="form-control form-control-sm" 
-                                                   value="{{ $settings['weekly_deadline_time']->setting_value ?? '12:30' }}" required>
-                                        </div>
-                                    </div>
-                                    <div class="small text-muted mt-1">Default: Monday at 12:30 PM (6:30 Ethiopian Midday Local Time).</div>
-                                </div>
-
-                            </div>
+                <!-- Unified Save Button -->
+                <div class="card border-0 shadow-sm mt-4 p-3 bg-white" style="border-radius: 12px;">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+                        <div class="text-muted small">
+                            <i class="fas fa-info-circle text-primary me-1"></i>
+                            Changes take effect immediately across all planning cycles, vouchers, and compliance reports.
                         </div>
+                        <button type="submit" class="btn btn-kaldis px-4 py-2 fw-bold shadow-sm">
+                            <i class="fas fa-save me-1.5"></i> Save Settings &amp; Deadlines
+                        </button>
                     </div>
                 </div>
 
@@ -427,7 +454,7 @@
                                         </label>
                                         <input type="time" name="weekly_reminder_monday_time" class="form-control form-control-sm" 
                                                value="{{ kaldis_setting('weekly_reminder_monday_time', '08:30') }}">
-                                        <div class="small text-muted mt-0.5">Final urgent alert dispatched 4 hours prior to the 12:30 PM (6:30 LT) audit cutoff.</div>
+                                        <div class="small text-muted mt-0.5">Final urgent alert dispatched prior to the 12:30 PM (6:30 LT) audit cutoff.</div>
                                     </div>
                                 </div>
 
@@ -526,8 +553,30 @@
 
 </div>
 
-<!-- ── Tab Navigation Script ── -->
+<!-- ── Tab Navigation & Live Ethiopian Time Script ── -->
 <script>
+    function updateTimeBadge(inputId, badgeId) {
+        const val = document.getElementById(inputId)?.value;
+        if (!val) return;
+        const [hStr, mStr] = val.split(':');
+        const h = parseInt(hStr, 10);
+        const m = parseInt(mStr, 10);
+        let ethHour = (h >= 6) ? (h - 6) : (h + 6);
+        if (ethHour === 0) ethHour = 12;
+        const padM = String(m).padStart(2, '0');
+        
+        // 12-hour Western format
+        const period = (h >= 12) ? 'PM' : 'AM';
+        let westHour = h % 12;
+        if (westHour === 0) westHour = 12;
+        const westStr = `${westHour}:${padM} ${period}`;
+        
+        const badge = document.getElementById(badgeId);
+        if (badge) {
+            badge.textContent = `${ethHour}:${padM} LT (${westStr})`;
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         const hash = (window.location.hash || '').replace('#', '');
         if (hash === 'reminders') {

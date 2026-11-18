@@ -129,6 +129,21 @@
             Submitted by {{ $submission->submitter->full_name ?? 'Department Head' }} on {{ $submission->submitted_at ? format_ethiopian_datetime($submission->submitted_at) : '' }}
         </div>
     </div>
+@elseif(!empty($cycleDeadline['eth_full_str']))
+    <div class="alert alert-light border shadow-xs d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-4 py-2 px-3">
+        <div class="small text-muted">
+            <i class="far fa-clock text-warning me-1"></i>
+            Cycle Deadline: <strong class="text-dark">{{ $cycleDeadline['eth_full_str'] }}</strong>
+            @if(!empty($cycleDeadline['is_late']))
+                <span class="badge bg-warning-subtle text-warning-emphasis ms-2 border border-warning-subtle">Cutoff Passed (Late)</span>
+            @else
+                <span class="badge bg-success-subtle text-success ms-2 border border-success-subtle">Open (On-Time)</span>
+            @endif
+        </div>
+        <div class="small text-muted">
+            Submitted together with Week {{ min(5, (int)$selectedWeek + 1) }} Plan
+        </div>
+    </div>
 @endif
 
 @if(!empty($submission->gm_feedback))

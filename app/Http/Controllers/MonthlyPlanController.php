@@ -121,7 +121,7 @@ class MonthlyPlanController extends Controller
         $totalPlans = $plans->count();
 
         // Check Monthly Plan Submission Deadline (Governance Rule: Due Day 26 of PRECEDING Ethiopian month)
-        $deadlineInfo = get_monthly_plan_deadline_info($validated['month'], $validated['year']);
+        $deadlineInfo = get_monthly_plan_deadline_info($validated['month'], $validated['year'], now());
         $status = $deadlineInfo['status'];
         $deadlineAt = $deadlineInfo['deadline_carbon'];
 

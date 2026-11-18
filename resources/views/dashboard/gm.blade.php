@@ -198,11 +198,8 @@
                                         $mStatus = $mSub->status === 'SUBMITTED' ? 'ON_TIME' : $mSub->status;
                                         $mSubmissionTime = $mSub->updated_at ?? null;
                                     } elseif ($deptPlans->count() > 0) {
-                                        $deadlineInfo = function_exists('get_monthly_plan_deadline_info')
-                                            ? get_monthly_plan_deadline_info($selectedMonth, $selectedYear)
-                                            : ['status' => 'ON_TIME'];
-                                        $mStatus = $deadlineInfo['status'] ?? 'ON_TIME';
-                                        $mSubmissionTime = $deptPlans->first()->created_at ?? null;
+                                        $mStatus = 'DRAFT';
+                                        $mSubmissionTime = null;
                                     }
 
                                     $mApproval = $mSub->approval_status ?? 'PENDING';
@@ -230,6 +227,8 @@
                                             @if($mSubmissionTime)
                                                 <small class="d-block text-muted" style="font-size: 0.7rem;">{{ $mSubmissionTime->format('M d, H:i') }}</small>
                                             @endif
+                                        @elseif($mStatus === 'DRAFT')
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Draft (Not Submitted)</span>
                                         @else
                                             <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Not Submitted</span>
                                         @endif
@@ -335,7 +334,7 @@
                                         $status = $wPlan->submission_status ?: 'ON_TIME';
                                         $submissionTime = $wPlan->submitted_at ?? $wPlan->updated_at;
                                     } elseif ($dp['total'] > 0) {
-                                        $status = 'ON_TIME';
+                                        $status = 'DRAFT';
                                     }
 
                                     $approval = $wRep->approval_status ?? ($wSub->approval_status ?? 'PENDING');
@@ -363,6 +362,8 @@
                                             @if($submissionTime)
                                                 <small class="d-block text-muted" style="font-size: 0.7rem;">{{ $submissionTime->format('M d, H:i') }}</small>
                                             @endif
+                                        @elseif($status === 'DRAFT')
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Draft</span>
                                         @else
                                             <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Not Submitted</span>
                                         @endif

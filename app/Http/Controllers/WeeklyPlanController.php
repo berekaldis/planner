@@ -86,6 +86,9 @@ class WeeklyPlanController extends Controller
         }
 
         $lastWeekPerf = get_last_week_performance_data($deptId, $selectedYear, $selectedMonth, $selectedWeek);
+        $cycleDeadline = function_exists('get_weekly_cycle_deadline')
+            ? get_weekly_cycle_deadline($selectedYear, $selectedMonth, max(1, $selectedWeek - 1))
+            : null;
 
         return view('weekly.plans', compact(
             'department',
@@ -97,7 +100,8 @@ class WeeklyPlanController extends Controller
             'selectedMonth',
             'selectedWeek',
             'submission',
-            'lastWeekPerf'
+            'lastWeekPerf',
+            'cycleDeadline'
         ));
     }
 
@@ -249,14 +253,15 @@ class WeeklyPlanController extends Controller
             ->first();
 
         // Calculate deadline compliance for weekly plan
+        $submittedNow = now();
         $deadlineInfo = function_exists('get_weekly_cycle_deadline')
-            ? get_weekly_cycle_deadline($validated['year'], $validated['month'], max(1, (int)$validated['week_number'] - 1))
+            ? get_weekly_cycle_deadline($validated['year'], $validated['month'], max(1, (int)$validated['week_number'] - 1), $submittedNow)
             : ['compliance' => 'ON_TIME', 'deadline_carbon' => null];
         $compliance = $deadlineInfo['compliance'] ?? 'ON_TIME';
 
         $planPayload = [
             'status' => 'SUBMITTED',
-            'submitted_at' => now(),
+            'submitted_at' => $submittedNow,
             'submission_status' => $compliance,
             'created_by' => $user->id,
         ];
@@ -334,7 +339,7 @@ class WeeklyPlanController extends Controller
             $pRate = (float)($lastWeekPerf['completion_rate'] ?? 0);
 
             $pDeadlineInfo = function_exists('get_weekly_cycle_deadline')
-                ? get_weekly_cycle_deadline($pYear, $pMonth, $pWeek)
+                ? get_weekly_cycle_deadline($pYear, $pMonth, $pWeek, $submittedNow)
                 : ['compliance' => 'ON_TIME', 'deadline_carbon' => null];
             $pCompliance = $pDeadlineInfo['compliance'] ?? 'ON_TIME';
 
