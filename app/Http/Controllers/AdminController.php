@@ -310,6 +310,9 @@ class AdminController extends Controller
 
         if (!empty($validated['annual_goal_ids'])) {
             $dept->annualGoals()->sync($validated['annual_goal_ids']);
+            AnnualGoal::whereIn('id', $validated['annual_goal_ids'])
+                ->whereNull('responsible_department_id')
+                ->update(['responsible_department_id' => $dept->id]);
         }
 
         AuditLog::log('CREATE_DEPARTMENT', 'department', "Created department {$dept->department_name} ({$dept->department_code})", null, null, $dept->toArray());
@@ -349,7 +352,13 @@ class AdminController extends Controller
         ]);
 
         if ($request->has('annual_goal_ids')) {
-            $dept->annualGoals()->sync($validated['annual_goal_ids'] ?? []);
+            $goalIds = $validated['annual_goal_ids'] ?? [];
+            $dept->annualGoals()->sync($goalIds);
+            if (!empty($goalIds)) {
+                AnnualGoal::whereIn('id', $goalIds)
+                    ->whereNull('responsible_department_id')
+                    ->update(['responsible_department_id' => $dept->id]);
+            }
         }
 
         AuditLog::log('UPDATE_DEPARTMENT', 'department', "Updated department {$dept->department_name} ({$dept->department_code})", null, null, $dept->toArray());

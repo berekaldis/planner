@@ -203,7 +203,11 @@
                 <tbody>
                     @forelse($departments as $dept)
                         @php
-                            $goalIds = $dept->annualGoals->pluck('id')->toArray();
+                            $deptGoals = $dept->annualGoals;
+                            if ($deptGoals->isEmpty()) {
+                                $deptGoals = \App\Models\AnnualGoal::where('responsible_department_id', $dept->id)->get();
+                            }
+                            $goalIds = $deptGoals->pluck('id')->toArray();
                             $hasHead = !empty($dept->head_user_id);
                         @endphp
                         <tr data-status="{{ $dept->active ? 'active' : 'inactive' }}" data-has-head="{{ $hasHead ? 'yes' : 'no' }}">
@@ -239,15 +243,15 @@
                                 @endif
                             </td>
                             <td>
-                                @if($dept->annualGoals->isNotEmpty())
+                                @if($deptGoals->isNotEmpty())
                                     <div class="d-flex flex-wrap gap-1">
-                                        @foreach($dept->annualGoals->take(4) as $goal)
-                                            <span class="badge bg-light text-secondary border font-monospace" style="font-size: 0.7rem;" title="{{ $goal->goal_description }}">
+                                        @foreach($deptGoals->take(4) as $goal)
+                                            <span class="badge bg-light text-secondary border font-monospace" style="font-size: 0.7rem;" title="{{ $goal->title }}">
                                                 {{ $goal->goal_code }}
                                             </span>
                                         @endforeach
-                                        @if($dept->annualGoals->count() > 4)
-                                            <span class="badge bg-light text-muted border font-monospace" style="font-size: 0.7rem;">+{{ $dept->annualGoals->count() - 4 }} more</span>
+                                        @if($deptGoals->count() > 4)
+                                            <span class="badge bg-light text-muted border font-monospace" style="font-size: 0.7rem;">+{{ $deptGoals->count() - 4 }} more</span>
                                         @endif
                                     </div>
                                 @else
@@ -377,7 +381,7 @@
                         <select name="annual_goal_ids[]" class="form-select" multiple placeholder="Select strategic goals owned by this department...">
                             @foreach($annualGoals as $g)
                                 <option value="{{ $g->id }}">
-                                    [{{ $g->goal_code }}] {{ Str::limit($g->goal_description, 80) }}
+                                    [{{ $g->goal_code }}] {{ Str::limit($g->title, 80) }}
                                 </option>
                             @endforeach
                         </select>
@@ -454,7 +458,7 @@
                         <select name="annual_goal_ids[]" id="editDeptGoals" class="form-select" multiple placeholder="Select strategic goals owned by this department...">
                             @foreach($annualGoals as $g)
                                 <option value="{{ $g->id }}">
-                                    [{{ $g->goal_code }}] {{ Str::limit($g->goal_description, 80) }}
+                                    [{{ $g->goal_code }}] {{ Str::limit($g->title, 80) }}
                                 </option>
                             @endforeach
                         </select>

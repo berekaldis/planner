@@ -161,9 +161,18 @@ class StrategyController extends Controller
         $ownerDepts = $goal->departments;
         $records = [];
         if ($ownerDepts->isEmpty()) {
+            $deptId = $goal->responsible_department_id ?: null;
+            if ($deptId) {
+                \Illuminate\Support\Facades\DB::table('annual_goal_departments')->insertOrIgnore([
+                    'annual_goal_id' => $goal->id,
+                    'department_id' => $deptId,
+                    'is_primary' => 1,
+                    'created_at' => $now,
+                ]);
+            }
             $records[] = [
                 'annual_goal_id' => $goal->id,
-                'department_id' => $goal->responsible_department_id ?: null,
+                'department_id' => $deptId,
                 'year' => $validated['year'],
                 'month' => $validated['month'],
                 'active' => $newStatus,
@@ -274,9 +283,18 @@ class StrategyController extends Controller
             $goalIds[] = $goal->id;
             $depts = $goal->departments;
             if ($depts->isEmpty()) {
+                $deptId = $goal->responsible_department_id ?: null;
+                if ($deptId) {
+                    \Illuminate\Support\Facades\DB::table('annual_goal_departments')->insertOrIgnore([
+                        'annual_goal_id' => $goal->id,
+                        'department_id' => $deptId,
+                        'is_primary' => 1,
+                        'created_at' => $now,
+                    ]);
+                }
                 $records[] = [
                     'annual_goal_id' => $goal->id,
-                    'department_id' => $goal->responsible_department_id ?: null,
+                    'department_id' => $deptId,
                     'year' => $year,
                     'month' => $month,
                     'active' => $newStatus,
