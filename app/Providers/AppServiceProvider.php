@@ -309,8 +309,9 @@ class AppServiceProvider extends ServiceProvider
 
             // Auto-heal schema: widen plan targets, definitions of done, and descriptions to TEXT
             // Prevents SQLSTATE[22001] "Data too long for column 'monthly_target'" and similar truncation errors
-            if (!Cache::has('schema_plan_text_columns_v1')) {
+            if (!Cache::has('schema_plan_text_columns_v2')) {
                 if (Schema::hasTable('monthly_plans')) {
+                    try { DB::statement("ALTER TABLE `monthly_plans` MODIFY COLUMN `title` TEXT NULL"); } catch (\Throwable $e) {}
                     try { DB::statement("ALTER TABLE `monthly_plans` MODIFY COLUMN `monthly_target` TEXT NULL"); } catch (\Throwable $e) {}
                     try { DB::statement("ALTER TABLE `monthly_plans` MODIFY COLUMN `definition_of_done` TEXT NULL"); } catch (\Throwable $e) {}
                     try { DB::statement("ALTER TABLE `monthly_plans` MODIFY COLUMN `description` TEXT NULL"); } catch (\Throwable $e) {}
@@ -319,6 +320,7 @@ class AppServiceProvider extends ServiceProvider
                     try { DB::statement("ALTER TABLE `monthly_plans` MODIFY COLUMN `decline_reason` TEXT NULL"); } catch (\Throwable $e) {}
                 }
                 if (Schema::hasTable('weekly_tasks')) {
+                    try { DB::statement("ALTER TABLE `weekly_tasks` MODIFY COLUMN `task_title` TEXT NULL"); } catch (\Throwable $e) {}
                     try { DB::statement("ALTER TABLE `weekly_tasks` MODIFY COLUMN `expected_result` TEXT NULL"); } catch (\Throwable $e) {}
                     try { DB::statement("ALTER TABLE `weekly_tasks` MODIFY COLUMN `task_description` TEXT NULL"); } catch (\Throwable $e) {}
                     try { DB::statement("ALTER TABLE `weekly_tasks` MODIFY COLUMN `notes` TEXT NULL"); } catch (\Throwable $e) {}
@@ -341,11 +343,11 @@ class AppServiceProvider extends ServiceProvider
                 if (Schema::hasTable('weekly_challenges')) {
                     try { DB::statement("ALTER TABLE `weekly_challenges` MODIFY COLUMN `challenge_text` TEXT NULL"); } catch (\Throwable $e) {}
                 }
-                Cache::forever('schema_plan_text_columns_v1', true);
+                Cache::forever('schema_plan_text_columns_v2', true);
             }
 
             // Auto-heal schema & department goal assignments for BI, F&B, and DGM
-            if (!Cache::has('auto_heal_bi_fb_dgm_goals_v2')) {
+            if (!Cache::has('auto_heal_bi_fb_dgm_goals_v3')) {
                 if (Schema::hasTable('monthly_strategy_activations')) {
                     try {
                         DB::statement("ALTER TABLE `monthly_strategy_activations` MODIFY COLUMN `department_id` INT NULL");
@@ -459,7 +461,7 @@ class AppServiceProvider extends ServiceProvider
                         }
                     }
                 }
-                Cache::forever('auto_heal_bi_fb_dgm_goals_v2', true);
+                Cache::forever('auto_heal_bi_fb_dgm_goals_v3', true);
             }
         } catch (\Throwable $e) {
             // Graceful fallback if database connection or migration is not yet initialized
