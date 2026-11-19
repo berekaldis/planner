@@ -90,6 +90,21 @@ Schedule::command('kaldis:deadline-check --target=gm')
     ->when(fn() => kaldis_setting('enable_weekly_reminders', 'true') === 'true')
     ->description('Weekly Deadline Compliance Check & GM Executive Telegram Notification');
 
+// 5.5 Daily Task Execution & Progress Reminder to Department Heads (Tuesday to Sunday)
+Schedule::command('kaldis:weekly-progress-reminder')
+    ->dailyAt((string)kaldis_setting('weekly_progress_reminder_time', '15:00'))
+    ->timezone('Africa/Addis_Ababa')
+    ->when(function () {
+        if (kaldis_setting('enable_weekly_progress_reminder', 'true') !== 'true') {
+            return false;
+        }
+        $progressDaysRaw = kaldis_setting('weekly_progress_reminder_days', 'Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday');
+        $progressDays = array_map('strtolower', array_map('trim', explode(',', (string)$progressDaysRaw)));
+        $dayName = strtolower(now('Africa/Addis_Ababa')->format('l'));
+        return in_array($dayName, $progressDays, true);
+    })
+    ->description('Daily Task Execution & Progress Reminder to Department Heads (Tuesday to Sunday)');
+
 
 // --- MONTHLY SCHEDULE ENTRIES ---
 

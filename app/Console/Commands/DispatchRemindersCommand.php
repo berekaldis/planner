@@ -157,6 +157,45 @@ class DispatchRemindersCommand extends Command
         }
 
         // ══════════════════════════════════════════════════════════════
+        // 1.5 DEPARTMENT HEAD WEEKLY EXECUTION & PROGRESS REMINDERS (Tuesday - Sunday)
+        // ══════════════════════════════════════════════════════════════
+        if (kaldis_setting('enable_weekly_progress_reminder', 'true') === 'true' || $force) {
+            $progressDaysRaw = kaldis_setting('weekly_progress_reminder_days', 'Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday');
+            $progressDays = array_map('strtolower', array_map('trim', explode(',', (string)$progressDaysRaw)));
+
+            $dayNameMap = [
+                0 => 'sunday',
+                1 => 'monday',
+                2 => 'tuesday',
+                3 => 'wednesday',
+                4 => 'thursday',
+                5 => 'friday',
+                6 => 'saturday',
+            ];
+            $currentDayName = $dayNameMap[$currentDayOfWeek] ?? 'unknown';
+            $progressTime = (string)kaldis_setting('weekly_progress_reminder_time', '15:00');
+
+            $isDueDay = in_array($currentDayName, $progressDays, true);
+            $isDueTime = ($currentTime >= $progressTime);
+
+            if ($force || ($isDueDay && $isDueTime)) {
+                $cacheKey = "weekly_progress_rem_{$year}_{$month}_{$week}_{$currentDayName}";
+                if ($force || !$this->hasExecutedToday($cacheKey, 'WEEKLY_PROGRESS_REMINDER', $currentDayName, $week)) {
+                    $this->info("-> Dispatching Department Head Task Execution & Progress Reminder ({$currentDayName})");
+                    if (!$dryRun) {
+                        Artisan::call('kaldis:weekly-progress-reminder', [
+                            '--year' => $year,
+                            '--month' => $month,
+                            '--week' => $week,
+                        ]);
+                        $this->markExecuted($cacheKey, 7);
+                    }
+                    $dispatched[] = "weekly_progress_{$currentDayName}";
+                }
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════
         // 2. MONTHLY STRATEGIC & OPERATIONAL PLAN REMINDERS
         // ══════════════════════════════════════════════════════════════
         if (kaldis_setting('enable_monthly_reminders', 'true') === 'true' || $force) {

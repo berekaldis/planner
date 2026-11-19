@@ -458,13 +458,113 @@
                                     </div>
                                 </div>
 
-                                <div class="mt-auto">
-                                    <button type="submit" class="btn btn-kaldis w-100 fw-bold py-2 shadow-sm">
-                                        <i class="fas fa-save me-1"></i> Save Reminder Schedule
-                                    </button>
+                                <div class="alert alert-light border small text-muted mb-0 mt-auto">
+                                    <i class="fas fa-info-circle text-primary me-1"></i> Dispatched to Department Heads with pending submissions.
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Department Head Weekly Task Execution & Progress Reminders Card -->
+                    @php
+                        $weeklyProgressActive = kaldis_setting('enable_weekly_progress_reminder', 'true') === 'true';
+                        $savedProgressTime = kaldis_setting('weekly_progress_reminder_time', '15:00');
+                        $savedProgressDaysRaw = kaldis_setting('weekly_progress_reminder_days', 'Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday');
+                        $savedProgressDays = array_map('strtolower', array_map('trim', explode(',', (string)$savedProgressDaysRaw)));
+                        $availableDays = ['Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+                    @endphp
+                    <div class="col-12">
+                        <div class="card border-0 shadow-sm" style="border-radius: 12px;">
+                            <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        <h6 class="fw-bold text-dark mb-0">
+                                            <i class="fas fa-list-check text-success me-2"></i> Department Head Weekly Task Execution &amp; Progress Reminders (Tuesday – Sunday)
+                                        </h6>
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle fw-semibold">
+                                            Active Work Week
+                                        </span>
+                                    </div>
+                                    <p class="text-muted small mb-0">
+                                        Automated daily reminders for Department Heads to work on their weekly deliverables and update completed tasks to <strong>DONE</strong> in the portal.
+                                    </p>
+                                </div>
+                                <div class="form-check form-switch m-0">
+                                    <input type="hidden" name="enable_weekly_progress_reminder" value="false">
+                                    <input class="form-check-input" type="checkbox" name="enable_weekly_progress_reminder" value="true" id="enableWeeklyProgressReminder" {{ $weeklyProgressActive ? 'checked' : '' }} style="width: 2.2rem; height: 1.2rem;">
+                                </div>
+                            </div>
+                            <div class="card-body p-4">
+                                <div class="row g-4">
+                                    <!-- Schedule Days Selection -->
+                                    <div class="col-lg-7">
+                                        <label class="form-label small fw-bold text-secondary text-uppercase mb-2">
+                                            <i class="far fa-calendar-days text-primary me-1"></i> Active Reminder Days (Tuesday to Sunday)
+                                        </label>
+                                        <p class="text-muted small mb-3">
+                                            Select which days of the week Department Heads receive this reminder. Monday is reserved for final weekly submission cutoffs.
+                                        </p>
+                                        <div class="d-flex flex-wrap gap-2">
+                                            @foreach($availableDays as $dName)
+                                                @php
+                                                    $isDayChecked = in_array(strtolower($dName), $savedProgressDays, true);
+                                                @endphp
+                                                <div class="form-check form-check-inline p-2 px-3 border rounded-3 bg-light m-0">
+                                                    <input class="form-check-input" type="checkbox" name="weekly_progress_reminder_days[]" value="{{ $dName }}" id="day_{{ $dName }}" {{ $isDayChecked ? 'checked' : '' }}>
+                                                    <label class="form-check-label small fw-semibold text-dark" for="day_{{ $dName }}" style="cursor: pointer;">
+                                                        {{ $dName }}
+                                                    </label>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+
+                                    <!-- Reminder Time -->
+                                    <div class="col-lg-5">
+                                        <div class="p-3.5 bg-light rounded-3 border">
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <label class="form-label small fw-bold text-secondary text-uppercase mb-0">
+                                                    <i class="far fa-clock text-warning me-1"></i> Daily Reminder Time
+                                                </label>
+                                                <span class="badge bg-warning text-dark fw-bold" id="progressTimeBadge">
+                                                    {{ format_time_with_ethiopian_lt($savedProgressTime) }}
+                                                </span>
+                                            </div>
+                                            <input type="time" name="weekly_progress_reminder_time" id="progressTimeInput" class="form-control form-control-sm mb-2" 
+                                                   value="{{ $savedProgressTime }}" onchange="updateTimeBadge('progressTimeInput', 'progressTimeBadge')">
+                                            <div class="small text-muted">
+                                                Recommended: <strong>15:00 EAT (9:00 LT Afternoon)</strong> to prompt heads to record daily task completions before end of work day.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="alert alert-light border rounded-3 p-3 mt-4 mb-0 d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="fas fa-info-circle text-primary fs-5"></i>
+                                        <div class="small text-muted">
+                                            <strong>Governance Purpose:</strong> Reminds Department Heads to work on or finish their active weekly plan deliverables and update finished task statuses to <strong>DONE</strong> in <code>/weekly/performance</code>, eliminating last-minute delays.
+                                        </div>
+                                    </div>
+                                    <a href="{{ route('telegram.status') }}" class="btn btn-sm btn-outline-info fw-semibold">
+                                        <i class="fab fa-telegram me-1"></i> Bot Diagnostic Tester
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Unified Save Button for Tab 2 -->
+                <div class="card border-0 shadow-sm mt-4 p-3 bg-white" style="border-radius: 12px;">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+                        <div class="text-muted small">
+                            <i class="fas fa-info-circle text-primary me-1"></i>
+                            Telegram reminder schedules update instantly. Active reminders run via scheduled cron and background auto-dispatch.
+                        </div>
+                        <button type="submit" class="btn btn-kaldis px-4 py-2 fw-bold shadow-sm">
+                            <i class="fas fa-save me-1.5"></i> Save Reminder Schedules
+                        </button>
                     </div>
                 </div>
 

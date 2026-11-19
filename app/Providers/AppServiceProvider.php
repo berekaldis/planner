@@ -93,6 +93,22 @@ class AppServiceProvider extends ServiceProvider
                 Cache::forever('schema_weekly_deadline_time_1230_v1', true);
             }
 
+            // Auto-heal weekly execution & progress reminder defaults (Tuesday–Sunday)
+            if (!Cache::has('auto_heal_weekly_progress_reminder_defaults_v1')) {
+                if (Schema::hasTable('system_settings')) {
+                    if (!\App\Models\SystemSetting::where('setting_key', 'enable_weekly_progress_reminder')->exists()) {
+                        \App\Models\SystemSetting::set('enable_weekly_progress_reminder', 'true', 'TELEGRAM', 'Enable daily task execution and progress reminders for Department Heads');
+                    }
+                    if (!\App\Models\SystemSetting::where('setting_key', 'weekly_progress_reminder_time')->exists()) {
+                        \App\Models\SystemSetting::set('weekly_progress_reminder_time', '15:00', 'TELEGRAM', 'Daily time to dispatch task progress reminders (EAT / Western)');
+                    }
+                    if (!\App\Models\SystemSetting::where('setting_key', 'weekly_progress_reminder_days')->exists()) {
+                        \App\Models\SystemSetting::set('weekly_progress_reminder_days', 'Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday', 'TELEGRAM', 'Days of the week to dispatch task progress reminders');
+                    }
+                }
+                Cache::forever('auto_heal_weekly_progress_reminder_defaults_v1', true);
+            }
+
             // Auto-heal schema for quarterly_submissions and monthly_plans performance columns
             if (!Cache::has('schema_quarterly_submissions_v1')) {
                 if (!Schema::hasTable('quarterly_submissions')) {

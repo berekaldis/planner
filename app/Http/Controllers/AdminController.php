@@ -647,6 +647,9 @@ class AdminController extends Controller
 
         foreach ($inputs as $key => $val) {
             if ($key !== 'permissions') {
+                if (is_array($val)) {
+                    $val = implode(',', $val);
+                }
                 SystemSetting::set($key, (string)$val);
             }
         }

@@ -378,6 +378,11 @@ class TelegramController extends Controller
                     $output['weekly_reminder_monday'] = trim(\Illuminate\Support\Facades\Artisan::output());
                     break;
 
+                case 'weekly_progress_reminder':
+                    \Illuminate\Support\Facades\Artisan::call('kaldis:weekly-progress-reminder', ['--force' => true]);
+                    $output['weekly_progress_reminder'] = trim(\Illuminate\Support\Facades\Artisan::output());
+                    break;
+
                 case 'deadline_check':
                 case 'deadline_check_heads':
                     \Illuminate\Support\Facades\Artisan::call('kaldis:deadline-check', ['--target' => 'heads', '--force' => true]);

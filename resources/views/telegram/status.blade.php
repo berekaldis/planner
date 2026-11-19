@@ -291,6 +291,7 @@
                             </span>
                         </div>
                         <ul class="list-unstyled small mb-2 text-secondary" style="line-height: 1.7;">
+                            <li>• <strong>Mid-Week Progress Reminders:</strong> {{ kaldis_setting('weekly_progress_reminder_days', 'Tue–Sun') }} at <code>{{ kaldis_setting('weekly_progress_reminder_time', '15:00') }}</code></li>
                             <li>• <strong>1st Weekend Reminder:</strong> Saturday at <code>{{ kaldis_setting('weekly_reminder_saturday_time', '10:00') }}</code></li>
                             <li>• <strong>2nd Advance Reminder:</strong> Sunday at <code>{{ kaldis_setting('weekly_reminder_sunday_time', '16:30') }}</code></li>
                             <li>• <strong>3rd Final Morning Reminder:</strong> Monday at <code>{{ kaldis_setting('weekly_reminder_monday_time', '08:30') }}</code></li>
@@ -298,6 +299,9 @@
                             <li>• <strong>Cutoff Delinquent Escalations:</strong> {{ kaldis_setting('weekly_deadline_day', 'Monday') }} at <code>12:35</code></li>
                         </ul>
                         <div class="d-flex flex-wrap gap-1.5 pt-2 border-top">
+                            <button type="button" class="btn btn-xs btn-outline-success py-0.5 px-2" onclick="executeAutomation('weekly_progress_reminder', this)">
+                                Test Progress Reminder (Tue–Sun)
+                            </button>
                             <button type="button" class="btn btn-xs btn-outline-primary py-0.5 px-2" onclick="executeAutomation('weekly_reminder_saturday', this)">
                                 Test Saturday Alert
                             </button>
